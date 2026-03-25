@@ -28,8 +28,3 @@ object Files:
     requireFile(fromFile)
     toFile.getParentFile.mkdirs()
     NFiles.copy(fromFile.toPath, toFile.toPath, StandardCopyOption.REPLACE_EXISTING)
-
-  @scala.annotation.tailrec
-  def file(directory: File, path: Path): File = path match
-    case Nil => directory
-    case x :: xs => file(File(directory, x), xs)

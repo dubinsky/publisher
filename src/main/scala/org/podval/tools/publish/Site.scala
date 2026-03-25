@@ -1,97 +1,133 @@
 package org.podval.tools.publish
 
+import org.slf4j.{Logger, LoggerFactory}
+import org.slf4j.event.Level
+import scala.collection.immutable.SortedMap
 import java.io.File
 
-// TODO Path as a class, not type alias; Path.Directory, Path.Page (with extension)
-// TODO Set[Page]
-// TODO: tags.html, sitemap.xml, robots.txt, feed.xml
-// TODO auto-generation with filesystem watch
-// TODO logging instead of println
-// TODO log ignored directories
-// TODO push into a bucket
-// TODO checks:
-// - links with http[s]://
-// - broken links
-// - inconsistent titles
 object Site:
-  private val configFileName: String = "publisher-config.yaml"
-  private val destinationDirectoryName = "__site"
-
   def main(args: Array[String]): Unit =
     val site: Site = Site(
-      rootDirectoryPath = "/home/dub/Podval/dub.podval.org"
+      sourceDirectoryPath = "/home/dub/Podval/dub.podval.org",
+      logLevel = Level.DEBUG
     )
-    site.report()
-    site.pages.foreach(println)
-    site.copyCopiedPages()
+    site.scan()
 
-final class Site(rootDirectoryPath: String):
-  private val rootDirectory: File =
-    val result: File = File(rootDirectoryPath).getAbsoluteFile
+final class Site(
+  sourceDirectoryPath: String,
+  logLevel: Level = Level.INFO
+):
+  private val log: Logger = LoggerFactory.getLogger(this.getClass)
 
-    Files.requireExists(result)
-    Files.requireDirectory(result)
+  Logging.configureLogBack(level = logLevel, useLogStash = false)
 
-    result
-
-  private val destinationDirectory: File =
-    val result: File = File(rootDirectory, Site.destinationDirectoryName)
-
-    if !result.exists then result.mkdirs()
+  private val sourceDirectory: File =
+    val result: File = File(sourceDirectoryPath).getAbsoluteFile
 
     Files.requireExists(result)
     Files.requireDirectory(result)
 
+    log.info(s"source directory: $result")
     result
 
   private val configFile: File =
-    val result: File = File(rootDirectory, Site.configFileName)
-
+    val result: File = File(sourceDirectory, Config.fileName)
     Files.requireExists(result)
     Files.requireFile(result)
-
+    log.info(s"configuration file: $result")
     result
 
-  val config: Config = Config.fromYaml(Files.read(configFile))
+  val config: Config =
+    val result: Config = Config.fromYaml(Files.read(configFile))
+    log.debug(s"configuration:\n"+Config.toYaml(result))
+    result
 
-  def report(): Unit =
-    println(s"root directory: $rootDirectory")
-    println(s"destination directory: $destinationDirectory")
-    println(s"configuration file: $configFile")
-    println(s"configuration")
-    println(s"---")
-    //    println(Config.toXml(config))
-    println(Config.toYaml(config))
-    println(s"---")
+  private val targetDirectory: File =
+    val result: File = File(sourceDirectory, config.targetDirectoryName)
+    result.mkdirs()
+    Files.requireExists(result)
+    Files.requireDirectory(result)
+    result
 
   private given CanEqual[File, File] = CanEqual.derived
 
-  private def excluded(file: File): Boolean =
-    config.exclude.contains(file.getName) ||
-      file == destinationDirectory ||
-      file == configFile
+  private def directoryPages(path: List[String], directory: File): List[Page] =
+    Files.requireExists(directory)
+    Files.requireDirectory(directory)
+    val (files: List[File], directories: List[File]) = Files
+      .list(directory)
+      .filterNot(config.exclude)
+      .partition(_.isFile)
 
-  lazy val pages: List[Page] = pages(
-    List.empty,
-    Files.list(rootDirectory).filterNot(excluded)
-  )
+    files.flatMap(filePage(path, _)) ++
+    directories.flatMap(directory => directoryPages(path :+ directory.getName, directory))
 
-  private def pages(path: Path, files: List[File]): List[Page] = files
-    .map(_.getName)
-    .map(path :+ _)
-    .flatMap(pages)
+  private def filePage(path: List[String], file: File): Option[Page] =
+    Files.requireExists(file)
+    Files.requireFile(file)
+    val (name: String, extension: Option[String]) = Files.nameAndExtension(file.getName)
+    val sourcePath: Path = Path(path :+ name, extension)
+    val pageKind: PageKind = PageKind.get(sourcePath, config)
 
-  private def pages(path: Path): List[Page] =
-    val file: File = Files.file(rootDirectory, path)
-    if !file.isFile
-    then pages(path, Files.list(file))
-    else List:
-      // TODO detect isIndex pages
-      val (name: String, extension: Option[String]) = Files.nameAndExtension(file.getName)
-      if extension.contains("md")
-      then MarkdownPage(path, fromFile = file)
-      else Page.Copied(path, fromFile = file)
+    val result: Either[String, Page] = for
+      targetPath: Path <- pageKind.targetPath(sourcePath)
+      page: Page = extension.flatMap(extension => Markup.all.find(_.isExtension(extension))) match
+        case None =>
+          Asset(
+            sourcePath,
+            targetPath,
+            pageKind
+          )
+        case Some(markup) =>
+          val (frontMatter: FrontMatter, content: String) = FrontMatter.read(sourcePath.file(sourceDirectory))
+          MarkupPage(
+            sourcePath,
+            targetPath,
+            pageKind,
+            frontMatter,
+            markup,
+            markup.read(content)
+          )
+      _ <- pageKind.validate(page)
+    yield page
 
-  def copyCopiedPages(): Unit = pages
-    .collect { case copied: Page.Copied => copied }
-    .foreach(copied => copied.copyTo(Files.file(destinationDirectory, copied.path)))
+    result match
+      case Right(page) =>
+        log.debug(page.toString)
+        Some(page)
+      case Left(error) =>
+        log.error(error)
+        None
+
+  private var markupPages: Map[Path, MarkupPage] = Map.empty
+
+  def scan(): Unit =
+    // Enumerate all pages
+    val pages: List[Page] = directoryPages(
+      path = List.empty,
+      directory = sourceDirectory
+    )
+
+    // Report conflicting pages
+    pages
+      .groupBy(_.targetPath)
+      .filter(_._2.length > 1)
+      .foreach((path: Path, pages: List[Page]) =>
+        log.error(s"Path $path is targeted by multiple pages: ${pages.map(_.sourcePath).mkString(",")}")
+      )
+
+    // Copy asset pages
+    pages
+      .collect { case page: Asset => page }
+      .foreach: (page: Page) =>
+        Files.copy(
+          fromFile = page.sourcePath.file(sourceDirectory),
+          toFile = page.targetPath.file(targetDirectory)
+        )
+        log.debug(s"Copied: ${page.sourcePath} to ${page.targetPath}")
+
+    // Collect markup pages
+//    markupPages = SortedMap(pages
+//      .collect { case page: MarkupPage => page }
+//      .map(page => page.path -> page)
+//    *)
