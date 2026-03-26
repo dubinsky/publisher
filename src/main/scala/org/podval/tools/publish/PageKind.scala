@@ -1,13 +1,13 @@
 package org.podval.tools.publish
 
 trait PageKind derives CanEqual:
-  def targetPath(sourcePath: Path): Either[String, Path]
-  def validate(page: Page): Either[String, Unit]
+  def targetPath(sourcePath: Path): Either[PageError, Path]
+  def validate(page: Page): Either[PageError, Unit]
 
 object PageKind:
   case object Plain extends PageKind:
-    override def targetPath(sourcePath: Path): Either[String, Path] = Right(sourcePath)
-    override def validate(page: Page): Either[String, Unit] = Right(())
+    override def targetPath(sourcePath: Path): Either[PageError, Path] = Right(sourcePath)
+    override def validate(page: Page): Either[PageError, Unit] = Right(())
 
   trait Special extends PageKind:
     def sourceDirectoryName: String

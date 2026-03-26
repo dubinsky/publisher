@@ -4,7 +4,7 @@ import java.io.File
 
 final class Path(
   val path: List[String],
-  val extension: Option[String]
+  val extension: Option[String] = None
 ):
   override def equals(obj: Any): Boolean = obj match
     case that: Path => this.path == that.path && this.extension == that.extension
@@ -36,6 +36,8 @@ final class Path(
     case Nil => directory
 
 object Path:
+  val root: Path = Path(List.empty)
+  
   import scala.math.Ordered.orderingToOrdered
   given Ordering[Path] = (left: Path, right: Path) => Ordering[List[String]].compare(left.path, right.path)
   

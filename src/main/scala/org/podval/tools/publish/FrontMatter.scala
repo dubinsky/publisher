@@ -1,65 +1,82 @@
 package org.podval.tools.publish
 
-import org.slf4j.{Logger, LoggerFactory}
 import zio.blocks.chunk.Chunk
 import zio.blocks.schema.yaml.{Yaml, YamlError, YamlReader, YamlWriter}
-import java.io.File
-import scala.annotation.tailrec
+import java.time.LocalDate
 
-final class FrontMatter(
-  keys: Map[String, Yaml],
-  val sourceLines: Int
-):
-  require(sourceLines != 1)
+sealed trait FrontMatter:
+  def isAbsent: Boolean
+  def get(key: String): Option[Yaml]
+  def write: String
 
-  def isNone: Boolean = sourceLines == 0
+  final def title: Option[String] = toString("title")
+  final def layout: Option[String] = toString("layout")
+  final def tags: List[String] = toStrings("tags")
+  final def categories: List[String] = toStrings("categories")
+  final def date: Option[LocalDate] = toDate("date")
 
-  def get(key: String): Option[Yaml] = keys.get(key)
+  final def toString(key: String): Option[String] = get(key) match
+    case Some(Yaml.Scalar(value, _)) => Some(value)
+    case _ => None
 
-  def write: String = if isNone then "" else
-    "---\n" ++
-    YamlWriter.write(Yaml.Mapping.fromStringKeys(keys.toList *)) ++
-    "\n---\n"
+  final def toStrings(key: String): List[String] = get(key) match
+    case Some(Yaml.Sequence(elements)) => elements
+      .collect { case Yaml.Scalar(value, _) => value }
+      .toList
+    case Some(Yaml.Scalar(value, _)) =>
+      List(value)
+    case _ =>
+      List.empty
+
+  final def toDate(key: String): Option[LocalDate] =
+    for
+      string: String <- toString(key)
+      result <- Util.parseDate(string) match
+        case Right(date) => Some(date)
+        case Left(error) =>
+          // TODO log s"Malformed date: $string"
+          None
+    yield result
+  
 
 object FrontMatter:
-  val none: FrontMatter = FrontMatter(keys = Map.empty, sourceLines = 0)
-  val empty: FrontMatter = FrontMatter(keys = Map.empty, sourceLines = 2)
+  object Absent extends FrontMatter:
+    override def isAbsent: Boolean = true
+    override def get(key: String): Option[Yaml] = None
+    override def write: String = ""
 
-  private val log: Logger = LoggerFactory.getLogger(this.getClass)
+  object Empty extends FrontMatter:
+    override def isAbsent: Boolean = false
+    override def get(key: String): Option[Yaml] = None
+    override def write: String = "---\n---\n"
+
+  private final class Regular(keys: Map[String, Yaml]) extends FrontMatter:
+    def isAbsent: Boolean = false
+    def get(key: String): Option[Yaml] = keys.get(key)
+    def write: String =
+      "---\n" ++
+      YamlWriter.write(Yaml.Mapping.fromStringKeys(keys.toList *)) ++
+      "\n---\n"
 
   def parse(input: String): (Either[YamlError, FrontMatter], String) =
     val frontMatterEnd: Int = if !input.startsWith("---\n") then -1 else input.indexOf("\n---\n", 3)
-    if frontMatterEnd == -1 then (Right(none), input) else
+    if frontMatterEnd == -1 then (Right(Absent), input) else
       val frontMatterInput: String = input.substring(3, frontMatterEnd)
       val frontMatterLines: Int = frontMatterInput.count(_ == '\n') + 2
-      val content: String = input.substring(frontMatterEnd + 5)
-      if frontMatterInput.isEmpty then (Right(empty), content) else
-        val result = for
+      val content: String =
+        "\n"*frontMatterLines +
+        input.substring(frontMatterEnd + 5)
+      if frontMatterInput.isEmpty then (Right(Empty), content) else
+        val result: Either[YamlError, Regular] = for
           yaml: Yaml <- YamlReader.read(frontMatterInput)
           mapping: List[(Yaml, Yaml)] <- yaml match
             case Yaml.Mapping(entries: Chunk[(Yaml, Yaml)]) => Right(entries.toList)
             case _ => Left(YamlError("FrontMatter must be a mapping", 1, 1))
-          stringMapping: Seq[(String, Yaml)] <- sequence(mapping)((keyYaml, value) => keyYaml match
+          stringMapping: Seq[(String, Yaml)] <- Util.sequence(mapping)((keyYaml, value) => keyYaml match
             case Yaml.Scalar(key, _) => Right((key, value))
             case _ => Left(YamlError(s"FrontMatter key must be a string: $keyYaml", 1, 1))
           )
-        yield FrontMatter(stringMapping.toMap, frontMatterLines)
+        yield Regular(stringMapping.toMap)
+
         (result, content)
-
-  def read(file: File): (FrontMatter, String) = FrontMatter
-    .parse(Files.read(file)) match
-    case (Right(result), content) => (result, content)
-    case (Left(yamlError), content) =>
-      log.error(s"FrontMatter error in $file", yamlError)
-      (FrontMatter.none, content)
-
-  private def sequence[A, E, B](as: List[A])(f: A => Either[E, B]): Either[E, List[B]] =
-    @tailrec
-    def loop(as: List[A], result: List[B]): Either[E, List[B]] = as match
-      case Nil => Right(result)
-      case a :: as => f(a) match
-        case Right(b) => loop(as, result :+ b)
-        case Left(e) => Left(e)
-
-    loop(as, List.empty)
 

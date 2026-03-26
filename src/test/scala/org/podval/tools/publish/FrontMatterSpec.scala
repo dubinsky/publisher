@@ -1,17 +1,12 @@
 package org.podval.tools.publish
 
-import zio.blocks.docs.ParseError
-import zio.blocks.schema.yaml.{Yaml, YamlError}
-import zio.{Scope, durationInt}
+import zio.blocks.schema.yaml.YamlError
+import zio.Scope
 import zio.test.*
+import java.time.LocalDate
 
 object FrontMatterSpec extends ZIOSpecDefault:
-  override def aspects: zio.Chunk[TestAspectAtLeastR[TestEnvironment]] =
-    if TestPlatform.isJVM then zio.Chunk(TestAspect.timeout(120.seconds), TestAspect.timed)
-    else zio.Chunk(TestAspect.timeout(120.seconds), TestAspect.timed, TestAspect.sequential, TestAspect.size(10))
-
-  private given CanEqual[ParseError, ParseError] = CanEqual.derived
-  private given CanEqual[FrontMatter, FrontMatter] = CanEqual.derived
+  private given CanEqual[LocalDate, LocalDate] = CanEqual.derived
 
   def roundTrip(input: String): TestResult =
     val (parsed: Either[YamlError, FrontMatter], _) = FrontMatter.parse(input)
@@ -40,9 +35,11 @@ object FrontMatterSpec extends ZIOSpecDefault:
           |---
           |# Hello
           |""".stripMargin,
-        (frontMatter, content) => assertTrue(
-          frontMatter.sourceLines == 2,
-          content == "# Hello\n"
+        (frontMatter, content) => assertTrue(content ==
+        """
+          |
+          |# Hello
+          |""".stripMargin,
         )
       )
     },
@@ -55,10 +52,25 @@ object FrontMatterSpec extends ZIOSpecDefault:
           |---
           |# Hello
           |""".stripMargin,
-        (frontMatter, content) => assertTrue(
-          frontMatter.sourceLines == 5,
-          content == "# Hello\n"
+        (frontMatter, content) => assertTrue(content ==
+        """
+          |
+          |
+          |
+          |
+          |# Hello
+          |""".stripMargin,
         )
+      )
+    },
+    test("FrontMatter must be a mapping") {
+      error(
+        """---
+          |[yaml, markdown, test]
+          |---
+          |# Hello
+          |""".stripMargin,
+        error => assertTrue(error.getMessage.contains("must be a mapping"))
       )
     },
     test("round-trip without FrontMatter") {
@@ -81,23 +93,17 @@ object FrontMatterSpec extends ZIOSpecDefault:
           |title: Hello
           |date: 2026-03-22
           |tags: [yaml, markdown, test]
+          |categories: important
           |---
           |# Hello
           |""".stripMargin,
-        (frontMatter, _) => assertTrue(frontMatter.get("title") match
-          case Some(Yaml.Scalar("Hello", _)) => true
-          case _ => false
+        (frontMatter, _) => assertTrue(
+          frontMatter.title == Some("Hello"),
+          frontMatter.layout == None,
+          frontMatter.tags == List("yaml", "markdown", "test"),
+          frontMatter.categories == List("important"),
+          frontMatter.date == Some(LocalDate.of(2026, 3, 22))
         )
-      )
-    },
-    test("FrontMatter must be a mapping") {
-      error(
-        """---
-          |[yaml, markdown, test]
-          |---
-          |# Hello
-          |""".stripMargin,
-        error => assertTrue(error.getMessage.contains("must be a mapping"))
       )
     }
   )

@@ -14,6 +14,6 @@ final class MarkupPage(
   targetPath.withExtension(Html.extension),
   kind
 ):
-  def hasFrontMatter: Boolean = !frontMatter.isNone
+  def hasFrontMatter: Boolean = !frontMatter.isAbsent
 
   override def toString: String = s"MarkupPage[$markup]($sourcePath, $targetPath)"

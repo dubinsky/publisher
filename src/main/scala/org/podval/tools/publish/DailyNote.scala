@@ -6,10 +6,11 @@ case object DailyNote extends PageKind.Special:
   override def is(sourcePath: Path, config: Config): Boolean =
     sourcePath.startsWith(config.dailyNotesDirectoryName)
 
-  // TODO parse the name: year-mont-day;
-  // put into the blog?
-  override def targetPath(sourcePath: Path): Either[String, Path] = Right(sourcePath)
-
+  // TODO put into the blog?
+  override def targetPath(sourcePath: Path): Either[PageError, Path] = 
+    Util.parseDate(sourcePath.path.last) match
+      case Right(date) => Right(sourcePath)
+      case Left(error) => Left(PageError(s"Daily note file name must be the date", sourcePath, Some(error)))
+  
   // TODO require(page.instanceOf[MarkdownPage])
-  override def validate(page: Page): Either[String, Unit] = Right(())
-
+  override def validate(page: Page): Either[PageError, Unit] = Right(())

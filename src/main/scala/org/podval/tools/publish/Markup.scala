@@ -15,7 +15,9 @@ abstract class Markup(
 
   type AST
 
-  def read(content: String): AST
+  def parse(sourcePath: Path, content: String): Either[PageError, AST]
+  
+  def resolveLinks(ast: AST, linkResolver: LinkResolver): Unit
 
 object Markup:
   val all: List[Markup] = List(

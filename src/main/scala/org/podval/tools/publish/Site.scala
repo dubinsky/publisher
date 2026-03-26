@@ -2,8 +2,9 @@ package org.podval.tools.publish
 
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
-import scala.collection.immutable.SortedMap
+//import scala.collection.immutable.SortedMap
 import java.io.File
+import Util.ifDefined
 
 object Site:
   def main(args: Array[String]): Unit =
@@ -11,7 +12,7 @@ object Site:
       sourceDirectoryPath = "/home/dub/Podval/dub.podval.org",
       logLevel = Level.DEBUG
     )
-    site.scan()
+    site.generate()
 
 final class Site(
   sourceDirectoryPath: String,
@@ -21,113 +22,113 @@ final class Site(
 
   Logging.configureLogBack(level = logLevel, useLogStash = false)
 
-  private val sourceDirectory: File =
-    val result: File = File(sourceDirectoryPath).getAbsoluteFile
-
-    Files.requireExists(result)
-    Files.requireDirectory(result)
-
-    log.info(s"source directory: $result")
-    result
-
-  private val configFile: File =
-    val result: File = File(sourceDirectory, Config.fileName)
-    Files.requireExists(result)
-    Files.requireFile(result)
-    log.info(s"configuration file: $result")
-    result
-
-  val config: Config =
-    val result: Config = Config.fromYaml(Files.read(configFile))
-    log.debug(s"configuration:\n"+Config.toYaml(result))
-    result
-
-  private val targetDirectory: File =
-    val result: File = File(sourceDirectory, config.targetDirectoryName)
-    result.mkdirs()
-    Files.requireExists(result)
-    Files.requireDirectory(result)
-    result
+  val config: Config = Config(sourceDirectoryPath)
 
   private given CanEqual[File, File] = CanEqual.derived
 
-  private def directoryPages(path: List[String], directory: File): List[Page] =
+  private def directoryPages(path: List[String], directory: File): Either[PageError, List[Page]] =
     Files.requireExists(directory)
     Files.requireDirectory(directory)
+
     val (files: List[File], directories: List[File]) = Files
       .list(directory)
       .filterNot(config.exclude)
       .partition(_.isFile)
 
-    files.flatMap(filePage(path, _)) ++
-    directories.flatMap(directory => directoryPages(path :+ directory.getName, directory))
+    for
+      fromFiles: List[Option[Page]] <-
+        Util.sequence(files)(filePage(path, _))
+      fromDirectories: List[List[Page]] <-
+        Util.sequence(directories)(directory => directoryPages(path :+ directory.getName, directory))
+    yield
+      fromFiles.flatten ++ fromDirectories.flatten
 
-  private def filePage(path: List[String], file: File): Option[Page] =
+  private def filePage(path: List[String], file: File): Either[PageError, Option[Page]] =
     Files.requireExists(file)
     Files.requireFile(file)
     val (name: String, extension: Option[String]) = Files.nameAndExtension(file.getName)
     val sourcePath: Path = Path(path :+ name, extension)
+    val markup: Option[Markup] = extension.flatMap(extension => Markup.all.find(_.isExtension(extension)))
     val pageKind: PageKind = PageKind.get(sourcePath, config)
 
-    val result: Either[String, Page] = for
-      targetPath: Path <- pageKind.targetPath(sourcePath)
-      page: Page = extension.flatMap(extension => Markup.all.find(_.isExtension(extension))) match
+    def makePage(targetPath: Path): Either[PageError, Option[Page]] =
+      markup match
         case None =>
-          Asset(
-            sourcePath,
-            targetPath,
-            pageKind
-          )
+          Right(Some(Asset(sourcePath, targetPath, pageKind)))
         case Some(markup) =>
-          val (frontMatter: FrontMatter, content: String) = FrontMatter.read(sourcePath.file(sourceDirectory))
-          MarkupPage(
-            sourcePath,
-            targetPath,
-            pageKind,
-            frontMatter,
-            markup,
-            markup.read(content)
-          )
-      _ <- pageKind.validate(page)
-    yield page
+          for
+            (frontMatterOrError: Either[PageError, FrontMatter], content: String) = FrontMatter
+              .parse(Files.read(sourcePath.file(config.sourceDirectory))) match
+              case (Right(frontMatter), content) =>
+                (Right(frontMatter), content)
+              case (Left(yamlError), content) =>
+                (Left(PageError("Malformed front matter", sourcePath, Some(yamlError))), content)
+            frontMatter: FrontMatter <- recover(frontMatterOrError)(FrontMatter.Absent)
+            result <- ifDefined(recoverNone(markup.parse(sourcePath, content))): ast =>
+              Right(Some(MarkupPage(sourcePath, targetPath, pageKind, frontMatter, markup, ast)))
+          yield
+            result
 
-    result match
-      case Right(page) =>
-        log.debug(page.toString)
-        Some(page)
-      case Left(error) =>
-        log.error(error)
-        None
+    ifDefined(recoverNone(pageKind.targetPath(sourcePath))): (targetPath: Path) =>
+      ifDefined(makePage(targetPath)): (page: Page) =>
+        ifDefined(recoverNone(pageKind.validate(page).map(_ => page))): (page: Page) =>
+          log.debug(page.toString)
+          Right(Some(page))
 
   private var markupPages: Map[Path, MarkupPage] = Map.empty
 
-  def scan(): Unit =
+  private def scan(): Either[PageError, Unit] = for
     // Enumerate all pages
-    val pages: List[Page] = directoryPages(
-      path = List.empty,
-      directory = sourceDirectory
-    )
+    pagesRaw: List[Page] <- directoryPages(List.empty, config.sourceDirectory)
 
     // Report conflicting pages
-    pages
-      .groupBy(_.targetPath)
-      .filter(_._2.length > 1)
-      .foreach((path: Path, pages: List[Page]) =>
-        log.error(s"Path $path is targeted by multiple pages: ${pages.map(_.sourcePath).mkString(",")}")
-      )
+    pages: List[Page] <- recover(deDup(pagesRaw))(pagesRaw)
 
-    // Copy asset pages
-    pages
-      .collect { case page: Asset => page }
-      .foreach: (page: Page) =>
-        Files.copy(
-          fromFile = page.sourcePath.file(sourceDirectory),
-          toFile = page.targetPath.file(targetDirectory)
-        )
-        log.debug(s"Copied: ${page.sourcePath} to ${page.targetPath}")
+    // Copy assets
+    _ = copyAssets(pages)
+  yield
+    ()
 
-    // Collect markup pages
+    // Collect markup pages - TODO all!
 //    markupPages = SortedMap(pages
 //      .collect { case page: MarkupPage => page }
 //      .map(page => page.path -> page)
 //    *)
+
+  def generate(): Unit =
+    val result: Either[PageError, Unit] =
+      for
+        _ <- scan()
+      yield ()
+
+    result.swap.toOption.foreach(error => log.error("Error generating site", error))
+
+  private def deDup(pages: List[Page]): Either[PageError, List[Page]] =
+    val duplicate: Map[Path, List[Page]] = pages.groupBy(_.targetPath).filter(_._2.length > 1)
+    if duplicate.isEmpty
+    then Right(pages)
+    else Left(PageError(duplicate.map((path: Path, pages: List[Page]) =>
+      s"Path $path is targeted by multiple pages: ${pages.map(_.sourcePath).mkString(",")}"
+    ).mkString("\n")))
+
+  private def copyAssets(pages: List[Page]): Unit = pages
+    .collect { case page: Asset => page }
+    .foreach: (page: Page) =>
+      Files.copy(
+        fromFile = page.sourcePath.file(config.sourceDirectory),
+        toFile = page.targetPath.file(config.targetDirectory)
+      )
+      log.debug(s"Copied: ${page.sourcePath} to ${page.targetPath}")
+
+  private def recover[A](z: => Either[PageError, A])(default: => A): Either[PageError, A] = z match
+    case Right(value) => Right(value)
+    case Left(error) => recover(error, default)
+
+  private def recoverNone[A](z: => Either[PageError, A]): Either[PageError, Option[A]] = z match
+    case Right(value) => Right(Some(value))
+    case Left(error) => recover(error, None)
+
+  private def recover[A](error: PageError, default: A): Either[PageError, A] =
+    if config.treatWarningsAsErrors then Left(error) else
+      log.warn(s"Ignoring error: ${error.toString}")
+      Right(default)

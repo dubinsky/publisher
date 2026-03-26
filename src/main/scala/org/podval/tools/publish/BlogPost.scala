@@ -6,11 +6,23 @@ case object BlogPost extends PageKind.Special:
   override def is(sourcePath: Path, config: Config): Boolean =
     sourcePath.startsWith(config.blogDirectoryName)
 
-  // TODO parse the name: year-month-day-title;
-  // construct the target path: year/month/day/title.html;
-  override def targetPath(sourcePath: Path): Either[String, Path] = Right(sourcePath)
+  override def targetPath(sourcePath: Path): Either[PageError, Path] =
+    val fileName: String = sourcePath.path.last
+    if fileName(10) != '-'
+    then Left(PageError(s"Malformed blog post name: $fileName", sourcePath))
+    else Util.parseDate(fileName.substring(0, 10)) match
+      case Left(error) => Left(PageError(s"Blog post file name must have the date", sourcePath, Some(error)))
+      case Right(date) => Right(Path(List(
+        f"${date.getYear}%04d",
+        f"${date.getMonthValue}%02d",
+        f"${date.getDayOfMonth}%02d",
+        fileName.substring(11)
+      )))
 
-  // TODO require(page.instanceOf[Page.Markup])
-  // require(page.hasFrontMatter)?
-  override def validate(page: Page): Either[String, Unit] = Right(())
+  // TODO require(page.hasFrontMatter)?
+  override def validate(page: Page): Either[PageError, Unit] = page match
+    case page: MarkupPage => Right(())
+    case _ => Left(PageError(s"Not markup", page.sourcePath))
+
+
 
