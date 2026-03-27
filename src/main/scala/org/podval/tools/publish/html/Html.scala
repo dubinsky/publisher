@@ -1,6 +1,6 @@
 package org.podval.tools.publish.html
 
-import org.podval.tools.publish.{LinkResolver, Markup, PageError, Path}
+import org.podval.tools.publish.{LinksResolver, Markup, PageError, Path}
 import zio.blocks.schema.xml.{Xml, XmlReader}
 
 object Html extends Markup(
@@ -14,4 +14,4 @@ object Html extends Markup(
       case Right(xml) => Right(xml)
       case Left(error) => Left(PageError("Malformed HTML content", sourcePath, Some(error)))
 
-  override def resolveLinks(xml: Xml, linkResolver: LinkResolver): Unit = ???
+  override def resolveLinks(xml: Xml, linkResolver: LinksResolver): Xml = xml // TODO

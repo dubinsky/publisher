@@ -18,14 +18,48 @@ final class Site(
   sourceDirectoryPath: String,
   logLevel: Level = Level.INFO
 ):
-  private val log: Logger = LoggerFactory.getLogger(this.getClass)
-
   Logging.configureLogBack(level = logLevel, useLogStash = false)
 
-  val config: Config = Config(sourceDirectoryPath)
+  private val log: Logger = LoggerFactory.getLogger(this.getClass)
+
+  private val config: Config = Config(sourceDirectoryPath)
+
+  private val warnings: Warnings = Warnings(treatWarningsAsErrors = true)
 
   private given CanEqual[File, File] = CanEqual.derived
 
+  def generate(): Unit =
+    val result: Either[PageError, Unit] =
+      for
+        // Enumerate all pages
+        pagesRaw: List[Page] <- directoryPages(List.empty, config.sourceDirectory)
+
+        // Report conflicting pages
+        pages: List[Page] <- warnings.recover(deDup(pagesRaw))(pagesRaw)
+        
+        links: Links = Links(pages)
+        _ = links.resolveLinks()
+        
+        // TODO Add backlinks
+
+        // Copy assets
+        _ = copyAssets(pages)
+
+        // TODO Render markup pages
+        
+        // TODO generate tags, maps etc.
+        
+        // TODO generate reports
+      yield ()
+
+    result.swap.toOption.foreach(error => log.error("Error generating site", error))
+  
+  // Collect markup pages - TODO all!
+  //    markupPages = SortedMap(pages
+  //      .collect { case page: MarkupPage => page }
+  //      .map(page => page.path -> page)
+  //    *)
+  
   private def directoryPages(path: List[String], directory: File): Either[PageError, List[Page]] =
     Files.requireExists(directory)
     Files.requireDirectory(directory)
@@ -51,57 +85,25 @@ final class Site(
     val markup: Option[Markup] = extension.flatMap(extension => Markup.all.find(_.isExtension(extension)))
     val pageKind: PageKind = PageKind.get(sourcePath, config)
 
-    def makePage(targetPath: Path): Either[PageError, Option[Page]] =
-      markup match
-        case None =>
-          Right(Some(Asset(sourcePath, targetPath, pageKind)))
-        case Some(markup) =>
-          for
-            (frontMatterOrError: Either[PageError, FrontMatter], content: String) = FrontMatter
-              .parse(Files.read(sourcePath.file(config.sourceDirectory))) match
-              case (Right(frontMatter), content) =>
-                (Right(frontMatter), content)
-              case (Left(yamlError), content) =>
-                (Left(PageError("Malformed front matter", sourcePath, Some(yamlError))), content)
-            frontMatter: FrontMatter <- recover(frontMatterOrError)(FrontMatter.Absent)
-            result <- ifDefined(recoverNone(markup.parse(sourcePath, content))): ast =>
-              Right(Some(MarkupPage(sourcePath, targetPath, pageKind, frontMatter, markup, ast)))
-          yield
-            result
-
-    ifDefined(recoverNone(pageKind.targetPath(sourcePath))): (targetPath: Path) =>
-      ifDefined(makePage(targetPath)): (page: Page) =>
-        ifDefined(recoverNone(pageKind.validate(page).map(_ => page))): (page: Page) =>
+    ifDefined(warnings.recoverNone(pageKind.targetPath(sourcePath))): (targetPath: Path) =>
+      ifDefined(markup match
+        case None => Right(Some(Asset(
+          sourcePath = sourcePath,
+          targetPath = targetPath, 
+          pageKind = pageKind
+        )))
+        case Some(markup) => MarkupPage(
+          markup = markup, 
+          sourceFile = sourcePath.file(config.sourceDirectory), 
+          sourcePath = sourcePath,
+          targetPath = targetPath,
+          pageKind = pageKind, 
+          warnings = warnings
+        )
+      ): (page: Page) =>
+        ifDefined(warnings.recoverNone(pageKind.validate(page).map(_ => page))): (page: Page) =>
           log.debug(page.toString)
           Right(Some(page))
-
-  private var markupPages: Map[Path, MarkupPage] = Map.empty
-
-  private def scan(): Either[PageError, Unit] = for
-    // Enumerate all pages
-    pagesRaw: List[Page] <- directoryPages(List.empty, config.sourceDirectory)
-
-    // Report conflicting pages
-    pages: List[Page] <- recover(deDup(pagesRaw))(pagesRaw)
-
-    // Copy assets
-    _ = copyAssets(pages)
-  yield
-    ()
-
-    // Collect markup pages - TODO all!
-//    markupPages = SortedMap(pages
-//      .collect { case page: MarkupPage => page }
-//      .map(page => page.path -> page)
-//    *)
-
-  def generate(): Unit =
-    val result: Either[PageError, Unit] =
-      for
-        _ <- scan()
-      yield ()
-
-    result.swap.toOption.foreach(error => log.error("Error generating site", error))
 
   private def deDup(pages: List[Page]): Either[PageError, List[Page]] =
     val duplicate: Map[Path, List[Page]] = pages.groupBy(_.targetPath).filter(_._2.length > 1)
@@ -119,16 +121,3 @@ final class Site(
         toFile = page.targetPath.file(config.targetDirectory)
       )
       log.debug(s"Copied: ${page.sourcePath} to ${page.targetPath}")
-
-  private def recover[A](z: => Either[PageError, A])(default: => A): Either[PageError, A] = z match
-    case Right(value) => Right(value)
-    case Left(error) => recover(error, default)
-
-  private def recoverNone[A](z: => Either[PageError, A]): Either[PageError, Option[A]] = z match
-    case Right(value) => Right(Some(value))
-    case Left(error) => recover(error, None)
-
-  private def recover[A](error: PageError, default: A): Either[PageError, A] =
-    if config.treatWarningsAsErrors then Left(error) else
-      log.warn(s"Ignoring error: ${error.toString}")
-      Right(default)

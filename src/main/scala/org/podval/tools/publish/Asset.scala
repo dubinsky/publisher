@@ -3,11 +3,11 @@ package org.podval.tools.publish
 final class Asset(
   sourcePath: Path,
   targetPath: Path,
-  kind: PageKind
-) extends Page(
+  pageKind: PageKind
+) extends Page.WithSource(
   sourcePath,
   targetPath,
-  kind: PageKind
+  pageKind
 ):
   override def toString: String = s"Asset($sourcePath, $targetPath)"
 

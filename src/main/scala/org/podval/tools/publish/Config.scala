@@ -7,7 +7,6 @@ import zio.blocks.schema.yaml.{YamlBinaryCodec, YamlBinaryCodecDeriver}
 import java.io.File
 
 final case class Config(
-  treatWarningsAsErrors: Boolean = true,
   targetDirectoryName: String = "_site",
   blogDirectoryName: String = BlogPost.sourceDirectoryName,
   dailyNotesDirectoryName: String = DailyNote.sourceDirectoryName,

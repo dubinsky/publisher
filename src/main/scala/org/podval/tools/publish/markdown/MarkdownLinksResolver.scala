@@ -1,20 +1,16 @@
 package org.podval.tools.publish.markdown
 
-import org.podval.tools.publish.{LinkResolver, MarkupPage}
+import org.podval.tools.publish.{Files, LinksResolver}
 import zio.blocks.chunk.Chunk
-import zio.blocks.docs.{Autolink, Block, BlockQuote, BulletList, Code, CodeBlock, Doc, Emphasis, HardBreak, Heading,
-  HtmlBlock, HtmlInline, Image, Inline, Link, ListItem, OrderedList, Paragraph, Renderer, SoftBreak, Strikethrough,
-  Strong, Table, TableRow, Text, ThematicBreak}
+import zio.blocks.docs.{Autolink, Block, BlockQuote, BulletList, Code, CodeBlock, Doc, Emphasis, Heading, HtmlBlock,
+  HtmlInline, Image, Inline, Link, ListItem, OrderedList, Paragraph, Renderer, Strikethrough, Strong, Table, TableRow,
+  Text, ThematicBreak}
 import scala.annotation.tailrec
 
-final class ResolveLinks(linkResolver: LinkResolver):
+final class MarkdownLinksResolver(linkResolver: LinksResolver):
   def resolveDoc(doc: Doc): Doc = Doc(metadata = doc.metadata, blocks = resolveBlocks(doc.blocks))
 
   private given CanEqual[ThematicBreak.type, Block] = CanEqual.derived
-  private given s: CanEqual[SoftBreak.type, Inline] = CanEqual.derived
-  private given h: CanEqual[HardBreak.type, Inline] = CanEqual.derived
-  private given si: CanEqual[Inline.SoftBreak.type, Inline] = CanEqual.derived
-  private given hi: CanEqual[Inline.HardBreak.type, Inline] = CanEqual.derived
 
   private def resolveBlocks(blocks: Chunk[Block]): Chunk[Block] = blocks.map(resolveBlock)
 
@@ -27,7 +23,7 @@ final class ResolveLinks(linkResolver: LinkResolver):
     case BulletList(items, tight) => BulletList(resolveListItems(items), tight)
     case OrderedList(start, items, tight) => OrderedList(start, resolveListItems(items), tight)
     case ListItem(content, checked) => resolveListItem(ListItem(content, checked))
-    case HtmlBlock(content) => ???
+    case HtmlBlock(content) => HtmlBlock(content)
     case Table(header, alignments, rows) => Table(resolveTableRow(header), alignments, rows.map(resolveTableRow))
 
   private def resolveListItems(items: Chunk[ListItem]): Chunk[ListItem] = items.map(resolveListItem)
@@ -35,60 +31,71 @@ final class ResolveLinks(linkResolver: LinkResolver):
   private def resolveTableRow(row: TableRow): TableRow = TableRow(row.cells.map(resolveInlines))
 
   private def resolveInlines(inlines: Chunk[Inline]): Chunk[Inline] =
-    splitIntoLines(inlines).flatMap: line =>
+    Markdown.splitIntoLines(inlines).flatMap: line =>
       val context: String = Renderer.renderInlines(line).trim // TODO render to HTML string?
       line.flatMap:
         case Text(value) => resolveText(value, context, Text.apply)
         case Inline.Text(value) => resolveText(value, context, Inline.Text.apply)
         case inline: Inline => Chunk:
           inline match
-            case Link(text, url, title) => Link(text, url, title) // TODO resolve URL
-            case Inline.Link(text, url, title) => Inline.Link(text, url, title)
-            case Image(alt, url, title) => Image(alt, url, title) // TODO resolve URL
+            case Link(text, url, title) => Link(text, resolveLink(url, context), title)
+            case Inline.Link(text, url, title) => Inline.Link(text, resolveLink(url, context), title)
+            case Image(alt, url, title) => Image(alt, url, title) // TODO resolve URL?
             case Inline.Image(alt, url, title) => Inline.Image(alt, url, title)
-            case Code(value) => Code(value)
-            case Inline.Code(value) => Inline.Code(value)
             case Emphasis(content) => Emphasis(resolveInlines(content))
             case Inline.Emphasis(content) => Inline.Emphasis(resolveInlines(content))
             case Strong(content) => Strong(resolveInlines(content))
             case Inline.Strong(content) => Inline.Strong(resolveInlines(content))
             case Strikethrough(content) => Strikethrough(resolveInlines(content))
             case Inline.Strikethrough(content) => Inline.Strikethrough(resolveInlines(content))
+            case Code(value) => Code(value)
+            case Inline.Code(value) => Inline.Code(value)
             case HtmlInline(content) => HtmlInline(content)
             case Inline.HtmlInline(content) => Inline.HtmlInline(content)
-            case SoftBreak => SoftBreak
-            case Inline.SoftBreak => Inline.SoftBreak
-            case HardBreak => HardBreak
-            case Inline.HardBreak => Inline.HardBreak
             case Autolink(url, isEmail) => Autolink(url, isEmail)
             case Inline.Autolink(url, isEmail) => Inline.Autolink(url, isEmail)
+            case inline if Markdown.isBreak(inline) => inline
             case _ => throw IllegalStateException("Can not happen!")
 
   private def resolveText(
-    value: String,
+    text: String,
     context: String,
     textMaker: String => Inline
   ): Chunk[Inline] =
-    println(s"Resolving: $value in $context")
-    // TODO resolve wiki links
-    Chunk(textMaker(value))
-
-  private def splitIntoLines(inlines: Chunk[Inline]): Chunk[Chunk[Inline]] =
     @tailrec
-    def loop(inlines: Chunk[Inline], result: Chunk[Chunk[Inline]]): Chunk[Chunk[Inline]] =
-      if inlines.isEmpty then result else
-        val (start: Chunk[Inline], rest: Chunk[Inline]) = inlines.splitWhere(isBreak)
-        val (line: Chunk[Inline], tail: Chunk[Inline]) =
-          if rest.isEmpty
-          then (start, rest)
-          else (start :+ rest.head, rest.tail)
-        loop(tail, result.appended(line))
+    def loop(text: String, result: Chunk[Inline]): Chunk[Inline] =
+      if text.isEmpty then result else
+        val start: Int = text.indexOf("[[")
+        val end: Int = if start == -1 then -1 else text.indexOf("]]", start+2)
+        if end == -1
+        then loop("", result :+ textMaker(text))
+        else
+          val before: String = text.substring(0, start)
+          val link: String = text.substring(start+2, end)
+          val after: String = text.substring(end+2)
+          Chunk(
+            if before.isEmpty then None else Some(textMaker(before)),
+            Some(resolveWikiLink(link, context, textMaker)),
+            if after.isEmpty then None else Some(textMaker(after))
+          ).flatten
 
-    loop(inlines, Chunk.empty)
+    loop(text, Chunk.empty)
 
-  private def isBreak(inline: Inline): Boolean = inline match
-    case SoftBreak => true
-    case Inline.SoftBreak => true
-    case HardBreak => true
-    case Inline.HardBreak => true
-    case _ => false
+  private def resolveLink(url: String, context: String): String =
+    linkResolver.resolve(url, category = None, context = Some(context)) match
+      case None => url
+      case Some(LinksResolver.Link(url, name)) => url
+
+  private def resolveWikiLink(body: String, context: String, textMaker: String => Inline): Inline =
+    val (url: String, text: Option[String]) = Files.split(body.trim, '|')
+    linkResolver.resolve(url, category = None, context = Some(context)) match
+      case None => textMaker(s"[[$body]]")
+      case Some(LinksResolver.Link(url, name)) =>
+        // Note: in order for the HTML renderer to be able to set correct CSS class on the wiki links,
+        // it needs to know which links are wiki links,
+        // so I enclose the link text in wiki link brackets...
+        Link(
+          text = Chunk(textMaker(s"[[${text.getOrElse(name)}]]")),
+          url = url,
+          title = None
+        )

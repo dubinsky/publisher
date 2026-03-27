@@ -17,7 +17,7 @@ abstract class Markup(
 
   def parse(sourcePath: Path, content: String): Either[PageError, AST]
   
-  def resolveLinks(ast: AST, linkResolver: LinkResolver): Unit
+  def resolveLinks(ast: AST, linkResolver: LinksResolver): AST
 
 object Markup:
   val all: List[Markup] = List(

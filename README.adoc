@@ -14,6 +14,8 @@ Wiki links in Obsidian:
 
 FrontMatter: log warnings about malformed values
 
+Calculate content structure for TOC etc.; add anchors - and not just in HTML?
+
 Handle:
 - permalinks and multi-name redirects
 - raw TEI
@@ -39,7 +41,6 @@ Generate:
 - feed.xml
 
 Checks/reports:
-- links with http[s]://
 - broken links
 - inconsistent titles
 
