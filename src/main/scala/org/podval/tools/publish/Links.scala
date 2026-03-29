@@ -1,18 +1,11 @@
 package org.podval.tools.publish
 
-final class Links(
-  pages: List[Page]
-):
-  def resolveLinks(): Unit =
-    pages
-      .collect { case page: MarkupPage => page }
-      .foreach(_.resolveLinks(this))
-
+final class Links(warnings: Warnings):
   // TODO collect references
   // TODO calculate backlinks
 
   def resolve(
-    from: MarkupPage,
+    from: Page.MarkupPage,
     url: String, // could be `name`, `name#section`, `name#^block`, `path/name` etc...
     category: Option[String], // TEI org/person/place, etc.
     context: Option[String] // from.markup.AST?

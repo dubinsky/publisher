@@ -15,3 +15,5 @@ object Html extends Markup(
       case Left(error) => Left(PageError("Malformed HTML content", sourcePath, Some(error)))
 
   override def resolveLinks(xml: Xml, linkResolver: LinksResolver): Xml = xml // TODO
+
+  override def render(ast: AST): Xml = ???

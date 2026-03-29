@@ -5,6 +5,7 @@ Generate, serve and publish websites
 == TODO
 
 Wiki links in Obsidian:
+
 - are they case-sensitive?
 - do they take into account file name, title property, document title?
 - how do they look in the file if name reference is ambiguous?
@@ -17,16 +18,19 @@ FrontMatter: log warnings about malformed values
 Calculate content structure for TOC etc.; add anchors - and not just in HTML?
 
 Handle:
+
 - permalinks and multi-name redirects
 - raw TEI
 - categories that are wiki links (as in Obsidian)
 
 Config:
+
 - figure out how to prevent `sourceDirectoryPath` from being written back
 - get `Config.dailyNotesDirectoryName` out of `.obsidian/daily-notes.json/folder`
 - make inclusion of `_drafts` configurable
 
 CLI
+
 - use ZIO CLI
 - set log level from the CLI option
 - serve with filesystem watch
@@ -35,21 +39,25 @@ CLI
 - package as a GitHub Action
 
 Generate:
+
 - tags.html
 - sitemap.xml
 - robots.txt
 - feed.xml
 
 Checks/reports:
+
 - broken links
 - inconsistent titles
 
-Additional markdown types:
+Additional markup types:
+
 - TEI!
 - AsciiDoc?
 - DocBook??
 
 ZIO Blocks:
+
 - YAML Schema field names are hard-coded to use kebab case;
   I want camel-case; it there a way to at least post-process the schema?
 - where is ZIO Blocks's *native* support for the primitive type in Yaml parser?

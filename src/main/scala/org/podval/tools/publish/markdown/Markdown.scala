@@ -3,6 +3,7 @@ package org.podval.tools.publish.markdown
 import org.podval.tools.publish.{LinksResolver, Markup, PageError, Path}
 import zio.blocks.chunk.Chunk
 import zio.blocks.docs.{Doc, HardBreak, Inline, Parser, SoftBreak}
+import zio.blocks.schema.xml.Xml
 import scala.annotation.tailrec
 
 // TODO right a note about the approach chosen!
@@ -28,6 +29,8 @@ object Markdown extends Markup(
 
   override def resolveLinks(doc: Doc, linkResolver: LinksResolver): Doc =
     MarkdownLinksResolver(linkResolver).resolveDoc(doc)
+
+  override def render(ast: AST): Xml = ???
 
   def splitIntoLines(inlines: Chunk[Inline]): Chunk[Chunk[Inline]] =
     @tailrec

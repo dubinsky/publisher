@@ -2,20 +2,22 @@ package org.podval.tools.publish
 
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
-//import scala.collection.immutable.SortedMap
 import java.io.File
-import Util.ifDefined
 
 object Site:
   def main(args: Array[String]): Unit =
     val site: Site = Site(
       sourceDirectoryPath = "/home/dub/Podval/dub.podval.org",
+      treatWarningsAsErrors = true,
       logLevel = Level.DEBUG
     )
-    site.generate()
+    site.generate match
+      case Right(()) => println("Done!")
+      case Left(error) => println(s"Error generating site: $error")
 
 final class Site(
   sourceDirectoryPath: String,
+  treatWarningsAsErrors: Boolean,
   logLevel: Level = Level.INFO
 ):
   Logging.configureLogBack(level = logLevel, useLogStash = false)
@@ -26,34 +28,34 @@ final class Site(
 
   private val warnings: Warnings = Warnings(treatWarningsAsErrors = true)
 
+  private val links: Links = Links(warnings)
+
   private given CanEqual[File, File] = CanEqual.derived
 
-  def generate(): Unit =
-    val result: Either[PageError, Unit] =
-      for
-        // Enumerate all pages
-        pagesRaw: List[Page] <- directoryPages(List.empty, config.sourceDirectory)
+  def generate: Either[PageError, Unit] =
+    for
+      // Enumerate all pages
+      pagesRaw: List[Page] <- directoryPages(List.empty, config.sourceDirectory)
 
-        // Report conflicting pages
-        pages: List[Page] <- warnings.recover(deDup(pagesRaw))(pagesRaw)
-        
-        links: Links = Links(pages)
-        _ = links.resolveLinks()
-        
-        // TODO Add backlinks
+      // Report conflicting pages
+      pages: List[Page] <- warnings.recover(deDup(pagesRaw))(pagesRaw)
 
-        // Copy assets
-        _ = copyAssets(pages)
+      // Resolve links
+      // TODO do the warning.recover dance
+      _ = pages.collect { case page: Page.MarkupPage => page }.foreach(_.resolveLinks(links))
 
-        // TODO Render markup pages
-        
-        // TODO generate tags, maps etc.
-        
-        // TODO generate reports
-      yield ()
+      // TODO Add backlinks
 
-    result.swap.toOption.foreach(error => log.error("Error generating site", error))
-  
+      // TODO generate tags, maps etc.
+
+      // TODO generate reports
+
+      // Write pages
+      _ = pages.foreach(writePage)
+
+      // TODO Render markup pages
+    yield ()
+
   // Collect markup pages - TODO all!
   //    markupPages = SortedMap(pages
   //      .collect { case page: MarkupPage => page }
@@ -82,29 +84,22 @@ final class Site(
     Files.requireFile(file)
     val (name: String, extension: Option[String]) = Files.nameAndExtension(file.getName)
     val sourcePath: Path = Path(path :+ name, extension)
-    val markup: Option[Markup] = extension.flatMap(extension => Markup.all.find(_.isExtension(extension)))
-    val pageKind: PageKind = PageKind.get(sourcePath, config)
 
-    ifDefined(warnings.recoverNone(pageKind.targetPath(sourcePath))): (targetPath: Path) =>
-      ifDefined(markup match
-        case None => Right(Some(Asset(
-          sourcePath = sourcePath,
-          targetPath = targetPath, 
-          pageKind = pageKind
-        )))
-        case Some(markup) => MarkupPage(
-          markup = markup, 
-          sourceFile = sourcePath.file(config.sourceDirectory), 
-          sourcePath = sourcePath,
-          targetPath = targetPath,
-          pageKind = pageKind, 
-          warnings = warnings
-        )
-      ): (page: Page) =>
-        ifDefined(warnings.recoverNone(pageKind.validate(page).map(_ => page))): (page: Page) =>
-          log.debug(page.toString)
-          Right(Some(page))
-
+    val result: Either[PageError, Option[Page]] = Page.makePage(
+      sourcePath = sourcePath,
+      sourceFile = sourcePath.file(config.sourceDirectory),
+      pageKind = PageKind.special
+        .find(special => sourcePath.startsWith(config.specialPageKindSourcePathStartsWith(special)))
+        .getOrElse(PageKind.Plain),
+      warnings = warnings
+    )
+    
+    result match
+      case Right(Some(page)) => log.debug(s"Read: $page")
+      case _ =>
+    
+    result
+  
   private def deDup(pages: List[Page]): Either[PageError, List[Page]] =
     val duplicate: Map[Path, List[Page]] = pages.groupBy(_.targetPath).filter(_._2.length > 1)
     if duplicate.isEmpty
@@ -113,11 +108,21 @@ final class Site(
       s"Path $path is targeted by multiple pages: ${pages.map(_.sourcePath).mkString(",")}"
     ).mkString("\n")))
 
-  private def copyAssets(pages: List[Page]): Unit = pages
-    .collect { case page: Asset => page }
-    .foreach: (page: Page) =>
-      Files.copy(
-        fromFile = page.sourcePath.file(config.sourceDirectory),
-        toFile = page.targetPath.file(config.targetDirectory)
-      )
-      log.debug(s"Copied: ${page.sourcePath} to ${page.targetPath}")
+  private def writePage(page: Page): Unit =
+    val targetFile: File = page.targetPath.file(config.targetDirectory)
+    page match
+      case asset: Page.Asset =>
+        Files.copy(fromFile = page.sourcePath.file(config.sourceDirectory), toFile = targetFile)
+        
+      case syntheticAsset: Page.SyntheticAsset =>
+        Files.write(syntheticAsset.content, targetFile)
+        
+      case markupPage: Page.MarkupPage =>
+        // TODO wrap markupPage.content into layouts
+        // TODO render XML to String
+        // TODO Files.write(markupPage.content, targetFile)
+        ()
+
+    log.debug(s"Wrote: $page")
+
+  

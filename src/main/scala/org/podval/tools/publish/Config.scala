@@ -44,6 +44,10 @@ final case class Config(
       Config.special.contains(name) ||
       Config.specialStartsWith.exists(name.startsWith)
 
+  def specialPageKindSourcePathStartsWith(pageKind: PageKind.Special): String = pageKind match
+    case BlogPost => blogDirectoryName
+    case DailyNote => dailyNotesDirectoryName
+  
 object Config:
   private val log: Logger = LoggerFactory.getLogger(this.getClass)
 

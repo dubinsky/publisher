@@ -1,10 +1,11 @@
 package org.podval.tools.publish
 
-case object BlogPost extends PageKind.Special:
+object BlogPost extends PageKind.Special:
   override def sourceDirectoryName: String = "_posts"
-
-  override def is(sourcePath: Path, config: Config): Boolean =
-    sourcePath.startsWith(config.blogDirectoryName)
+  
+  override def isMarkupAllowed(markup: Option[Markup]): Boolean = markup match
+    case None => false
+    case _ => true
 
   override def targetPath(sourcePath: Path): Either[PageError, Path] =
     val fileName: String = sourcePath.path.last
@@ -18,11 +19,6 @@ case object BlogPost extends PageKind.Special:
         f"${date.getDayOfMonth}%02d",
         fileName.substring(11)
       )))
-
-  // TODO require(page.hasFrontMatter)?
-  override def validate(page: Page): Either[PageError, Unit] = page match
-    case page: MarkupPage => Right(())
-    case _ => Left(PageError(s"Not markup", page.sourcePath))
 
 
 
