@@ -1,6 +1,6 @@
 package org.podval.tools.publish.markdown
 
-import org.podval.tools.publish.{Files, LinksResolver}
+import org.podval.tools.publish.{Files, LinkResolved, LinksResolver}
 import zio.blocks.chunk.Chunk
 import zio.blocks.docs.{Autolink, Block, BlockQuote, BulletList, Code, CodeBlock, Doc, Emphasis, Heading, HtmlBlock,
   HtmlInline, Image, Inline, Link, ListItem, OrderedList, Paragraph, Renderer, Strikethrough, Strong, Table, TableRow,
@@ -82,15 +82,25 @@ final class MarkdownLinksResolver(linkResolver: LinksResolver):
     loop(text, Chunk.empty)
 
   private def resolveLink(url: String, context: String): String =
-    linkResolver.resolve(url, category = None, context = Some(context)) match
+    linkResolver.resolve(
+      url,
+      category = None,
+      context = Some(context),
+      anchor = None // TODO
+    ) match
       case None => url
-      case Some(LinksResolver.Link(url, name)) => url
+      case Some(LinkResolved(url, name)) => url
 
   private def resolveWikiLink(body: String, context: String, textMaker: String => Inline): Inline =
     val (url: String, text: Option[String]) = Files.split(body.trim, '|')
-    linkResolver.resolve(url, category = None, context = Some(context)) match
+    linkResolver.resolve(
+      url,
+      category = None,
+      context = Some(context),
+      anchor = None // TODO
+    ) match
       case None => textMaker(s"[[$body]]")
-      case Some(LinksResolver.Link(url, name)) =>
+      case Some(LinkResolved(url, name)) =>
         // Note: in order for the HTML renderer to be able to set correct CSS class on the wiki links,
         // it needs to know which links are wiki links,
         // so I enclose the link text in wiki link brackets...

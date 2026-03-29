@@ -1,25 +1,22 @@
 package org.podval.tools.publish
 
 import org.slf4j.{Logger, LoggerFactory}
-import zio.blocks.schema.Schema
-import zio.blocks.schema.xml.{XmlBinaryCodec, XmlBinaryCodecDeriver}
-import zio.blocks.schema.yaml.{YamlBinaryCodec, YamlBinaryCodecDeriver}
+import zio.blocks.schema.yaml.Yaml
 import java.io.File
 
-final case class Config(
-  targetDirectoryName: String = "_site",
-  blogDirectoryName: String = BlogPost.sourceDirectoryName,
-  dailyNotesDirectoryName: String = DailyNote.sourceDirectoryName,
-  title: String,
-  author: String,
-  email: String,
-  description: String,
-  exclude: List[String]
-):
-  private var sourceDirectoryOpt: Option[File] = None
-  private def setSourceDirectory(value: File): Unit = sourceDirectoryOpt = Some(value)
-  def sourceDirectory: File = sourceDirectoryOpt.get
-  
+final class Config(
+  val sourceDirectory: File,
+  keys: Map[String, Yaml]
+) extends YamlMapping(keys):
+  def targetDirectoryName: String = toString("targetDirectoryName", "_site")
+  def blogDirectoryName: String = toString("blogDirectoryName", PageKind.BlogPost.sourceDirectoryName)
+  def dailyNotesDirectoryName: String = toString("dailyNotesDirectoryName", PageKind.DailyNote.sourceDirectoryName)
+  def title: String = toStringDo("title")
+  def author: String = toStringDo("author")
+  def email: String = toStringDo("email")
+  def description: String = toStringDo("description")
+  def exclude: List[String] = toStrings("exclude")
+
   lazy val targetDirectory: File =
     val result: File = File(sourceDirectory, targetDirectoryName)
     result.mkdirs()
@@ -45,9 +42,9 @@ final case class Config(
       Config.specialStartsWith.exists(name.startsWith)
 
   def specialPageKindSourcePathStartsWith(pageKind: PageKind.Special): String = pageKind match
-    case BlogPost => blogDirectoryName
-    case DailyNote => dailyNotesDirectoryName
-  
+    case PageKind.BlogPost => blogDirectoryName
+    case PageKind.DailyNote => dailyNotesDirectoryName
+
 object Config:
   private val log: Logger = LoggerFactory.getLogger(this.getClass)
 
@@ -79,25 +76,7 @@ object Config:
     "~",
     "#"
   )
-
-  given Schema[Config] = Schema.derived
-
-  private val yamlCodec: YamlBinaryCodec[Config] = Schema[Config].derive(YamlBinaryCodecDeriver)
-
-  private def fromYaml(string: String): Config = yamlCodec.decode(string) match
-    case Left(schemaError) => throw IllegalArgumentException("Failed to decode config", schemaError)
-    case Right(config) => config
-
-  private def toYaml(config: Config): String = yamlCodec.encodeToString(config)
-
-  private val xmlCodec: XmlBinaryCodec[Config] = Schema[Config].derive(XmlBinaryCodecDeriver)
-
-  def fromXml(string: String): Config = xmlCodec.decode(string) match
-    case Left(schemaError) => throw IllegalArgumentException("Failed to decode config", schemaError)
-    case Right(config) => config
-
-  def toXml(config: Config): String = xmlCodec.encodeToString(config)
-
+  
   def apply(sourceDirectoryPath: String): Config =
     val sourceDirectory: File =
       val result: File = File(sourceDirectoryPath).getAbsoluteFile
@@ -115,7 +94,10 @@ object Config:
       log.info(s"configuration file: $result")
       result
 
-    val result: Config = Config.fromYaml(Files.read(configFile))
-    log.debug(s"configuration:\n" + Config.toYaml(result))
-    result.setSourceDirectory(sourceDirectory)
-    result
+    YamlMapping.parse(Files.read(configFile)) match
+      case Left(error) => throw IllegalArgumentException("Malformed Config", error)
+      case Right(mapping) =>
+        val result = new Config(sourceDirectory, mapping)
+        log.debug(s"Config:\n" + result.writeYamlMapping)
+        result
+

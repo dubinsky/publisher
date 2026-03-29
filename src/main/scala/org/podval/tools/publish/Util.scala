@@ -1,7 +1,5 @@
 package org.podval.tools.publish
 
-import java.time.LocalDate
-import java.time.format.DateTimeParseException
 import scala.annotation.tailrec
 
 object Util:
@@ -28,8 +26,3 @@ object Util:
         case Some(some) => c(some)
     yield
       result
-
-  def parseDate(string: String): Either[Throwable, LocalDate] =
-    try Right(LocalDate.parse(string))
-    catch case e: DateTimeParseException => Left(e)
-      

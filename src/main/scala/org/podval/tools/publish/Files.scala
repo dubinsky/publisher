@@ -12,7 +12,7 @@ object Files:
 
   def read(file: File): String = new String(NFiles.readAllBytes(file.toPath))
 
-  def write(string: String, file: File): Unit = NFiles.writeString(file.toPath, string)
+  def write(file: File, content: String): Unit = NFiles.writeString(file.toPath, content)
 
   def list(directory: File): List[File] = Option(directory.listFiles).getOrElse(Array.empty[File]).toList
 

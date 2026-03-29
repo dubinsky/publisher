@@ -22,15 +22,17 @@ object Markdown extends Markup(
 ):
   override type AST = Doc
 
-  override def parse(sourcePath: Path, content: String): Either[PageError, Doc] =
-    Parser.parse(content) match
-      case Right(doc) => Right(doc)
-      case Left(error) => Left(PageError(s"Markdown parse error: $error", sourcePath))
+  override def parse(sourcePath: Path, content: String): Either[PageError, Doc] = Parser.parse(content) match
+    case Right(doc) => Right(doc)
+    case Left(error) => Left(PageError(sourcePath, s"Malformed Markdown: $error"))
+
+  override def reformat(doc: Doc): Option[String] = None // TODO pretty-print
 
   override def resolveLinks(doc: Doc, linkResolver: LinksResolver): Doc =
     MarkdownLinksResolver(linkResolver).resolveDoc(doc)
 
-  override def render(ast: AST): Xml = ???
+  override def render(doc: Doc): Xml =
+    Xml.Element("div", MarkdownHtmlRenderer.render(doc)*)
 
   def splitIntoLines(inlines: Chunk[Inline]): Chunk[Chunk[Inline]] =
     @tailrec

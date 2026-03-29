@@ -1,8 +1,27 @@
 = Publisher
 
-Generate, serve and publish websites
+Generate, serve and publish websites.
+
+== Introduction
+
+- Jekyll finally pissed me off
+- Support publishing of the Obsidian vault
+- Generate static site for the alter-rebbe.org
+
+Opinionated:
+
+- no plugins
+- no SCSS
+- no template languages
+
 
 == TODO
+
+Anchors:
+
+- calculate content structure for TOC etc.
+- add section anchors if they are not there
+- detect block anchors
 
 Wiki links in Obsidian:
 
@@ -12,24 +31,10 @@ Wiki links in Obsidian:
 - can they be split between the lines?
 - do they support |?
 - do they support any kind of agglutination?
+- categories can be wiki links?!
+- handle permalinks and multi-name redirects
 
-FrontMatter: log warnings about malformed values
-
-Calculate content structure for TOC etc.; add anchors - and not just in HTML?
-
-Handle:
-
-- permalinks and multi-name redirects
-- raw TEI
-- categories that are wiki links (as in Obsidian)
-
-Config:
-
-- figure out how to prevent `sourceDirectoryPath` from being written back
-- get `Config.dailyNotesDirectoryName` out of `.obsidian/daily-notes.json/folder`
-- make inclusion of `_drafts` configurable
-
-CLI
+CLI:
 
 - use ZIO CLI
 - set log level from the CLI option
@@ -38,30 +43,22 @@ CLI
 - package as a stand-alone executable
 - package as a GitHub Action
 
-Generate:
+Config:
 
-- tags.html
-- sitemap.xml
-- robots.txt
-- feed.xml
-
-Checks/reports:
-
-- broken links
-- inconsistent titles
-
-Additional markup types:
-
-- TEI!
-- AsciiDoc?
-- DocBook??
+- get `Config.dailyNotesDirectoryName` out of `.obsidian/daily-notes.json/folder`
+- make inclusion of `_drafts` configurable
+- decode using schema, stash extra keys in a field for round-tripping
+- YAML Schema field names are hard-coded to use kebab case;
+I want camel-case; there seems to be no way even to post-process the schema... file an issue
 
 ZIO Blocks:
 
-- YAML Schema field names are hard-coded to use kebab case;
-  I want camel-case; it there a way to at least post-process the schema?
-- where is ZIO Blocks's *native* support for the primitive type in Yaml parser?
-- clean up round-trips in markdown tests
-- theming of Markdown -> HTML rendering: useless; I need conversion to HTML AST, not text!
-- XML pretty-printing: add mine?
+- close my WikiLinks pull request
+- add XML pretty-printing
 - add XML SAX parsing
+
+Additional markup types:
+
+- TEI (including facsimiles and raw TEI)
+- AsciiDoc?
+- DocBook??

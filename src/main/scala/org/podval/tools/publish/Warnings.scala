@@ -2,6 +2,9 @@ package org.podval.tools.publish
 
 import org.slf4j.{Logger, LoggerFactory}
 
+// TODO Generate report page(s):
+//- broken links
+//- inconsistent titles
 final class Warnings(treatWarningsAsErrors: Boolean):
   private val log: Logger = LoggerFactory.getLogger(this.getClass)
 

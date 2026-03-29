@@ -5,9 +5,10 @@ import java.io.File
 final class Path(
   val path: List[String],
   val extension: Option[String] = None
-):
+) derives CanEqual:
   override def equals(obj: Any): Boolean = obj match
     case that: Path => this.path == that.path && this.extension == that.extension
+    case _ => false
     
   override def toString: String = path.mkString("/", "/", extensionString)
 

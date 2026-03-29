@@ -9,6 +9,7 @@ object Site:
     val site: Site = Site(
       sourceDirectoryPath = "/home/dub/Podval/dub.podval.org",
       treatWarningsAsErrors = true,
+      reformatSourceFiles = false,
       logLevel = Level.DEBUG
     )
     site.generate match
@@ -18,6 +19,7 @@ object Site:
 final class Site(
   sourceDirectoryPath: String,
   treatWarningsAsErrors: Boolean,
+  reformatSourceFiles: Boolean,
   logLevel: Level = Level.INFO
 ):
   Logging.configureLogBack(level = logLevel, useLogStash = false)
@@ -28,39 +30,54 @@ final class Site(
 
   private val warnings: Warnings = Warnings(treatWarningsAsErrors = true)
 
-  private val links: Links = Links(warnings)
-
   private given CanEqual[File, File] = CanEqual.derived
 
-  def generate: Either[PageError, Unit] =
-    for
-      // Enumerate all pages
-      pagesRaw: List[Page] <- directoryPages(List.empty, config.sourceDirectory)
+  def generate: Either[PageError, Unit] = for
+    // Enumerate all pages
+    pages: List[Page] <- directoryPages(List.empty, config.sourceDirectory)
 
-      // Report conflicting pages
-      pages: List[Page] <- warnings.recover(deDup(pagesRaw))(pagesRaw)
+    // TODO add synthetic markup pages:
+    //- tags.html
+    //- sitemap.xml
+    //- robots.txt
+    //- feed.xml
 
-      // Resolve links
-      // TODO do the warning.recover dance
-      _ = pages.collect { case page: Page.MarkupPage => page }.foreach(_.resolveLinks(links))
+    // Report conflicting pages
+    _ <- warnings.recoverNone:
+      pages.groupBy(_.targetPath).filter(_._2.length > 1).toList match
+        case Nil => Right(Some(()))
+        case duplicates => Util.sequence(duplicates)((targetPath: Path, pages: List[Page]) =>
+          Left(PageError(
+            pages.head.sourcePath,
+            s"Duplicates for the target path $targetPath: ${pages.map(_.sourcePath).tail.mkString(", ")}"
+          ))
+        )
 
-      // TODO Add backlinks
+    links: Links = Links(pages, warnings)
 
-      // TODO generate tags, maps etc.
+    // Resolve links
+    // TODO do the warning.recover/sequence dance
+    _ = pages.collect { case page: Page.MarkupPage => page }.foreach(_.resolveLinks(links))
 
-      // TODO generate reports
+    // Write site
+    _ = pages.foreach: (page: Page) =>
+      val targetFile: File = page.targetPath.file(config.targetDirectory)
+      page match
+        case asset: Page.Asset =>
+          Files.copy(toFile = targetFile, fromFile = page.sourcePath.file(config.sourceDirectory))
 
-      // Write pages
-      _ = pages.foreach(writePage)
+        case syntheticAsset: Page.SyntheticAsset =>
+          Files.write(file = targetFile, content = syntheticAsset.content)
 
-      // TODO Render markup pages
-    yield ()
+        case markupPage: Page.MarkupPage =>
+          val layout: Layout = Layout.Default // TODO calculate based on FrontMatter and PageKind
+          // TODO enable:
+//          val content = layout.render(markupPage.render, links.backLinks(markupPage))
+//          Files.write(file = targetFile, content = Html.write(content))
+          ()
 
-  // Collect markup pages - TODO all!
-  //    markupPages = SortedMap(pages
-  //      .collect { case page: MarkupPage => page }
-  //      .map(page => page.path -> page)
-  //    *)
+      log.debug(s"Wrote: $page")
+  yield ()
   
   private def directoryPages(path: List[String], directory: File): Either[PageError, List[Page]] =
     Files.requireExists(directory)
@@ -88,41 +105,16 @@ final class Site(
     val result: Either[PageError, Option[Page]] = Page.makePage(
       sourcePath = sourcePath,
       sourceFile = sourcePath.file(config.sourceDirectory),
-      pageKind = PageKind.special
-        .find(special => sourcePath.startsWith(config.specialPageKindSourcePathStartsWith(special)))
-        .getOrElse(PageKind.Plain),
-      warnings = warnings
+      reformatSourceFile = reformatSourceFiles,
+      warnings = warnings,
+      pageKind = PageKind(sourcePath, config)
     )
-    
+
     result match
       case Right(Some(page)) => log.debug(s"Read: $page")
       case _ =>
-    
+
     result
-  
-  private def deDup(pages: List[Page]): Either[PageError, List[Page]] =
-    val duplicate: Map[Path, List[Page]] = pages.groupBy(_.targetPath).filter(_._2.length > 1)
-    if duplicate.isEmpty
-    then Right(pages)
-    else Left(PageError(duplicate.map((path: Path, pages: List[Page]) =>
-      s"Path $path is targeted by multiple pages: ${pages.map(_.sourcePath).mkString(",")}"
-    ).mkString("\n")))
 
-  private def writePage(page: Page): Unit =
-    val targetFile: File = page.targetPath.file(config.targetDirectory)
-    page match
-      case asset: Page.Asset =>
-        Files.copy(fromFile = page.sourcePath.file(config.sourceDirectory), toFile = targetFile)
-        
-      case syntheticAsset: Page.SyntheticAsset =>
-        Files.write(syntheticAsset.content, targetFile)
-        
-      case markupPage: Page.MarkupPage =>
-        // TODO wrap markupPage.content into layouts
-        // TODO render XML to String
-        // TODO Files.write(markupPage.content, targetFile)
-        ()
 
-    log.debug(s"Wrote: $page")
 
-  

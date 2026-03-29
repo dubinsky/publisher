@@ -70,7 +70,7 @@ object FrontMatterSpec extends ZIOSpecDefault:
           |---
           |# Hello
           |""".stripMargin,
-        error => assertTrue(error.getMessage.contains("must be a mapping"))
+        error => assertTrue(error.getMessage.contains("Must be a Yaml.Mapping"))
       )
     },
     test("round-trip without FrontMatter") {

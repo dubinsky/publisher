@@ -199,8 +199,13 @@ object MarkdownHtmlRenderer:
       attributes = Chunk(XmlName("href") -> ((if isEmail then "mailto:" else "") + escape(url)))
     )
 
+  // TODO figure out how to deal with the HTML being split by the ZIO Blocks Markdown parser...
+  // No wonder they did not provide the Doc->Xml renderer, only the Doc->String onr ;)
+  // TODO expose the errors
   private def parseHtml(html: String): Xml =
-    XmlReader.read(html).toOption.get
+    XmlReader.read(html) match
+      case Right(xml) => xml
+      case Left(error) => throw IllegalArgumentException(s"Malformed HTML: [$html] $error")
 
   private def escape(s: String): String = s
     .replace("&", "&amp;")

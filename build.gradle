@@ -17,7 +17,7 @@ scala.scalaVersion = '3.8.2'
 project.gradle.startParameter.excludedTaskNames.add('compileJava')
 
 String zioBlocksVersion = '0.0.31'
-String flexMarkVersion = '0.64.8'
+//String flexMarkVersion = '0.64.8'
 
 dependencies {
   implementation "dev.zio:zio-blocks-schema-xml_3:$zioBlocksVersion"

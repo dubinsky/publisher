@@ -18,6 +18,8 @@ abstract class Markup(
 
   def parse(sourcePath: Path, content: String): Either[PageError, AST]
   
+  def reformat(ast: AST): Option[String]
+  
   def resolveLinks(ast: AST, linkResolver: LinksResolver): AST
   
   def render(ast: AST): Xml
