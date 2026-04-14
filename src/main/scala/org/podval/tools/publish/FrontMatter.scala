@@ -1,6 +1,7 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.yaml.{Yaml, YamlError}
+import zio.blocks.schema.SchemaError
+import zio.blocks.schema.yaml.Yaml
 import java.time.LocalDate
 
 final class FrontMatter(
@@ -21,12 +22,12 @@ object FrontMatter:
   val absent: FrontMatter = FrontMatter(isAbsent = true, keys = Map.empty)
   val empty: FrontMatter = FrontMatter(isAbsent = false, keys = Map.empty)
 
-  def parse(input: String): (Either[YamlError, FrontMatter], String) =
+  def parse(input: String): (Either[SchemaError, FrontMatter], String) =
     val frontMatterEnd: Int = if !input.startsWith("---\n") then -1 else input.indexOf("\n---\n", 3)
     if frontMatterEnd == -1 then (Right(absent), input) else
       val frontMatterInput: String = input.substring(3, frontMatterEnd)
       val frontMatterLines: Int = frontMatterInput.count(_ == '\n') + 2
-      val frontMatter: Either[YamlError, FrontMatter] =
+      val frontMatter: Either[SchemaError, FrontMatter] =
         if frontMatterInput.isEmpty then Right(empty) else 
           for
             mapping: Map[String, Yaml] <- YamlMapping.parse(frontMatterInput)

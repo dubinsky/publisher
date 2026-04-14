@@ -53,7 +53,6 @@ I want camel-case; there seems to be no way even to post-process the schema... f
 
 ZIO Blocks:
 
-- close my WikiLinks pull request
 - add XML pretty-printing
 - add XML SAX parsing
 

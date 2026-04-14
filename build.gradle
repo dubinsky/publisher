@@ -13,23 +13,28 @@ group = 'org.podval.tools'
 version = '0.0.1'
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
-scala.scalaVersion = '3.8.2'
+scala.scalaVersion = '3.8.3'
 project.gradle.startParameter.excludedTaskNames.add('compileJava')
 
-String zioBlocksVersion = '0.0.31'
-//String flexMarkVersion = '0.64.8'
+String zioBlocksVersion = '0.0.33'
+String zioBlocksDocsVersion = '0.0.31'
+String flexMarkVersion = '0.64.8'
 
 dependencies {
   implementation "dev.zio:zio-blocks-schema-xml_3:$zioBlocksVersion"
   implementation "dev.zio:zio-blocks-schema-yaml_3:$zioBlocksVersion"
-  implementation "dev.zio:zio-blocks-docs_3:$zioBlocksVersion" // TODO v0.017 needs to be removed from Maven Central!
-//  implementation "com.vladsch.flexmark:flexmark:$flexMarkVersion"
-//  implementation "com.vladsch.flexmark:flexmark-ext-toc:$flexMarkVersion"
-//  implementation "com.vladsch.flexmark:flexmark-ext-wikilink:$flexMarkVersion"
+  implementation "dev.zio:zio-blocks-docs_3:$zioBlocksDocsVersion" // TODO v0.017 needs to be removed from Maven Central!
+
+  implementation "com.vladsch.flexmark:flexmark:$flexMarkVersion"
+  implementation "com.vladsch.flexmark:flexmark-ext-toc:$flexMarkVersion"
+  implementation "com.vladsch.flexmark:flexmark-ext-wikilink:$flexMarkVersion"
+  implementation "com.vladsch.flexmark:flexmark-ext-anchorlink:$flexMarkVersion"
+  implementation "com.vladsch.flexmark:flexmark-ext-autolink:$flexMarkVersion"
+
   implementation 'org.slf4j:slf4j-api:2.0.17'
   implementation 'ch.qos.logback:logback-classic:1.5.32'
   compileOnly 'net.logstash.logback:logstash-logback-encoder:9.0'
-  testImplementation 'dev.zio:zio-test-sbt_3:2.1.24'
+  testImplementation 'dev.zio:zio-test-sbt_3:2.1.25'
 }
 
 application {

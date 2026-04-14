@@ -203,9 +203,8 @@ object MarkdownHtmlRenderer:
   // No wonder they did not provide the Doc->Xml renderer, only the Doc->String onr ;)
   // TODO expose the errors
   private def parseHtml(html: String): Xml =
-    XmlReader.read(html) match
-      case Right(xml) => xml
-      case Left(error) => throw IllegalArgumentException(s"Malformed HTML: [$html] $error")
+    // TODO catch errors?
+    XmlReader.read(html)
 
   private def escape(s: String): String = s
     .replace("&", "&amp;")

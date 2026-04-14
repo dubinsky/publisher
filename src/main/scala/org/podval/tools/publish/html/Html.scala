@@ -10,9 +10,8 @@ object Html extends Markup(
   override type AST = Xml
   
   override def parse(sourcePath: Path, content: String): Either[PageError, AST] =
-    XmlReader.read(content) match
-      case Right(xml) => Right(xml)
-      case Left(error) => Left(PageError(sourcePath, "Malformed HTML", Some(error)))
+    // TODO catch errors?
+    Right(XmlReader.read(content))
 
   override def reformat(xml: Xml): Option[String] = None // TODO pretty-print
 
