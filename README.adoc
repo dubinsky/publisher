@@ -7,6 +7,7 @@ Generate, serve and publish websites.
 - Jekyll finally pissed me off
 - Support publishing of the Obsidian vault
 - Generate static site for the alter-rebbe.org
+- Publish blog as X Articles
 
 Opinionated:
 
@@ -16,6 +17,14 @@ Opinionated:
 
 
 == TODO
+
+Config:
+
+- get `Config.dailyNotesDirectoryName` out of `.obsidian/daily-notes.json/folder`
+- make inclusion of `_drafts` configurable
+
+Figure out how to deal with the HTML being split by the ZIO Blocks Markdown parser...
+No wonder ZIO Blocks do not provide the Doc->Xml renderer, only the Doc->String one ;)
 
 Anchors:
 
@@ -43,24 +52,9 @@ CLI:
 - package as a stand-alone executable
 - package as a GitHub Action
 
-Config:
-
-- get `Config.dailyNotesDirectoryName` out of `.obsidian/daily-notes.json/folder`
-- make inclusion of `_drafts` configurable
-- decode using schema, stash extra keys in a field for round-tripping
-- YAML Schema field names are hard-coded to use kebab case;
-I want camel-case; there seems to be no way even to post-process the schema... file an issue
-
-ZIO Blocks:
-
-- add XML pretty-printing
-- add XML SAX parsing
-
-Figure out how to deal with the HTML being split by the ZIO Blocks Markdown parser...
-No wonder ZIO Blocks do not provide the Doc->Xml renderer, only the Doc->String one ;)
-
 Additional markup types:
 
 - TEI (including facsimiles and raw TEI)
 - AsciiDoc?
 - DocBook??
+- ReStructured Text?

@@ -70,7 +70,7 @@ object FrontMatterSpec extends ZIOSpecDefault:
           |---
           |# Hello
           |""".stripMargin,
-        error => assertTrue(error.getMessage.contains("Must be a Yaml.Mapping"))
+        error => assertTrue(error.getMessage.contains("Expected mapping for record"))
       )
     },
     test("round-trip without FrontMatter") {
@@ -82,6 +82,7 @@ object FrontMatterSpec extends ZIOSpecDefault:
           |title: Hello
           |date: 2026-03-22
           |tags: [yaml, markdown, test]
+          |xxx: true
           |---
           |# Hello
           |""".stripMargin
@@ -91,9 +92,10 @@ object FrontMatterSpec extends ZIOSpecDefault:
       parse(
         """---
           |title: Hello
-          |date: 2026-03-22
+          |date: '2026-03-22T14:17:00.001-04:00'
           |tags: [yaml, markdown, test]
-          |categories: important
+          |categories: [important]
+          |xxx: true
           |---
           |# Hello
           |""".stripMargin,

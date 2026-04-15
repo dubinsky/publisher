@@ -29,8 +29,41 @@ object Layout:
       .child(XmlBuilder
         .element("body")
         .child(XmlBuilder
+          .element("header")
+          .attr("role", "banner")
+          .child(XmlBuilder
+            .element("a")
+            .attr("class", "site-title")
+            .attr("rel", "author")
+            .attr("href", "/")
+            .child(XmlBuilder.text("SiTe TiTlE")) // TODO from Config
+            .build
+          )
+          .child(XmlBuilder
+            .element("nav")
+            .child(XmlBuilder // TODO from Config
+              .element("a")
+              .attr("href", "/tags/")
+              .child(XmlBuilder.text("Tags"))
+              .build
+            )
+            .child(XmlBuilder // TODO from Config
+              .element("a")
+              .attr("href", "/notes/")
+              .child(XmlBuilder.text("Notes"))
+              .build
+            )
+            .build
+          )
+          .build
+        )
+        .child(XmlBuilder
           .element("main")
           .child(content)
+          .build
+        )
+        .child(XmlBuilder
+          .element("footer")
           .build
         )
         .build

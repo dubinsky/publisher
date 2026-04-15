@@ -1,40 +1,115 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.SchemaError
-import zio.blocks.schema.yaml.Yaml
-import java.time.LocalDate
+import zio.blocks.chunk.Chunk
+import zio.blocks.schema.{Schema, SchemaError}
+import zio.blocks.schema.yaml.{Yaml, YamlCodec, YamlFormat, YamlReader, YamlWriter}
+import zio.blocks.typeid.TypeId
+import java.time.format.DateTimeParseException
+import scala.util.control.NonFatal
+import java.time.{LocalDate, LocalDateTime, OffsetDateTime}
 
 final class FrontMatter(
-  val isAbsent: Boolean,
-  keys: Map[String, Yaml],
+  val layout: Option[String] = None,
+  val title: Option[String] = None,
+  val author: Option[String] = None,
+  val lang: Option[String] = None,
+  val math: Boolean = false,
+  val tags: List[String] = List.empty,
+  val categories: List[String] = List.empty,
   val date: Option[LocalDate] = None
-) extends YamlMapping(keys):
-  def write: String =
-    if isAbsent then ""
-    else "---\n" ++ writeYamlMapping ++ "\n---\n"
+):
+  private var extraKeys: Chunk[(Yaml, Yaml)] = Chunk.empty
 
-  def title: Option[String] = toString("title")
-  def layout: Option[String] = toString("layout")
-  def tags: List[String] = toStrings("tags")
-  def categories: List[String] = toStrings("categories")
+  private var absent: Boolean = false
+  def setAbsent(): Unit = absent = true
+  def isAbsent: Boolean = absent
+
+  def write: String = if isAbsent then "" else
+    val mapping: String = YamlWriter.write(Yaml.Mapping(
+      FrontMatter.codec.encodeValue(this).asInstanceOf[Yaml.Mapping].entries ++ extraKeys
+    ))
+
+    s"---\n$mapping\n---\n"
 
 object FrontMatter:
-  val absent: FrontMatter = FrontMatter(isAbsent = true, keys = Map.empty)
-  val empty: FrontMatter = FrontMatter(isAbsent = false, keys = Map.empty)
+  val empty: FrontMatter = FrontMatter()
+
+  val absent: FrontMatter =
+    val result = FrontMatter()
+    result.setAbsent()
+    result
+
+  private val schema: Schema[FrontMatter] = Schema.derived
+
+  // TODO these are from the schema; codec name-maps...
+  private val fieldNames: Set[String] = schema
+    .reflect
+    .asRecord
+    .get
+    .fields
+    .map(_.name)
+    .toSet
+
+  private val codec: YamlCodec[FrontMatter] = schema
+    .deriving(YamlFormat.deriver)
+    .instance(TypeId.of[LocalDate], localDateCodec)
+    .derive
 
   def parse(input: String): (Either[SchemaError, FrontMatter], String) =
     val frontMatterEnd: Int = if !input.startsWith("---\n") then -1 else input.indexOf("\n---\n", 3)
     if frontMatterEnd == -1 then (Right(absent), input) else
       val frontMatterInput: String = input.substring(3, frontMatterEnd)
-      val frontMatterLines: Int = frontMatterInput.count(_ == '\n') + 2
       val frontMatter: Either[SchemaError, FrontMatter] =
-        if frontMatterInput.isEmpty then Right(empty) else 
-          for
-            mapping: Map[String, Yaml] <- YamlMapping.parse(frontMatterInput)
-            date <- YamlMapping.toDate(YamlMapping.toString(mapping.get("date")))
-          yield
-            FrontMatter(isAbsent = false, keys = mapping, date = date)
+        if frontMatterInput.isEmpty
+        then Right(empty)
+        else decode(frontMatterInput)
+      val frontMatterLines: Int = frontMatterInput.count(_ == '\n') + 2
       val content: String =
         "\n"*frontMatterLines +
         input.substring(frontMatterEnd + 5)
       (frontMatter, content)
+
+
+  private def decode(input: String): Either[SchemaError, FrontMatter] =
+    try
+      val yaml: Yaml = YamlReader.read(input)
+      val result: FrontMatter = codec.decodeValue(yaml)
+      result.extraKeys = yaml
+        .asInstanceOf[Yaml.Mapping]
+        .entries
+        .filter(_._1 match
+          case Yaml.Scalar(key, _) => !fieldNames.contains(key)
+          case _ => true
+        )
+      Right(result)
+    catch
+      case error: Throwable if NonFatal(error) => new Left(SchemaError(error.getMessage))
+
+  private def localDateCodec: YamlCodec[LocalDate] = new YamlCodec[LocalDate]:
+    def encodeValue(date: LocalDate): Yaml = Yaml.Scalar(date.toString)
+
+    def decodeValue(yaml: Yaml): LocalDate = yaml match
+      case Yaml.Scalar(value, _) => decodeLocalDateUnsafe(value.trim)
+      case _ => error("Expected scalar value")
+
+    private def decodeLocalDateUnsafe(value: String): LocalDate =
+      try LocalDate.parse(value) // 2026-03-29
+      catch case e: DateTimeParseException =>
+        try LocalDateTime.parse(value).toLocalDate // 2010-01-28T14:24:00
+        catch case e: DateTimeParseException =>
+          try OffsetDateTime.parse(value).toLocalDate //2010-01-28T14:24:00.004-05:00
+          catch case e: DateTimeParseException => throw IllegalArgumentException(s"Not a date: $value ${e.getMessage}")
+
+//  private def stringsCodec: YamlCodec[List[String]] = new YamlCodec[List[String]]:
+//    override def decodeValue(value: Yaml): List[String] = value match
+//      case Yaml.Sequence(elements) => elements
+//        .collect { case Yaml.Scalar(value, _) => value }
+//        .toList
+//      case Yaml.Scalar(value, _) =>
+//        List(value)
+//      case _ =>
+//        List.empty
+//
+//
+//    override def encodeValue(strings: List[String]): Yaml = ???
+//
