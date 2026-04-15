@@ -36,6 +36,9 @@ object FlexMarkParser:
   private lazy val options: DataHolder =
     val result: MutableDataSet = new MutableDataSet
 
+    result.set(Parser.HTML_BLOCK_DEEP_PARSER, true)
+    result.set(Parser.HTML_BLOCK_DEEP_PARSE_NON_BLOCK, true)
+
     result.set(Parser.EXTENSIONS, List(
       AnchorLinkExtension.create,
       AutolinkExtension.create,

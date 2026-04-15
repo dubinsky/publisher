@@ -22,7 +22,7 @@ abstract class Markup(
   
   def resolveLinks(ast: AST, linkResolver: LinksResolver): AST
   
-  def render(ast: AST): Xml
+  def render(sourcePath: Path, ast: AST): Either[PageError, Xml]
 
 object Markup:
   val all: List[Markup] = List(

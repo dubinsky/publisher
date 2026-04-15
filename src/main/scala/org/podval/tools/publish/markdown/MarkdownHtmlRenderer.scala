@@ -1,10 +1,11 @@
 package org.podval.tools.publish.markdown
 
+import org.podval.tools.publish.Util
 import zio.blocks.chunk.Chunk
 import zio.blocks.docs.{Alignment, Autolink, Block, BlockQuote, BulletList, Code, CodeBlock, Doc, Emphasis, HardBreak,
   Heading, HtmlBlock, HtmlInline, Image, Inline, Link, ListItem, OrderedList, Paragraph, SoftBreak, Strikethrough,
   Strong, Table, TableRow, Text, ThematicBreak}
-import zio.blocks.schema.xml.{Xml, XmlName, XmlReader}
+import zio.blocks.schema.xml.{Xml, XmlCodecError, XmlName, XmlReader}
 
 // Note: based on `zio.blocks.docs.HtmlRenderer`.
 object MarkdownHtmlRenderer:
@@ -15,55 +16,70 @@ object MarkdownHtmlRenderer:
   private given si: CanEqual[Inline.SoftBreak.type, Inline] = CanEqual.derived
   private given hi: CanEqual[Inline.HardBreak.type, Inline] = CanEqual.derived
 
+  def render(doc: Doc): Either[XmlCodecError, Xml.Element] = renderBlocks(
+    "div",
+    doc.blocks
+  )
+
+  private def parseHtml(html: String): Either[XmlCodecError, Xml] =
+    try Right(XmlReader.read(html))
+    catch case e: XmlCodecError => Left(XmlCodecError(e.spans, e.getMessage + ": " + html))
+
+  private def renderBlocks(
+    elementName: String,
+    blocks: Chunk[Block],
+    attributes: Chunk[(XmlName, String)] = Chunk.empty
+  ): Either[XmlCodecError, Xml.Element] =
+    for children: Chunk[Xml] <- Util.sequence(blocks)(renderBlock)
+    yield element(elementName, children, attributes)
+
+  private def renderInlines(
+    elementName: String,
+    inlines: Chunk[Inline],
+    attributes: Chunk[(XmlName, String)] = Chunk.empty
+  ): Either[XmlCodecError, Xml.Element] =
+    for children: Chunk[Xml] <- Util.sequence(inlines)(renderInline)
+    yield element(elementName, children, attributes)
+
+  private def element(name: String, children: Chunk[Xml], attributes: Chunk[(XmlName, String)]): Xml.Element =
+    Xml.Element(name = XmlName(name), children = children, attributes = attributes)
+
   private def element(name: String, children: Chunk[Xml]): Xml.Element = Xml.Element(name, children*)
   private def element(name: String, child: Xml): Xml.Element = Xml.Element(name, child)
   private def element(name: String): Xml.Element = Xml.Element(name)
 
-  def render(doc: Doc): Chunk[Xml] =
-    renderBlocks(doc.blocks)
-
-  private def renderBlocks(blocks: Chunk[Block]): Chunk[Xml] =
-    blocks.map(renderBlock)
-
-  private def renderBlock(block: Block): Xml = block match
+  private def renderBlock(block: Block): Either[XmlCodecError, Xml] = block match
     case Paragraph(content) =>
-      element("p", renderInlines(content))
+      renderInlines("p", content)
 
     case Heading(level, content) =>
-      element(s"h${level.value}", renderInlines(content))
+      renderInlines(s"h${level.value}", content)
 
     case CodeBlock(info, code) =>
-      element("pre",
-        Xml.Element(
-          name = XmlName("code"),
-          children = Chunk(Xml.Text(escape(code))),
-          attributes = Chunk.empty ++ info.map(
-            lang => XmlName("class") -> s"language-$lang"
-          )
+      Right(element("pre", element("code", Chunk(Xml.Text(escape(code))),
+        attributes = Chunk.empty ++ info.map(
+          lang => XmlName("class") -> s"language-$lang"
         )
-      )
+      )))
 
     case ThematicBreak =>
-      element("hr")
+      Right(element("hr"))
 
     case BlockQuote(content) =>
-      element("blockquote", renderBlocks(content))
+      renderBlocks("blockquote", content)
 
     case BulletList(items, _) =>
-      element("ul", renderBlocks(items))
+      renderBlocks("ul", items)
 
     case OrderedList(start, items, _) =>
-      Xml.Element(
-        name = XmlName("ol"),
-        children = renderBlocks(items),
+      renderBlocks("ol", items,
         attributes = Chunk.empty ++ Option.when(start != 1)(
           XmlName("start") -> s"$start"
         )
       )
 
     case ListItem(content, checked) =>
-      val contentChildren: Chunk[Xml] = renderBlocks(content)
-      element("li", checked match
+      for contentChildren: Chunk[Xml] <- Util.sequence(content)(renderBlock) yield element("li", checked match
         case None => contentChildren
         case Some(checked)  => Chunk(Xml.Element(
           name = XmlName("input"),
@@ -81,19 +97,22 @@ object MarkdownHtmlRenderer:
       parseHtml(html)
 
     case Table(header, alignments, rows) =>
-      Xml.Element("table",
-        element("thead",
-          element("tr", renderTableHeader(header, alignments))
-        ),
-        element("tbody",
-          rows.map(row => element("tr", renderTableRow(row, alignments)))
-        )
+      for
+        headerRendered <- renderTableRow(header, alignments, "th")
+        rowsRendered <- Util.sequence(rows)(renderTableRow(_, alignments, "td"))
+      yield Xml.Element("table",
+        element("thead", element("tr", headerRendered)),
+        element("tbody", rowsRendered.map(element("tr", _)))
       )
 
-  private def element(name: String, alignment: Alignment, children: Chunk[Xml]): Xml.Element =
-    Xml.Element(
-      name = XmlName(name),
-      children = children,
+  private def renderTableRow(
+    row: TableRow,
+    alignments: Chunk[Alignment],
+    elementName: String
+  ): Either[XmlCodecError, Chunk[Xml.Element]] =
+    Util.sequence(row.cells.zip(alignments))((cell, alignment) => renderInlines(
+      elementName = elementName,
+      inlines = cell,
       attributes = alignment match
         case Alignment.Left => Some("left")
         case Alignment.Right => Some("right")
@@ -102,44 +121,38 @@ object MarkdownHtmlRenderer:
       match
         case None => Chunk.empty
         case Some(alignment) => Chunk(XmlName("style") -> s"text-align:$alignment")
-    )
+    ))
 
-  private def renderTableHeader(row: TableRow, alignments: Chunk[Alignment]): Chunk[Xml.Element] = row.cells
-    .zip(alignments)
-    .map((cell, alignment) => element("th", alignment, renderInlines(cell)))
+  private def renderInline(inline: Inline): Either[XmlCodecError, Xml] = inline match
+    case HtmlInline(html) =>
+      parseHtml(html)
+    case Inline.HtmlInline(html) =>
+      parseHtml(html)
 
-  private def renderTableRow(row: TableRow, alignments: Chunk[Alignment]): Chunk[Xml.Element] = row.cells
-    .zip(alignments)
-    .map((cell, alignment) => element("td", alignment, renderInlines(cell)))
-
-  private def renderInlines(inlines: Chunk[Inline]): Chunk[Xml] =
-    inlines.map(renderInline)
-
-  private def renderInline(inline: Inline): Xml = inline match
     case Text(value) =>
-      Xml.Text(escape(value))
+      Right(Xml.Text(escape(value)))
     case Inline.Text(value) =>
-      Xml.Text(escape(value))
+      Right(Xml.Text(escape(value)))
 
     case Code(value) =>
-      element("code", Xml.Text(escape(value)))
+      Right(element("code", Xml.Text(escape(value))))
     case Inline.Code(value) =>
-      element("code", Xml.Text(escape(value)))
+      Right(element("code", Xml.Text(escape(value))))
 
     case Emphasis(content) =>
-      element("em", renderInlines(content))
+      renderInlines("em", content)
     case Inline.Emphasis(content) =>
-      element("em", renderInlines(content))
+      renderInlines("em", content)
 
     case Strong(content) =>
-      element("strong", renderInlines(content))
+      renderInlines("strong", content)
     case Inline.Strong(content) =>
-      element("strong", renderInlines(content))
+      renderInlines("strong", content)
 
     case Strikethrough(content) =>
-      element("del", renderInlines(content))
+      renderInlines("del", content)
     case Inline.Strikethrough(content) =>
-      element("del", renderInlines(content))
+      renderInlines("del", content)
 
     case Link(text, url, titleOpt) =>
       link(text, url, titleOpt)
@@ -147,33 +160,32 @@ object MarkdownHtmlRenderer:
       link(text, url, titleOpt)
 
     case Image(alt, url, titleOpt) =>
-      image(alt, url, titleOpt)
+      Right(image(alt, url, titleOpt))
     case Inline.Image(alt, url, titleOpt) =>
-      image(alt, url, titleOpt)
-
-    case HtmlInline(html) =>
-      parseHtml(html)
-    case Inline.HtmlInline(html) =>
-      parseHtml(html)
+      Right(image(alt, url, titleOpt))
 
     case SoftBreak =>
-      Xml.Text(" ")
+      Right(Xml.Text(" "))
     case Inline.SoftBreak =>
-      Xml.Text(" ")
+      Right(Xml.Text(" "))
 
     case HardBreak =>
-      element("<br>")
+      Right(element("br"))
     case Inline.HardBreak =>
-      element("<br>")
+      Right(element("br"))
 
     case Autolink(url, isEmail) =>
-      autolink(url, isEmail)
+      Right(autolink(url, isEmail))
     case Inline.Autolink(url, isEmail) =>
-      autolink(url, isEmail)
+      Right(autolink(url, isEmail))
 
-  private def link(text: Chunk[Inline], url: String, titleOpt: Option[String]): Xml.Element = Xml.Element(
-    name = XmlName("a"),
-    children = renderInlines(text),
+  private def link(
+    text: Chunk[Inline],
+    url: String,
+    titleOpt: Option[String]
+  ): Either[XmlCodecError, Xml.Element] = renderInlines(
+    elementName = "a",
+    inlines = text,
     attributes = Chunk(
       XmlName("href") -> escape(url)
     ) ++ titleOpt.map(title =>
@@ -181,8 +193,8 @@ object MarkdownHtmlRenderer:
     )
   )
 
-  private def image(alt: String, url: String, titleOpt: Option[String]): Xml.Element = Xml.Element(
-    name = XmlName("img"),
+  private def image(alt: String, url: String, titleOpt: Option[String]): Xml.Element = element(
+    name = "img",
     children = Chunk.empty,
     attributes = Chunk(
       XmlName("src") -> escape(url),
@@ -192,19 +204,11 @@ object MarkdownHtmlRenderer:
     )
   )
 
-  private def autolink(url: String, isEmail: Boolean): Xml.Element =
-    Xml.Element(
-      name = XmlName("a"),
-      children = Chunk(Xml.Text(escape(url))),
-      attributes = Chunk(XmlName("href") -> ((if isEmail then "mailto:" else "") + escape(url)))
-    )
-
-  // TODO figure out how to deal with the HTML being split by the ZIO Blocks Markdown parser...
-  // No wonder they did not provide the Doc->Xml renderer, only the Doc->String onr ;)
-  // TODO expose the errors
-  private def parseHtml(html: String): Xml =
-    // TODO catch errors?
-    XmlReader.read(html)
+  private def autolink(url: String, isEmail: Boolean): Xml.Element = element(
+    name = "a",
+    children = Chunk(Xml.Text(escape(url))),
+    attributes = Chunk(XmlName("href") -> ((if isEmail then "mailto:" else "") + escape(url)))
+  )
 
   private def escape(s: String): String = s
     .replace("&", "&amp;")

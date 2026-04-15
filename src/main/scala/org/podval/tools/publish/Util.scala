@@ -1,5 +1,7 @@
 package org.podval.tools.publish
 
+import zio.blocks.chunk.Chunk
+
 import scala.annotation.tailrec
 
 object Util:
@@ -13,6 +15,15 @@ object Util:
         case Left(e) => Left(e)
 
     loop(as, List.empty)
+
+  def sequence[A, E, B](as: Chunk[A])(f: A => Either[E, B]): Either[E, Chunk[B]] =
+    @tailrec
+    def loop(as: Chunk[A], result: Chunk[B]): Either[E, Chunk[B]] =
+      if as.isEmpty then Right(result) else f(as.head) match
+        case Right(b) => loop(as.tail, result :+ b)
+        case Left(e) => Left(e)
+
+    loop(as, Chunk.empty)
 
   def ifDefined[A, B](
     z: => Either[PageError, Option[A]]

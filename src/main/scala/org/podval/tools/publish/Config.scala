@@ -53,21 +53,22 @@ object Config:
   // TODO also exclude stuff from `.gitignore` if present
 
   private val special: Set[String] = Set(
-    "node_modules",
-    "vendor",
-//    "bundle",
     ".jekyll-cache",
     ".sass-cache",
     "Gemfile",
     "Gemfile.lock",
     "LICENSE",
     "README.md",
+    "build",
     "build.gradle",
+    //    "bundle",
     "gradle",
     "gradlew",
     "gradlew.bat",
+    "node_modules",
     "settings.gradle",
-    "src"
+    "src",
+    "vendor",
   )
 
   private val specialStartsWith: Set[String] = Set(

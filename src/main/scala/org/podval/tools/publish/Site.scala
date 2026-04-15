@@ -1,5 +1,6 @@
 package org.podval.tools.publish
 
+import org.podval.tools.publish.html.Html
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
 import java.io.File
@@ -60,23 +61,7 @@ final class Site(
     _ = pages.collect { case page: Page.MarkupPage => page }.foreach(_.resolveLinks(links))
 
     // Write site
-    _ = pages.foreach: (page: Page) =>
-      val targetFile: File = page.targetPath.file(config.targetDirectory)
-      page match
-        case asset: Page.Asset =>
-          Files.copy(toFile = targetFile, fromFile = page.sourcePath.file(config.sourceDirectory))
-
-        case syntheticAsset: Page.SyntheticAsset =>
-          Files.write(file = targetFile, content = syntheticAsset.content)
-
-        case markupPage: Page.MarkupPage =>
-          val layout: Layout = Layout.Default // TODO calculate based on FrontMatter and PageKind
-          // TODO enable:
-//          val content = layout.render(markupPage.render, links.backLinks(markupPage))
-//          Files.write(file = targetFile, content = Html.write(content))
-          ()
-
-      log.debug(s"Wrote: $page")
+    _ <- Util.sequence(pages)(writePage(_, links))
   yield ()
   
   private def directoryPages(path: List[String], directory: File): Either[PageError, List[Page]] =
@@ -116,5 +101,23 @@ final class Site(
 
     result
 
+  private def writePage(page: Page, links: Links): Either[PageError, Unit] =
+    val targetFile: File = page.targetPath.file(config.targetDirectory)
+    val result: Either[PageError, Unit] = page match
+      case asset: Page.Asset =>
+        Right(Files.copy(toFile = targetFile, fromFile = page.sourcePath.file(config.sourceDirectory)))
+
+      case syntheticAsset: Page.SyntheticAsset =>
+        Right(Files.write(file = targetFile, content = syntheticAsset.content))
+
+      case markupPage: Page.MarkupPage =>
+        val layout: Layout = Layout.Default // TODO calculate based on FrontMatter and PageKind
+        for xml <- markupPage.render yield
+          val content = layout.render(xml, links.backLinks(markupPage))
+          Files.write(file = targetFile, content = Html.write(content))
+          ()
+
+    result.foreach(_ => log.debug(s"Wrote: $page"))
+    result
 
 

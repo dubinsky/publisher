@@ -47,7 +47,7 @@ object Page:
 
     def resolveLinks(links: Links): Unit = ast = markup.resolveLinks(ast, LinksResolver(links, this))
 
-    def render: Xml = markup.render(ast) // TODO add TOC
+    def render: Either[PageError, Xml] = markup.render(sourcePath, ast) // TODO add TOC
 
   def makePage(
     sourcePath: Path,

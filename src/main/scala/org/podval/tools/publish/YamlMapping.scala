@@ -3,14 +3,15 @@ package org.podval.tools.publish
 import zio.blocks.chunk.Chunk
 import zio.blocks.schema.SchemaError
 import zio.blocks.schema.yaml.{Yaml, YamlReader, YamlWriter}
+
 import java.time.{LocalDate, LocalDateTime, OffsetDateTime}
 import java.time.format.DateTimeParseException
+import scala.util.Try
 
 // Note: ZIO Blocks YAML parse/write support for the markup front-matter and configuration file.
-// Attempts to use ZIO Blocks YAML decode/encode support failed:
-// - I want to round-trip keys not covered by the object being decoded, and there is no easy way to do it;
-// - I want to use key names known from Jekyll configuration file, but ZIO Blocks hard-codes kebab case for field names;
-// - I want to accept dates that are in *either* of the short, full, zoned formats, not in exactly one of them.
+// TODO Once NameMapper is supported for YAML, switch to ZIO Blocks YAML decode/encode:
+// - round-trip keys not covered by the object being decoded;
+// - write custom codec for dates that are in *either* of the short, full, zoned formats.
 abstract class YamlMapping(keys: Map[String, Yaml]):
   final def get(key: String): Option[Yaml] = keys.get(key)
 
@@ -27,9 +28,15 @@ abstract class YamlMapping(keys: Map[String, Yaml]):
   final def toStrings(key: String): List[String] = YamlMapping.toStrings(get(key))
 
 object YamlMapping:
+  def read(input: String): Either[SchemaError, Yaml] = Try(YamlReader.read(input))
+    .toEither
+    .swap
+    .map((throwable: Throwable) => SchemaError(throwable.getMessage))
+    .swap
+  
   def parse(input: String): Either[SchemaError, Map[String, Yaml]] =
     for
-      yaml: Yaml = YamlReader.read(input)
+      yaml: Yaml <- read(input)
       mapping: Chunk[(Yaml, Yaml)] <- yaml match
         case Yaml.Mapping(entries: Chunk[(Yaml, Yaml)]) => Right(entries)
         case _ => Left(SchemaError("Must be a Yaml.Mapping"))

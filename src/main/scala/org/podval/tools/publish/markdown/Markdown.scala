@@ -21,8 +21,10 @@ object Markdown extends Markup(
   override def resolveLinks(doc: Doc, linkResolver: LinksResolver): Doc =
     MarkdownLinksResolver(linkResolver).resolveDoc(doc)
 
-  override def render(doc: Doc): Xml =
-    Xml.Element("div", MarkdownHtmlRenderer.render(doc)*)
+  override def render(sourcePath: Path, doc: Doc): Either[PageError, Xml.Element] =
+    MarkdownHtmlRenderer.render(doc) match
+      case Left(error) => Left(PageError(sourcePath, error.getMessage))
+      case Right(xml) => Right(xml)
 
   def splitIntoLines(inlines: Chunk[Inline]): Chunk[Chunk[Inline]] =
     @tailrec

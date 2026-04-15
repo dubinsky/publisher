@@ -1,7 +1,7 @@
 package org.podval.tools.publish.html
 
 import org.podval.tools.publish.{LinksResolver, Markup, PageError, Path}
-import zio.blocks.schema.xml.{Xml, XmlReader, XmlWriter}
+import zio.blocks.schema.xml.{WriterConfig, Xml, XmlReader, XmlWriter}
 
 object Html extends Markup(
   extension = "html",
@@ -9,7 +9,7 @@ object Html extends Markup(
 ):
   override type AST = Xml
   
-  override def parse(sourcePath: Path, content: String): Either[PageError, AST] =
+  override def parse(sourcePath: Path, content: String): Either[PageError, Xml] =
     // TODO catch errors?
     Right(XmlReader.read(content))
 
@@ -17,6 +17,6 @@ object Html extends Markup(
 
   override def resolveLinks(xml: Xml, linkResolver: LinksResolver): Xml = xml // TODO
 
-  override def render(xml: Xml): Xml = xml
+  override def render(sourcePath: Path, xml: Xml): Either[PageError, Xml] = Right(xml)
 
-  def write(xml: Xml): String = XmlWriter.write(xml)
+  def write(xml: Xml): String = XmlWriter.write(xml, WriterConfig.pretty)

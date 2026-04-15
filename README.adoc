@@ -56,6 +56,9 @@ ZIO Blocks:
 - add XML pretty-printing
 - add XML SAX parsing
 
+Figure out how to deal with the HTML being split by the ZIO Blocks Markdown parser...
+No wonder ZIO Blocks do not provide the Doc->Xml renderer, only the Doc->String one ;)
+
 Additional markup types:
 
 - TEI (including facsimiles and raw TEI)
