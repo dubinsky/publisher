@@ -2,26 +2,74 @@
 
 Generate, serve and publish websites.
 
-== Introduction
+== Motivation
 
-- Jekyll finally pissed me off
-- Support publishing of the Obsidian vault
-- Generate static site for the alter-rebbe.org
-- Publish blog as X Articles
+=== Jekyll finally pissed me off
 
-Opinionated:
+When I listed TODO link  unresistable to any programmer urge to
+write certain kinds of systems, I neglected to mention
+a static site generator.
 
+I've been using Jekyll since I migrated my blog from Blogger TODO when;
+I then moved my notes from Roam into Obsidian
+TODO when link and merged them into the static site with my blog;
+that required customizing my Jekyll setup
+TODO move Jekyll customization notes into the Jekyll page and link it here.
+
+In March 2026, my site stopped publishing;
+error messages were meaningless, and it took a lot of time
+to figure out what is the problem by deleting files until it went away.
+It turned out that Jekyll plugin I used for handling wiki links TODO link
+breaks when an `index` page contains a wiki link (e.g., a [[TODO]]).
+Previous communications with the author of the plugin made it clear
+that he considers Jekyll to be a legacy system
+(but it remained unclear what is the suggested replacement).
+
+At this point, I looked at a few of the modern static site generators
+like 11ty TODO link - and decided to write my own ;)
+
+=== New Possibilities
+
+It occurred to me that if I write my own site generator,
+I can make it Obsidian-aware:
+
+- it can read Obsidian configuration
+- it can publish daily notes as dated blog posts
+
+It also occurred to me that I can make alter-rebbe.org TODO link,
+a site where I publish some archive documents in the TEI format
+static (again) -
+if I add support for TEI to my generator:
+
+- link resolution
+- facsimiles
+- multi-lingual names
+
+It also occurred to me that I can add publishing to X Articles -
+if X ever makes an API for that. This would allow me
+to own my blog - and at the same time use X ;)
+
+== Approach
+
+=== Opinionated
+
+Since I am writing this site generator for my own use,
+it is going to be opinionated:
+
+- everything is written in Scala
 - no plugins
 - no SCSS
 - no template languages
+- no layouts
 
+TODO expound
 
-== TODO
+=== ZIO Blocks
 
-Config:
+At exactly the same time I became aware of the ZIO Blocks project,
+which just added support for a few data formats that I need.
 
-- get `Config.dailyNotesDirectoryName` out of `.obsidian/daily-notes.json/folder`
-- make inclusion of `_drafts` configurable
+== Markdown
 
 Figure out how to deal with the HTML being split by the ZIO Blocks Markdown parser...
 No wonder ZIO Blocks do not provide the Doc->Xml renderer, only the Doc->String one ;)
@@ -31,6 +79,13 @@ Anchors:
 - calculate content structure for TOC etc.
 - add section anchors if they are not there
 - detect block anchors
+
+== TODO
+
+Config:
+
+- get `Config.dailyNotesDirectoryName` out of `.obsidian/daily-notes.json/folder`
+- make inclusion of `_drafts` configurable
 
 Wiki links in Obsidian:
 
@@ -58,3 +113,8 @@ Additional markup types:
 - AsciiDoc?
 - DocBook??
 - ReStructured Text?
+
+PDF:
+
+- danfickle/openhtmltopdf: An HTML to PDF library for the JVM. Based on Flying Saucer and Apache PDF-BOX 2. With SVG image support. Now also with accessible PDF support (WCAG, Section 508, PDF/UA)! · GitHub [https://share.google/UiGeZVUcInZur8zNF](https://share.google/UiGeZVUcInZur8zNF)
+- [https://gist.github.com/rjozefowicz/fa0618fce8e6ae28ff5c46b65ba7defd](https://gist.github.com/rjozefowicz/fa0618fce8e6ae28ff5c46b65ba7defd)

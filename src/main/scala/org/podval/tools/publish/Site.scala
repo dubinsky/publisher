@@ -113,7 +113,7 @@ final class Site(
 
       case markupPage: Page.MarkupPage =>
         for xml <- markupPage.render yield
-          val content: Xml = Layout(
+          val content: Xml = new Layout(
             config,
             markupPage,
             xml,
