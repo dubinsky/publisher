@@ -5,6 +5,8 @@ import zio.blocks.schema.xml.Xml
 import java.io.File
 import Util.ifDefined
 
+// TODO add embedded asset pages and use them for CSS
+
 sealed trait Page derives CanEqual:
   def sourcePath: Path
   def targetPath: Path
@@ -24,6 +26,7 @@ object Page:
   ) extends Page:
     override def toString: String = s"Asset($sourcePath, $targetPath)"
 
+  // TODO load from resource
   final class SyntheticAsset(
     override val targetPath: Path,
     override val pageKind: PageKind,
@@ -38,7 +41,7 @@ object Page:
     override val targetPath: Path,
     override val pageKind: PageKind,
     val markup: Markup,
-    frontMatter: FrontMatter,
+    val frontMatter: FrontMatter,
     astRaw: markup.AST,
   ) extends Page:
     override def toString: String = s"Markup[$markup]($sourcePath, $targetPath)"
@@ -48,6 +51,8 @@ object Page:
     def resolveLinks(links: Links): Unit = ast = markup.resolveLinks(ast, LinksResolver(links, this))
 
     def render: Either[PageError, Xml] = markup.render(sourcePath, ast) // TODO add TOC
+
+    def title: String = frontMatter.title.getOrElse(targetPath.path.last) // TODO titl from the document itself?
 
   def makePage(
     sourcePath: Path,

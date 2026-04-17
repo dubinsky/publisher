@@ -19,7 +19,7 @@ object MarkdownHtmlRenderer:
       .element("div")
       .children(children*)
       .build
-      
+
   private def parseHtml(html: String): Either[XmlCodecError, Xml] =
     try Right(XmlReader.read(html))
     catch case e: XmlCodecError => Left(XmlCodecError(e.spans, e.getMessage + ": " + html))
@@ -29,7 +29,7 @@ object MarkdownHtmlRenderer:
 
   private def renderInlines(inlines: Chunk[Inline]): Either[XmlCodecError, Chunk[Xml]] =
     Util.sequence(inlines)(renderInline)
-  
+
   extension (builder: XmlBuilder.ElementBuilder)
     def attr[A](name: String, option: Option[A], value: A => String): XmlBuilder.ElementBuilder =
       option.fold(builder)(a => builder.attr(name, value(a)))
@@ -65,7 +65,7 @@ object MarkdownHtmlRenderer:
 
     case BulletList(items, _) =>
       for children <- renderBlocks(items) yield XmlBuilder.element("ul").children(children*).build
-      
+
     case OrderedList(start, items, _) =>
       for children <- renderBlocks(items) yield XmlBuilder
         .element("ol")
@@ -133,7 +133,7 @@ object MarkdownHtmlRenderer:
           case Alignment.Center => Some("center")
           case Alignment.None   => None,
         alignment => s"text-align:$alignment"
-      ) 
+      )
       .build
     )
 
@@ -144,9 +144,9 @@ object MarkdownHtmlRenderer:
       parseHtml(html)
 
     case Text(value) =>
-      Right(Xml.Text(escape(value)))
+      Right(Xml.Text(value /* TODO? escape(value)*/))
     case Inline.Text(value) =>
-      Right(Xml.Text(escape(value)))
+      Right(Xml.Text(value /* TODO? escape(value)*/))
 
     case Code(value) =>
       Right(XmlBuilder.element("code").child(XmlBuilder.text(escape(value))).build)
@@ -222,4 +222,4 @@ object MarkdownHtmlRenderer:
     .replace("<", "&lt;")
     .replace(">", "&gt;")
     .replace("\"", "&quot;")
-    .replace("'", "&#39;")
+    .replace("'", "&apos;")

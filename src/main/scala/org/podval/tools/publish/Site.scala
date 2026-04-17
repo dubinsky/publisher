@@ -3,6 +3,7 @@ package org.podval.tools.publish
 import org.podval.tools.publish.html.Html
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
+import zio.blocks.schema.xml.Xml
 import java.io.File
 
 object Site:
@@ -111,13 +112,15 @@ final class Site(
         Right(Files.write(file = targetFile, content = syntheticAsset.content))
 
       case markupPage: Page.MarkupPage =>
-        val layout: Layout = Layout.Default // TODO calculate based on FrontMatter and PageKind
         for xml <- markupPage.render yield
-          val content = layout.render(xml, links.backLinks(markupPage))
+          val content: Xml = Layout(
+            config,
+            markupPage,
+            xml,
+            links.backLinks(markupPage)
+          ).render
           Files.write(file = targetFile, content = Html.write(content))
           ()
 
     result.foreach(_ => log.debug(s"Wrote: $page"))
     result
-
-

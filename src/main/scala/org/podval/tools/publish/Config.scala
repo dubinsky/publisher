@@ -6,16 +6,16 @@ import zio.blocks.schema.yaml.{YamlCodec, YamlFormat}
 import java.io.File
 
 final class Config(
-  val targetDirectoryName: String = "_site",
-
   val title: String,
-  val description: Option[String] = None,
-  val author: Option[String] = None,
-  val email: Option[String] = None,
-  val timezone: Option[String] = None,
+  val description: String,
+  val author: String,
+  val email: String,
 
-  val blog: Config.Location = Config.Location(),
-  val daily: Config.Location = Config.Location(),
+  val timezone: Option[String] = None,
+  val lang: Option[String] = None,
+
+  val target: Config.Target = Config.Target(),
+  val blog: Config.Blog = Config.Blog(),
 
   val exclude: List[String] = List.empty,
   val analytics: Config.Analytics = Config.Analytics(),
@@ -26,14 +26,14 @@ final class Config(
   def sourceDirectory: File = sourceDirectoryOpt.get
 
   lazy val targetDirectory: File =
-    val result: File = File(sourceDirectory, targetDirectoryName)
+    val result: File = File(sourceDirectory, target.directory)
     result.mkdirs()
     Files.requireExists(result)
     Files.requireDirectory(result)
     result
 
   private def blogDirectoryName: String = blog.source.getOrElse(PageKind.BlogPost.sourceDirectoryName)
-  private def dailyNotesDirectoryName: String = daily.source.getOrElse(PageKind.DailyNote.sourceDirectoryName)
+  private def dailyNotesDirectoryName: String = blog.daily.getOrElse(PageKind.DailyNote.sourceDirectoryName)
 
   def specialPageKindSourcePathStartsWith(pageKind: PageKind.Special): String = pageKind match
     case PageKind.BlogPost => blogDirectoryName
@@ -87,9 +87,16 @@ object Config:
     "#"
   )
 
-  final class Location(
+  final class Target(
+    val directory: String = "_site",
+    val url: Option[String] = None,
+    val base: Option[String] = None // TODO the subpath of your site, e.g. /blog
+  )
+
+  final class Blog(
     val source: Option[String] = None,
-    val target: Option[String] = None
+    val target: Option[String] = None, // TODO
+    val daily: Option[String] = None
   )
 
   final class Analytics(
