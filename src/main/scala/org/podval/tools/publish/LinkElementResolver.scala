@@ -12,8 +12,8 @@ object LinkElementResolver:
   // TODO do 'img' too?
 
   object A extends LinkElementResolver(
-    elementName = XmlName("a", None, None),
-    urlAttributeName = XmlName("href", None, None),
+    elementName = Html.a,
+    urlAttributeName = Html.href,
     category = None
   )
   

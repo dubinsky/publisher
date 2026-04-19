@@ -2,19 +2,9 @@ package org.podval.tools.publish
 
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
-import zio.blocks.schema.xml.Xml
 import java.io.File
-
-object Site:
-  def main(args: Array[String]): Unit =
-    val site: Site = Site(
-      sourceDirectoryPath = "/home/dub/Podval/dub.podval.org",
-      treatWarningsAsErrors = true,
-      logLevel = Level.DEBUG
-    )
-    site.generate match
-      case Right(()) => println("Done!")
-      case Left(error) => println(s"Error generating site: $error")
+import java.nio.charset.StandardCharsets
+import Util.ifDefined
 
 final class Site(
   sourceDirectoryPath: String,
@@ -31,7 +21,29 @@ final class Site(
 
   private given CanEqual[File, File] = CanEqual.derived
 
-  def generate: Either[PageError, Unit] = for
+  def generateAndReport(): Unit = generate match
+      case Right(()) => println("Done!")
+      case Left(error) => println(s"Error generating site: $error")
+
+  private val resourcesBase: String = "/org/podval/tools/publish/site"
+
+  // TODO list using Files.listResources
+  private val resourcesList: List[String] = List(
+    "/assets/css/base.css",
+    "/assets/css/initialize.css",
+    "/assets/css/layout.css",
+    "/assets/css/skin.css",
+    "/assets/css/style.css",
+  )
+
+  private def generate: Either[PageError, Unit] = for
+    _ = resourcesList.foreach: resourceName =>
+      Files.write(
+        toFile = File(config.targetDirectory, resourceName),
+        content = new String(getClass.getResourceAsStream(resourcesBase + resourceName).readAllBytes(), StandardCharsets.UTF_8)
+      )
+      log.debug(s"Copied embedded asset: $resourceName")
+
     // Enumerate all pages
     pages: List[Page] <- directoryPages(List.empty, config.sourceDirectory)
 
@@ -55,11 +67,18 @@ final class Site(
     links: Links = Links(pages, warnings)
 
     // Resolve links
-    // TODO do the warning.recover/sequence dance
-    _ = pages.collect { case page: Page.MarkupPage => page }.foreach(_.resolveLinks(links))
+    // TODO do the warning.recover/sequence dance!
+    _ = pages.foreach(links.resolve)
 
-    // Write site
-    _ <- Util.sequence(pages)(writePage(_, links))
+    // Write pages
+    _ = pages.foreach: page =>
+      val targetFile: File = page.targetPath.file(config.targetDirectory)
+      Files.write(
+        toFile = targetFile,
+        content = Html.write(Minima(config, page, links.backLinks(page)).render)
+      )
+      log.debug(s"Wrote: $page")
+
   yield ()
   
   private def directoryPages(path: List[String], directory: File): Either[PageError, List[Page]] =
@@ -84,13 +103,7 @@ final class Site(
     Files.requireFile(file)
     val (name: String, extension: Option[String]) = Files.nameAndExtension(file.getName)
     val sourcePath: Path = Path(path :+ name, extension)
-
-    val result: Either[PageError, Option[Page]] = Page.makePage(
-      sourcePath = sourcePath,
-      sourceFile = sourcePath.file(config.sourceDirectory),
-      warnings = warnings,
-      pageKind = PageKind(sourcePath, config)
-    )
+    val result: Either[PageError, Option[Page]] = makePage(sourcePath)
 
     result match
       case Right(Some(page)) => log.debug(s"Read: $page")
@@ -98,24 +111,49 @@ final class Site(
 
     result
 
-  // TODO always Right?
-  private def writePage(page: Page, links: Links): Either[PageError, Unit] =
-    val targetFile: File = page.targetPath.file(config.targetDirectory)
-    val result: Either[PageError, Unit] = page match
-      case asset: Page.Asset =>
-        Right(Files.copy(toFile = targetFile, fromFile = page.sourcePath.file(config.sourceDirectory)))
+  private def makePage(sourcePath: Path): Either[PageError, Option[Page]] =
+    val pageKind: PageKind = PageKind(sourcePath, config)
+    val sourceFile: File = sourcePath.file(config.sourceDirectory)
+    val markup: Option[Markup] = sourcePath.extension.flatMap(extension => Markup.all.find(_.isExtension(extension)))
 
-      case syntheticAsset: Page.SyntheticAsset =>
-        Right(Files.write(toFile = targetFile, content = syntheticAsset.content))
+    ifDefined(warnings.recoverNone(pageKind.targetPath(sourcePath))): (targetPath: Path) =>
+      ifDefined(markup match
+        case None =>
+          ifDefined(warnings.recoverNone(
+            if pageKind.isAssetAllowed
+            then Right(())
+            else Left(PageError(sourcePath, s"Asset not allowed in $pageKind"))
+          )): _ =>
+            Files.copy(fromFile = sourceFile, toFile = targetPath.file(config.targetDirectory))
+            log.debug(s"Copied asset: $targetPath")
+            Right(None)
 
-      case markupPage: Page.MarkupPage =>
-        // TODO add TOC
-        val content: Xml = new Layout(
-          config,
-          markupPage,
-          links.backLinks(markupPage)
-        ).render
-        Right(Files.write(toFile = targetFile, content = Html.write(content)))
+        case Some(markup) =>
+          ifDefined(warnings.recoverNone(
+            if pageKind.isMarkupAllowed(markup)
+            then Right(())
+            else Left(PageError(sourcePath, s"Markup $markup not allowed in $pageKind"))
+          )): _ =>
+            val (frontMatterOrError: Either[PageError, FrontMatter], content: String) = FrontMatter
+              .parse(Files.read(sourceFile)) match
+              case (Right(frontMatter), content) =>
+                (Right(frontMatter), content)
+              case (Left(yamlError), content) =>
+                (Left(PageError(sourcePath, "Malformed FrontMatter", Some(yamlError))), content)
 
-    result.foreach(_ => log.debug(s"Wrote: $page"))
-    result
+            for
+              frontMatter: FrontMatter <- warnings.recover(frontMatterOrError)(FrontMatter.absent)
+              result: Option[Page] <- ifDefined(warnings.recoverNone(markup.parse(sourcePath, content))): xml =>
+                Right(Some(Page(
+                  sourcePath,
+                  targetPath.withExtension(Html.extension),
+                  pageKind,
+                  markup,
+                  frontMatter,
+                  xml
+                )))
+            yield
+              result
+      ): (page: Page) =>
+        Right(Some(page))
+

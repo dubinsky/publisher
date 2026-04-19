@@ -8,16 +8,16 @@ import java.io.File
 final class Config(
   val title: String,
   val description: String,
-  val author: String,
-  val email: String,
-
   val timezone: Option[String] = None,
   val lang: Option[String] = None,
 
+  val exclude: List[String] = List.empty,
+  val headerPages: List[String], // TODO freaking kebab case!
+
+  val author: Config.Author = Config.Author(),
   val target: Config.Target = Config.Target(),
   val blog: Config.Blog = Config.Blog(),
 
-  val exclude: List[String] = List.empty,
   val analytics: Config.Analytics = Config.Analytics(),
   val social: Config.Social = Config.Social()
 ):
@@ -85,6 +85,11 @@ object Config:
     "_",
     "~",
     "#"
+  )
+
+  final class Author(
+    val name: Option[String] = None,
+    val email: Option[String] = None,
   )
 
   final class Target(

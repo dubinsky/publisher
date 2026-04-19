@@ -104,7 +104,7 @@ object FrontMatterSpec extends ZIOSpecDefault:
           frontMatter.layout == None,
           frontMatter.tags == List("yaml", "markdown", "test"),
           frontMatter.categories == List("important"),
-          frontMatter.date == Some(LocalDate.of(2026, 3, 22))
+          frontMatter.date.map(_.localDate) == Some(LocalDate.of(2026, 3, 22))
         )
       )
     }

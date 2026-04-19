@@ -71,14 +71,49 @@ which just added support for a few data formats that I need.
 
 == Markdown
 
-Figure out how to deal with the HTML being split by the ZIO Blocks Markdown parser...
-No wonder ZIO Blocks do not provide the Doc->Xml renderer, only the Doc->String one ;)
+Pipeline:
 
-Anchors:
+- Markdown text
+- Markdown AST
+- HTML text
+- HTML AST
 
-- calculate content structure for TOC etc.
-- add section anchors if they are not there
-- detect block anchors
+I need HTML AST for post-processing like chunking,
+and prefer to use it for all post-processing
+like HTML layout for the browser and PDF generation.
+
+Since Markdown allows embedding HTML,
+ans since opening and closing tags of the same HTML element
+may end up in different Markdown AST nodes,
+I can not go directly from Markdown AST to HTML AST -
+I have to go through HTML text.
+
+Industry-standard FlexMark parser can be configured to
+pair some - but not all - of the tags,
+so direct Markdown AST to HTML AST is not possible with FlexMark either.
+
+Since I insist on the end result being HTML AST,
+invalid XML (e.g., unclosed 'br' elements)
+embedded in the Markdown text is not supported.
+
+WOW! It turns out that ZIO Block Markdown parser
+parses nested lists incorrectly:
+
+[source]
+----
+- l1
+  - l2
+----
+
+parses exactly the same as
+
+[source]
+----
+- l1
+- l2
+----
+
+So, it seems that I *have* to use FlexMark after all...
 
 == TODO
 

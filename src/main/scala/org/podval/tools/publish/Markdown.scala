@@ -6,6 +6,7 @@ import zio.blocks.docs.{Alignment, Autolink, Block, BlockQuote, BulletList, Code
   Strikethrough, Strong, Table, TableRow, Text, ThematicBreak}
 import zio.blocks.schema.xml.Xml
 import scala.annotation.tailrec
+import Html.{escapeText, escapeUrl}
 
 object Markdown extends Markup(
   extension = "md",
@@ -42,44 +43,20 @@ object Markdown extends Markup(
 
   private def renderBlock(block: Block): String = block match
     case Paragraph(content) => renderInlines("p", content)
-
     case Heading(level, content) => renderInlines(s"h${level.value}", content)
-
-    case CodeBlock(info, code) =>
-      val classAttr: String = info.fold("")(lang => s""" class="language-$lang"""")
-      s"<pre><code$classAttr>${escape(code)}</code></pre>"
-
+    case CodeBlock(info, code) => s"<pre>${renderCode(code, info)}</pre>"
     case ThematicBreak => "<hr/>"
-
     case BlockQuote(content) => renderBlocks("blockquote", content)
-
     case BulletList(items, _) => renderBlocks("ul", items)
-
-    case OrderedList(start, items, _) =>
-      renderBlocks("ol", items, attrs = if start == 1 then "" else s""" start="$start"""")
-
-    case ListItem(content, checked) =>
-      val input = checked.fold("")(checked =>
-        val checkedAttr = if checked then """ checked="true"""" else ""
-        s"""<input type="checkbox"$checkedAttr disabled="true"/>"""
-      )
-      s"<li>$input${renderBlocks(content)}</li>"
-
+    case OrderedList(start, items, _) => renderBlocks("ol", items, attrs = if start == 1 then "" else s""" start="$start"""")
+    case ListItem(content, checked) => s"<li>${renderInput(checked)}${renderBlocks(content)}</li>"
     case HtmlBlock(html) => html
 
     case Table(header, alignments, rows) =>
       def renderTableRow(tag: String, row: TableRow): String = row
         .cells
         .zip(alignments)
-        .map { case (cell, alignment) =>
-          val style: String = alignment match
-            case Alignment.Left => s""" style="text-align:left""""
-            case Alignment.Right => s""" style="text-align:right""""
-            case Alignment.Center => s""" style="text-align:center""""
-            case Alignment.None => s""
-
-          renderInlines(tag, cell, attrs = style)
-        }
+        .map { case (cell, alignment) => renderInlines(tag, cell, attrs = renderAlignment(alignment)) }
         .mkString("<tr>", "", "</tr>")
 
       val headerHtml = s"<thead>${renderTableRow("th", header)}</thead>"
@@ -93,8 +70,8 @@ object Markdown extends Markup(
     case Text(value) => renderText(value)
     case Inline.Text(value) => renderText(value)
 
-    case Code(value) => s"<code>${escape(value)}</code>"
-    case Inline.Code(value) => s"<code>${escape(value)}</code>"
+    case Code(value) => renderCode(value, language = None)
+    case Inline.Code(value) => renderCode(value, language = None)
 
     case Emphasis(content) => renderInlines("em", content)
     case Inline.Emphasis(content) => renderInlines("em", content)
@@ -105,11 +82,11 @@ object Markdown extends Markup(
     case Strikethrough(content) => renderInlines("del", content)
     case Inline.Strikethrough(content) => renderInlines("del", content)
 
-    case Link(text, url, titleOpt) => link(text, url, titleOpt)
-    case Inline.Link(text, url, titleOpt) => link(text, url, titleOpt)
+    case Link(text, url, titleOpt) => renderLink(text, url, titleOpt)
+    case Inline.Link(text, url, titleOpt) => renderLink(text, url, titleOpt)
 
-    case Image(alt, url, titleOpt) => image(alt, url, titleOpt)
-    case Inline.Image(alt, url, titleOpt) => image(alt, url, titleOpt)
+    case Image(alt, url, titleOpt) => renderImage(alt, url, titleOpt)
+    case Inline.Image(alt, url, titleOpt) => renderImage(alt, url, titleOpt)
 
     case HtmlInline(html) => html
     case Inline.HtmlInline(html) => html
@@ -120,20 +97,35 @@ object Markdown extends Markup(
     case HardBreak => "<br/>"
     case Inline.HardBreak => "<br/>"
 
-    case Autolink(url, isEmail) => autolink(url, isEmail)
-    case Inline.Autolink(url, isEmail) => autolink(url, isEmail)
+    case Autolink(url, isEmail) => renderAutoLink(url, isEmail)
+    case Inline.Autolink(url, isEmail) => renderAutoLink(url, isEmail)
 
-  private def link(text: Chunk[Inline], url: String, titleOpt: Option[String]) =
-    renderInlines("a", text, attrs = s""" href="${escape(url)}"${title(titleOpt)}""")
+  private def renderCode(code: String, language: Option[String]): String =
+    val classAttr: String = language.fold("")(lang => s""" class="language-$lang"""")
+    s"<code$classAttr>${escapeText(code)}</code>"
+    
+  private def renderLink(text: Chunk[Inline], url: String, titleOpt: Option[String]) =
+    renderInlines("a", text, attrs = s""" href="${escapeUrl(url)}"${title(titleOpt)}""")
 
-  private def image(alt: String, url: String, titleOpt: Option[String]) =
-    s"""<img src="${escape(url)}" alt="${escape(alt)}"${title(titleOpt)}/>"""
+  private def renderImage(alt: String, url: String, titleOpt: Option[String]) =
+    s"""<img src="${escapeUrl(url)}" alt="${escapeText(alt)}"${title(titleOpt)}/>"""
+  
+  private def renderAutoLink(url: String, isEmail: Boolean) =
+    s"""<a href="${if isEmail then "mailto:" else ""}${escapeUrl(url)}">${escapeUrl(url)}</a>"""
 
+  private def renderInput(checked: Option[Boolean]): String = checked.fold("")(checked =>
+    val checkedAttr = if checked then """ checked="true"""" else ""
+    s"""<input type="checkbox"$checkedAttr disabled="true"/>"""
+  )
+
+  private def renderAlignment(alignment: Alignment): String = alignment match
+    case Alignment.Left => s""" style="text-align:left""""
+    case Alignment.Right => s""" style="text-align:right""""
+    case Alignment.Center => s""" style="text-align:center""""
+    case Alignment.None => s""
+    
   private def title(titleOpt: Option[String]): String =
-    titleOpt.fold("")(title => s"title=${escape(title)}")
-
-  private def autolink(url: String, isEmail: Boolean) =
-    s"""<a href="${if isEmail then "mailto:" else ""}${escape(url)}">${escape(url)}</a>"""
+    titleOpt.fold("")(title => s"title=${escapeText(title)}")
 
   // Processes wiki links.
   private def renderText(text: String) =
@@ -143,23 +135,16 @@ object Markdown extends Markup(
         val start: Int = text.indexOf("[[")
         val end: Int = if start == -1 then -1 else text.indexOf("]]", start + 2)
         if end == -1
-        then escape(text)
+        then escapeText(text)
         else loop(
           result = result ++
-            escape(text.substring(0, start)) ++
-            wikiLink(text.substring(start + 2, end)),
+            escapeText(text.substring(0, start)) ++
+            renderWikiLink(text.substring(start + 2, end)),
           text = text.substring(end + 2)
         )
 
     loop("", text)
 
-  private def wikiLink(body: String): String =
+  private def renderWikiLink(body: String): String =
     val (url: String, text: Option[String]) = Files.split(body.trim, '|')
-    s"""<a class="wiki-link" href="${escape(url)}">${text.fold("")(text => escape(text))}</a>"""
-
-  private def escape(s: String): String = s
-    .replace("&", "&amp;")
-    .replace("<", "&lt;")
-    .replace(">", "&gt;")
-    .replace("\"", "&quot;")
-    .replace("'", "&apos;")
+    s"""<a class="wiki-link" href="${escapeUrl(url)}">${text.fold("")(text => escapeText(text))}</a>"""

@@ -1,0 +1,258 @@
+/* TODO there is some spurious padding/margins around pre > code vertically - and not enough horizontally ... */
+
+html {
+    font-size: var(--base-font-size);
+}
+
+/**
+ * Reset some basic elements
+ */
+body, h1, h2, h3, h4, h5, h6, p, blockquote, pre, hr, dl, dd, ol, ul, figure {
+    margin: 0;
+    padding: 0;
+}
+
+/**
+ * Basic styling
+ */
+body {
+    font: var(--base-font-weight) var(--base-font-size) var(--base-font-family);
+    line-height: var(--base-line-height);
+    color: var(--text-color);
+    background-color: var(--background-color);
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-feature-settings: "kern" 1;
+    -moz-font-feature-settings: "kern" 1;
+    -o-font-feature-settings: "kern" 1;
+    font-feature-settings: "kern" 1;
+    font-kerning: normal;
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+    overflow-wrap: break-word;
+}
+
+/**
+ * Set `margin-bottom` to maintain vertical rhythm
+ */
+h1, h2, h3, h4, h5, h6, p, blockquote, pre, ul, ol, dl, figure, div.highlight, figure.highlight {
+    margin-bottom: calc(var(--spacing-unit) * 0.5);
+}
+
+hr {
+    margin-top: var(--spacing-unit);
+    margin-bottom: var(--spacing-unit);
+}
+
+
+/**
+ * `main` element
+ */
+main {
+    display: block; /* Default value of `display` of `main` element is 'inline' in IE 11. */
+}
+
+/**
+ * Images
+ */
+img {
+    max-width: 100%;
+    vertical-align: middle;
+}
+
+
+/**
+ * Figures
+ */
+figure > img {
+    display: block;
+}
+
+figcaption {
+    font-size: var(--small-font-size);
+}
+
+
+/**
+ * Lists
+ */
+ul, ol {
+    margin-left: var(--spacing-unit);
+}
+
+li {
+    > ul,
+    > ol {
+        margin-bottom: 0;
+    }
+}
+
+
+/**
+ * Headings
+ */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--heading-color);
+    font-weight: var(--base-font-weight);
+}
+
+
+/**
+ * Links
+ */
+a {
+    color: var(--link-base-color);
+    text-decoration: none;
+
+    &:visited {
+        color: var(--link-visited-color);
+    }
+
+    &:hover {
+        color: var(--link-hover-color);
+        text-decoration: underline var(--brand-color);
+        text-underline-offset: 3px;
+    }
+
+    .social-media-list &:hover {
+        text-decoration: none;
+
+        .username {
+            text-decoration: underline;
+        }
+    }
+}
+
+
+/**
+ * Blockquotes
+ */
+blockquote {
+    color: var(--brand-color);
+    border-left: 4px solid var(--border-color-01);
+    padding-left: calc(var(--spacing-unit) * 0.5);
+    /*@include relative-font-size(1.05);*/
+    font-size: 1.05rem;
+    font-style: italic;
+
+    > :last-child {
+        margin-bottom: 0;
+    }
+
+    i, em {
+        font-style: normal;
+    }
+}
+
+
+
+/**
+ * Code formatting
+ */
+pre, code {
+    font-family: var(--code-font-family);
+    background-color: var(--code-background-color);
+
+    @media screen and (max-width: var(--on-palm)) {
+        font-family: monospace;
+    }
+}
+
+.hljs {
+    background-color: var(--code-background-color);
+}
+
+pre {
+    /* TODO I do not think I want this: padding: 8px 12px;*/
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--heading-color);
+    overflow-x: auto;
+
+    > code {
+        display: inline-block;
+        width: 100%;
+    }
+
+    /* Counter-act Highlights.js styling ;) */
+    > code.hljs {
+        padding: 0;
+    }
+}
+
+
+
+/**
+ * Wrapper
+ */
+.wrapper {
+    max-width: var(--content-width);
+    margin: 0 auto;
+    padding: 0 var(--spacing-unit);
+
+    @media screen and (max-width: var(--on-medium)) {
+        padding-right: calc(var(--spacing-unit) * 0.6);
+        padding-left: calc(var(--spacing-unit) * 0.6);
+    }
+}
+
+.wrapper:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+/**
+ * Icons
+ */
+
+.orange {
+    color: #f66a0a;
+}
+
+.grey {
+    color: #828282;
+}
+
+.svg-icon {
+    width: 1.25em;
+    height: 1.25em;
+    display: inline-block;
+    fill: currentColor;
+    vertical-align: text-bottom;
+    overflow: visible;
+}
+
+/**
+ * Tables
+ */
+table {
+    margin-bottom: var(--spacing-unit);
+    width: 100%;
+    text-align: var(--table-text-align);
+    color: var(--table-text-color);
+    border-collapse: collapse;
+    border: 1px solid var(--table-border-color);
+    tr {
+        &:nth-child(even) {
+            background-color: var(--table-zebra-color);
+        }
+    }
+    th, td {
+        padding: calc(var(--spacing-unit) * 33.3333333333 * .01) calc(var(--spacing-unit) * .5);
+    }
+    th {
+        background-color: var(--table-header-bg-color);
+        border: 1px solid var(--table-header-border);
+    }
+    td {
+        border: 1px solid var(--table-border-color);
+    }
+
+    @media screen and (max-width: var(--on-laptop)) {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        -ms-overflow-style: -ms-autohiding-scrollbar;
+    }
+}
