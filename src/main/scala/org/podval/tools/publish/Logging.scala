@@ -9,7 +9,6 @@ import ch.qos.logback.core.status.InfoStatus
 import net.logstash.logback.encoder.LogstashEncoder
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
-
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
 object Logging:

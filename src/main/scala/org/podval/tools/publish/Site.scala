@@ -1,6 +1,5 @@
 package org.podval.tools.publish
 
-import org.podval.tools.publish.html.Html
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
 import zio.blocks.schema.xml.Xml
@@ -11,7 +10,6 @@ object Site:
     val site: Site = Site(
       sourceDirectoryPath = "/home/dub/Podval/dub.podval.org",
       treatWarningsAsErrors = true,
-      reformatSourceFiles = false,
       logLevel = Level.DEBUG
     )
     site.generate match
@@ -21,7 +19,6 @@ object Site:
 final class Site(
   sourceDirectoryPath: String,
   treatWarningsAsErrors: Boolean,
-  reformatSourceFiles: Boolean,
   logLevel: Level = Level.INFO
 ):
   Logging.configureLogBack(level = logLevel, useLogStash = false)
@@ -91,7 +88,6 @@ final class Site(
     val result: Either[PageError, Option[Page]] = Page.makePage(
       sourcePath = sourcePath,
       sourceFile = sourcePath.file(config.sourceDirectory),
-      reformatSourceFile = reformatSourceFiles,
       warnings = warnings,
       pageKind = PageKind(sourcePath, config)
     )
@@ -102,6 +98,7 @@ final class Site(
 
     result
 
+  // TODO always Right?
   private def writePage(page: Page, links: Links): Either[PageError, Unit] =
     val targetFile: File = page.targetPath.file(config.targetDirectory)
     val result: Either[PageError, Unit] = page match
@@ -109,18 +106,16 @@ final class Site(
         Right(Files.copy(toFile = targetFile, fromFile = page.sourcePath.file(config.sourceDirectory)))
 
       case syntheticAsset: Page.SyntheticAsset =>
-        Right(Files.write(file = targetFile, content = syntheticAsset.content))
+        Right(Files.write(toFile = targetFile, content = syntheticAsset.content))
 
       case markupPage: Page.MarkupPage =>
-        for xml <- markupPage.render yield
-          val content: Xml = new Layout(
-            config,
-            markupPage,
-            xml,
-            links.backLinks(markupPage)
-          ).render
-          Files.write(file = targetFile, content = Html.write(content))
-          ()
+        // TODO add TOC
+        val content: Xml = new Layout(
+          config,
+          markupPage,
+          links.backLinks(markupPage)
+        ).render
+        Right(Files.write(toFile = targetFile, content = Html.write(content)))
 
     result.foreach(_ => log.debug(s"Wrote: $page"))
     result

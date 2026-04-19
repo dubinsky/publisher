@@ -1,7 +1,5 @@
 package org.podval.tools.publish
 
-import org.podval.tools.publish.html.Html
-import org.podval.tools.publish.markdown.Markdown
 import zio.blocks.schema.xml.Xml
 
 abstract class Markup(
@@ -14,15 +12,9 @@ abstract class Markup(
 
   final def isExtension(extension: String): Boolean = extensions.contains(extension)
 
-  type AST
+  def parse(sourcePath: Path, content: String): Either[PageError, Xml]
 
-  def parse(sourcePath: Path, content: String): Either[PageError, AST]
-  
-  def reformat(ast: AST): Option[String]
-  
-  def resolveLinks(ast: AST, linkResolver: LinksResolver): AST
-  
-  def render(sourcePath: Path, ast: AST): Either[PageError, Xml]
+  def linkElementResolvers: Seq[LinkElementResolver]
 
 object Markup:
   val all: List[Markup] = List(

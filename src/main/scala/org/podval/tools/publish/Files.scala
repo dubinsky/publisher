@@ -1,7 +1,9 @@
 package org.podval.tools.publish
 
 import java.io.File
-import java.nio.file.{StandardCopyOption, StandardOpenOption, Files as NFiles}
+import java.net.URI
+import java.nio.file.{Paths, StandardCopyOption, StandardOpenOption, Files as NFiles, Path as NPath}
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 object Files:
   def requireExists(file: File): Unit = require(file.exists, s"File does not exist: $file")
@@ -20,12 +22,22 @@ object Files:
 
   def read(file: File): String = new String(NFiles.readAllBytes(file.toPath))
 
-  def write(file: File, content: String): Unit =
-    file.getParentFile.mkdirs()
-    NFiles.writeString(file.toPath, content, StandardOpenOption.CREATE)
+  def write(toFile: File, content: String): Unit =
+    toFile.getParentFile.mkdirs()
+    NFiles.writeString(toFile.toPath, content, StandardOpenOption.CREATE)
   
   def copy(fromFile: File, toFile: File): Unit =
     requireExists(fromFile)
     requireFile(fromFile)
     toFile.getParentFile.mkdirs()
     NFiles.copy(fromFile.toPath, toFile.toPath, StandardCopyOption.REPLACE_EXISTING)
+
+  def main(args: Array[String]): Unit =
+    val base: String = "org/podval/tools/publish/site"
+    val basePath: NPath = Paths.get(getClass.getClassLoader.getResource(base).toURI)
+    val resources: List[URI] = NFiles.walk(basePath).toList.asScala.toList.map(_.toUri).flatMap(uri =>
+            println(uri.toString)
+            Some(uri)
+    )
+
+

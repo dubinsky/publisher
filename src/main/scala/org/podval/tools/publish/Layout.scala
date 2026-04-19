@@ -16,7 +16,6 @@ object Layout:
 final class Layout(
   config: Config,
   page: Page.MarkupPage,
-  content: Xml,
   backLinks: List[Link]
 ):
   import Layout.{apply, el}
@@ -87,6 +86,8 @@ final class Layout(
   private def article: Xml.Element =
     val isBlogPost: Boolean = page.targetPath.path.last != "index"
 
+    val content: Xml = page.getXml
+  
     if isBlogPost then
       el("article", "class" -> "post h-entry", "itemscope" -> "", "itemtype" -> "http://schema.org/BlogPosting")(
         el("header", "class" -> "post-header")(

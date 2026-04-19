@@ -1,6 +1,5 @@
 package org.podval.tools.publish
 
-import org.podval.tools.publish.html.Html
 import zio.blocks.schema.xml.Xml
 import java.io.File
 import Util.ifDefined
@@ -10,8 +9,7 @@ import Util.ifDefined
 sealed trait Page derives CanEqual:
   def sourcePath: Path
   def targetPath: Path
-  def pageKind: PageKind
-
+  
   final def path: Path = targetPath.withoutExtension
 
   override def equals(obj: Any): Boolean = obj match
@@ -21,15 +19,13 @@ sealed trait Page derives CanEqual:
 object Page:
   final class Asset(
     override val sourcePath: Path,
-    override val targetPath: Path,
-    override val pageKind: PageKind
+    override val targetPath: Path
   ) extends Page:
     override def toString: String = s"Asset($sourcePath, $targetPath)"
 
   // TODO load from resource
   final class SyntheticAsset(
     override val targetPath: Path,
-    override val pageKind: PageKind,
     val content: String
   ) extends Page:
     override def toString: String = s"SyntheticAsset($targetPath)"
@@ -39,25 +35,24 @@ object Page:
   final class MarkupPage(
     override val sourcePath: Path,
     override val targetPath: Path,
-    override val pageKind: PageKind,
+    val pageKind: PageKind,
     val markup: Markup,
     val frontMatter: FrontMatter,
-    astRaw: markup.AST,
+    xmlRaw: Xml,
   ) extends Page:
     override def toString: String = s"Markup[$markup]($sourcePath, $targetPath)"
 
-    private var ast: markup.AST = astRaw
+    private var xml: Xml = xmlRaw
+    
+    def getXml: Xml = xml
 
-    def resolveLinks(links: Links): Unit = ast = markup.resolveLinks(ast, LinksResolver(links, this))
-
-    def render: Either[PageError, Xml] = markup.render(sourcePath, ast) // TODO add TOC
-
+    def resolveLinks(links: Links): Unit = xml = links.resolve(xml, this)
+    
     def title: String = frontMatter.title.getOrElse(targetPath.path.last) // TODO titl from the document itself?
 
   def makePage(
     sourcePath: Path,
     sourceFile: File,
-    reformatSourceFile: Boolean,
     pageKind: PageKind,
     warnings: Warnings
   ): Either[PageError, Option[Page]] =
@@ -71,8 +66,7 @@ object Page:
       )): _ =>
         Right(Some(Page.Asset(
           sourcePath = sourcePath,
-          targetPath = targetPath,
-          pageKind = pageKind
+          targetPath = targetPath
         )))
 
       ifDefined(markup match
@@ -93,17 +87,14 @@ object Page:
             for
               frontMatter: FrontMatter <- warnings.recover(frontMatterOrError)(FrontMatter.absent)
               result: Option[Page] <- if frontMatter.isAbsent then makeAsset else
-                ifDefined(warnings.recoverNone(markup.parse(sourcePath, content))): ast =>
-                  if reformatSourceFile then markup.reformat(ast).foreach((reformatted: String) =>
-                    Files.write(file = sourceFile, content = frontMatter.write ++ reformatted)
-                  )
+                ifDefined(warnings.recoverNone(markup.parse(sourcePath, content))): xml =>
                   Right(Some(Page.MarkupPage(
                     sourcePath,
                     targetPath.withExtension(Html.extension),
                     pageKind,
                     markup,
                     frontMatter,
-                    ast
+                    xml
                   )))
             yield
               result

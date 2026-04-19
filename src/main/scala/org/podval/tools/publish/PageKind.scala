@@ -1,6 +1,5 @@
 package org.podval.tools.publish
 
-import org.podval.tools.publish.markdown.Markdown
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 
