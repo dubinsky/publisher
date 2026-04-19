@@ -1,9 +1,15 @@
 package org.podval.tools.publish
 
+import zio.blocks.chunk.Chunk
 import zio.blocks.schema.xml.{Xml, XmlName}
 import java.net.{URI, URISyntaxException}
 
+object Links:
+  final case class LinkResolved(url: String, text: String)
+
 final class Links(pages: List[Page], warnings: Warnings):
+  import Links.LinkResolved
+  
   private var links: List[Link] = List.empty
 
   def backLinks(page: Page): List[Link] = links.filter(_.target == page).filterNot(_.source == page)
@@ -16,7 +22,7 @@ final class Links(pages: List[Page], warnings: Warnings):
       case Xml.Element(name, attributes, children) =>
         val resolved: Option[Xml.Element] = for
           linkElementResolver <- linkElementResolvers.find(_.elementName == name)
-          url <- linkElementResolver.url(attributes)
+          url <- Html.getAttribute(attributes, linkElementResolver.urlAttributeName)
           linkResolved <- resolve(
             page = page,
             url = url,
@@ -25,8 +31,8 @@ final class Links(pages: List[Page], warnings: Warnings):
           )
         yield Xml.Element(
           name,
-          linkElementResolver.updateAttributes(attributes, linkResolved.url),
-          linkElementResolver.updateChildren(children, linkResolved.text)
+          Html.replaceAttribute(attributes, linkElementResolver.urlAttributeName, linkResolved.url),
+          if !children.isEmpty then children else Chunk(Xml.Text(linkResolved.text))
         )
 
         resolved.getOrElse(Xml.Element(name, attributes, children.map(loop)))

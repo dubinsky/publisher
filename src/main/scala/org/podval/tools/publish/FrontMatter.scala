@@ -4,9 +4,7 @@ import zio.blocks.chunk.Chunk
 import zio.blocks.schema.{Schema, SchemaError}
 import zio.blocks.schema.yaml.{Yaml, YamlCodec, YamlFormat, YamlReader, YamlWriter}
 import zio.blocks.typeid.TypeId
-import java.time.format.DateTimeParseException
 import scala.util.control.NonFatal
-import java.time.{LocalDate, LocalDateTime, OffsetDateTime}
 
 final class FrontMatter(
   val layout: Option[String] = None,
@@ -16,7 +14,7 @@ final class FrontMatter(
   val math: Boolean = false,
   val tags: List[String] = List.empty,
   val categories: List[String] = List.empty,
-  val date: Option[LocalDate] = None
+  val date: Option[Date] = None
 ):
   private var extraKeys: Chunk[(Yaml, Yaml)] = Chunk.empty
 
@@ -52,7 +50,7 @@ object FrontMatter:
 
   private val codec: YamlCodec[FrontMatter] = schema
     .deriving(YamlFormat.deriver)
-    .instance(TypeId.of[LocalDate], localDateCodec)
+    .instance(TypeId.of[Date], Date.codec)
     .derive
 
   def parse(input: String): (Either[SchemaError, FrontMatter], String) =
@@ -84,21 +82,6 @@ object FrontMatter:
       Right(result)
     catch
       case error: Throwable if NonFatal(error) => new Left(SchemaError(error.getMessage))
-
-  private def localDateCodec: YamlCodec[LocalDate] = new YamlCodec[LocalDate]:
-    def encodeValue(date: LocalDate): Yaml = Yaml.Scalar(date.toString)
-
-    def decodeValue(yaml: Yaml): LocalDate = yaml match
-      case Yaml.Scalar(value, _) => decodeLocalDateUnsafe(value.trim)
-      case _ => error("Expected scalar value")
-
-    private def decodeLocalDateUnsafe(value: String): LocalDate =
-      try LocalDate.parse(value) // 2026-03-29
-      catch case e: DateTimeParseException =>
-        try LocalDateTime.parse(value).toLocalDate // 2010-01-28T14:24:00
-        catch case e: DateTimeParseException =>
-          try OffsetDateTime.parse(value).toLocalDate //2010-01-28T14:24:00.004-05:00
-          catch case e: DateTimeParseException => throw IllegalArgumentException(s"Not a date: $value ${e.getMessage}")
 
 //  private def stringsCodec: YamlCodec[List[String]] = new YamlCodec[List[String]]:
 //    override def decodeValue(value: Yaml): List[String] = value match
