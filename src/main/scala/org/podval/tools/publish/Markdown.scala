@@ -65,7 +65,7 @@ import scala.annotation.tailrec
 // (no unclosed tags like 'br', 'hr', 'input' and 'img'; attributes have values etc.),
 // FlexMark renders valid XML out of the box.
 // I may need to add some extensions to handle GitHub task lists and such...
-object MarkdownFlexMark extends Markup(
+object Markdown extends Markup(
   extension = "md",
   additionalExtensions = Set.empty
 ):

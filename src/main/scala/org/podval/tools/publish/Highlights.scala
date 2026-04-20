@@ -1,11 +1,12 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.{Xml, XmlName}
+import Html.{module, script, stylesheet}
 
 final class Highlights(
   version: String,
   languages: Set[String]
-) extends JavascriptLibrary:
+) extends Html.JavascriptLibrary:
   private val cdn: String = s"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/$version"
 
   override val head: List[Xml.Element] = List(stylesheet(s"$cdn/styles/default.min.css"))

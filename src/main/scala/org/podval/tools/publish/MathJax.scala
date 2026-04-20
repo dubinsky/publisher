@@ -1,8 +1,9 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.Xml
+import Html.{module, script}
 
-object MathJax extends JavascriptLibrary:
+object MathJax extends Html.JavascriptLibrary:
   override def body: List[Xml.Element] = List.empty
 
   override val head: List[Xml.Element] = List(

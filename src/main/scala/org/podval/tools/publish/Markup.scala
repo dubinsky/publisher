@@ -4,7 +4,7 @@ import zio.blocks.schema.xml.Xml
 
 object Markup:
   val all: List[Markup] = List(
-    MarkdownFlexMark,
+    Markdown,
     Html
   )
   
@@ -21,4 +21,3 @@ abstract class Markup(
   def parse(sourcePath: Path, content: String): Either[PageError, Xml]
 
   def linkElementResolvers: Seq[LinkElementResolver]
-

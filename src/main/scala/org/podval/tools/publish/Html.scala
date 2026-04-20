@@ -16,6 +16,7 @@ object Html extends Markup(
   )
 
   // Wrap Markdown rendered as HTML in a 'div' and parse.
+  // TODO unwrap into Chunk[XMl]
   def parseDiv(sourcePath: Path, htmlBlocks: String): Either[PageError, Xml.Element] =
     parse(sourcePath, s"<div>$htmlBlocks</div>")
   
@@ -29,6 +30,9 @@ object Html extends Markup(
     def apply(children: Xml*): Xml.Element = builder.children(children *).build
     def apply(text: String): Xml.Element = builder.child(XmlBuilder.text(text)).build
     
+    def attrWhen(when: Boolean, name: String, value: => String): XmlBuilder.ElementBuilder =
+      if !when then builder else builder.attr(name, value)
+      
     def childWhen(when: Boolean, child: => Xml): XmlBuilder.ElementBuilder =
       if !when then builder else builder.child(child)
 
@@ -46,11 +50,44 @@ object Html extends Markup(
   def replaceAttribute(attributes: Chunk[(XmlName, String)], name: XmlName, value: String): Chunk[(XmlName, String)] =
     attributes.filterNot(isAttribute(name)).appended(name -> value)
 
-  val a: XmlName = XmlName("a", None, None)
-  val href: XmlName = XmlName("href", None, None)
-  val `class`: XmlName = XmlName("class", None, None)
-  val code: XmlName = XmlName("code", None, None)
+  def stylesheet(href: String, id: Option[String] = None): Xml.Element = XmlBuilder
+    .element("link")
+    .attrWhen(id.nonEmpty, "id", id.get)
+    .attr("rel", "stylesheet")
+    .attr("href", href)
+    .build
 
+  def script(text: String): Xml.Element = XmlBuilder
+    .element("script")
+    .child(XmlBuilder.text(text))
+    .build
+
+  def module(src: String): Xml.Element = XmlBuilder
+    .element("script")
+    .attr("src", src)
+    .child(XmlBuilder.comment("self-closing script elements do not work"))
+    .build
+
+  abstract class JavascriptLibrary:
+    def head: List[Xml.Element]
+    def body: List[Xml.Element]
+
+  private def localName(name: String): XmlName = XmlName(name, None, None)
+  
+  val id: XmlName = localName("id")
+  val a: XmlName = localName("a")
+  val href: XmlName = localName("href")
+  val `class`: XmlName = localName("class")
+  val code: XmlName = localName("code")
+
+  // Remove markup
+  def toSimpleString(xml: Xml): String = xml match
+    case Xml.Text(value) => value
+    case Xml.Element(_, _, children) => children.map(toSimpleString).mkString(" ")
+    case xml => ""
+    
+  def toId(text: String): String = text.trim.replace(' ', '-')
+  
   def escapeText(text: String): String = escape(text)
   def escapeUrl(url: String): String = escape(url) // TODO
 

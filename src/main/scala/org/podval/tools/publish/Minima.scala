@@ -6,13 +6,12 @@ import Html.{apply, childWhen, childrenWhen, el}
 // Based on https://github.com/jekyll/minima
 // TODO calculate based on PageKind?
 // TODO icons!
-// TODO add TOC
 final class Minima(
   config: Config,
   page: Page,
   backLinks: List[Link]
 ):
-  private val libraries: List[JavascriptLibrary] = List(
+  private val libraries: List[Html.JavascriptLibrary] = List(
     Highlights.get(page.xml),
     Option.when(page.frontMatter.math)(MathJax)
   ).flatten
@@ -171,9 +170,7 @@ final class Minima(
               .build
           )
         )
-        .child(
-          el("link", "id" -> "fa-stylesheet", "rel" -> "stylesheet", "href" -> "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.0.0/css/all.min.css")()
-        )
+        .child(Html.stylesheet("https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.0.0/css/all.min.css", id = Some("fa-stylesheet")))
         .child(footer)
         // Skipped: .child(subFooter)
         .children(libraries.flatMap(_.body) *)
@@ -186,7 +183,7 @@ final class Minima(
       .child(el("h4")())
       .children(backLinks.flatMap(link => List(
         XmlBuilder.text("•"),
-        el("a", "class" -> "backlink", "href" -> link.url)(link.fromPage.title)
+        el("a", "class" -> "backlink", "href" -> link.from.url)(link.from.page.title)
       )) *)
       .build
 
@@ -198,7 +195,7 @@ final class Minima(
       // TODO {%- seo -%}: https://github.com/jekyll/jekyll-seo-tag
       .child(el("title")(page.title)) // TODO this is here until seo is implemented - it covers the title...
       .children(libraries.flatMap(_.head) *)
-      .child(el("link", "id" -> "main-stylesheet", "rel" -> "stylesheet", "href" -> "/assets/css/style.css")())
+      .child(Html.stylesheet("/assets/css/style.css", id = Some("main-stylesheet")))
       // TODO {%- feed_meta -%}: https://github.com/jekyll/jekyll-feed
       // TODO
       // {%- if jekyll.environment == 'production' and site.google_analytics -%}

@@ -11,10 +11,16 @@ final class Page(
   val frontMatter: FrontMatter,
   var xml: Xml,
 ) derives CanEqual:
+  
+  // Structure calculations
+  val toc: Toc =
+    val (xmlWithAnchors: Xml, result: Toc) = Toc(xml)
+    xml = xmlWithAnchors
+    result
+    
   override def toString: String = s"Markup[$title.$markup]($sourcePath, $targetPath)"
-
-  // TODO def is(url)
-  def targetPathString: String = targetPath.withoutExtension.toString
+  
+  def is(url: String): Boolean = targetPath.withoutExtension.toString.endsWith(url)
 
   def fileName: String = targetPath.path.last
   def title: String = frontMatter.title.getOrElse(fileName)
