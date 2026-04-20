@@ -18,6 +18,7 @@ abstract class Markup(
 
 object Markup:
   val all: List[Markup] = List(
-    Markdown,
+//    MarkdownZioBlocks,
+    MarkdownFlexMark,
     Html
   )

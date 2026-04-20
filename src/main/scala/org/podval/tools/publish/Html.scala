@@ -7,7 +7,7 @@ object Html extends Markup(
   extension = "html",
   additionalExtensions = Set.empty
 ):
-  override def parse(sourcePath: Path, content: String): Either[PageError, Xml] =
+  override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] =
     try Right(XmlReader.read(content).asInstanceOf[Xml.Element])
     catch case e: XmlCodecError => Left(PageError(sourcePath, e.getMessage))
 
@@ -15,6 +15,10 @@ object Html extends Markup(
     LinkElementResolver.A
   )
 
+  // Wrap Markdown rendered as HTML in a 'div' and parse.
+  def parseDiv(sourcePath: Path, htmlBlocks: String): Either[PageError, Xml.Element] =
+    parse(sourcePath, s"<div>$htmlBlocks</div>")
+  
   // TODO port my pretty-printer; make sure that elements do not self-close (script, data, span).
   def write(xml: Xml): String = XmlWriter.write(xml, WriterConfig.pretty)
 

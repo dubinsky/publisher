@@ -6,11 +6,11 @@ import zio.test.*
 
 object MarkdownSpec extends ZIOSpecDefault:
   def parse(input: String, verify: Xml => TestResult): TestResult =
-    val parsed = Markdown.parse(Path.root, input)
+    val parsed = MarkdownZioBlocks.parse(Path.root, input)
     assertTrue(parsed.isRight) && verify(parsed.toOption.get)
 
   override def spec: Spec[TestEnvironment & Scope, Any] = suite("Markdown")(
-    test("empty FrontMatter") {
+    test("nested lists") {
       parse(
         """- l1
           |  * l1-1
@@ -18,6 +18,7 @@ object MarkdownSpec extends ZIOSpecDefault:
           |""".stripMargin,
         xml =>
 
+          // TODO verify
           assertTrue(
             true
           )

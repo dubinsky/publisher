@@ -8,7 +8,7 @@ import zio.blocks.schema.xml.Xml
 import scala.annotation.tailrec
 import Html.{escapeText, escapeUrl}
 
-object Markdown extends Markup(
+object MarkdownZioBlocks extends Markup(
   extension = "md",
   additionalExtensions = Set.empty
 ):
@@ -33,7 +33,7 @@ object Markdown extends Markup(
   // - detect wiki links and render them;
   override def parse(sourcePath: Path, content: String): Either[PageError, Xml] = Parser.parse(content) match
     case Left(error) => Left(PageError(sourcePath, s"Malformed Markdown: $error"))
-    case Right(doc) => Html.parse(sourcePath, s"<div>${renderBlocks(doc.blocks)}</div>")
+    case Right(doc) => Html.parseDiv(sourcePath, renderBlocks(doc.blocks))
 
   private def renderBlocks(blocks: Chunk[Block]): String =
     blocks.map(renderBlock).mkString
@@ -103,13 +103,13 @@ object Markdown extends Markup(
   private def renderCode(code: String, language: Option[String]): String =
     val classAttr: String = language.fold("")(lang => s""" class="language-$lang"""")
     s"<code$classAttr>${escapeText(code)}</code>"
-    
+
   private def renderLink(text: Chunk[Inline], url: String, titleOpt: Option[String]) =
     renderInlines("a", text, attrs = s""" href="${escapeUrl(url)}"${title(titleOpt)}""")
 
   private def renderImage(alt: String, url: String, titleOpt: Option[String]) =
     s"""<img src="${escapeUrl(url)}" alt="${escapeText(alt)}"${title(titleOpt)}/>"""
-  
+
   private def renderAutoLink(url: String, isEmail: Boolean) =
     s"""<a href="${if isEmail then "mailto:" else ""}${escapeUrl(url)}">${escapeUrl(url)}</a>"""
 
@@ -123,7 +123,7 @@ object Markdown extends Markup(
     case Alignment.Right => s""" style="text-align:right""""
     case Alignment.Center => s""" style="text-align:center""""
     case Alignment.None => s""
-    
+
   private def title(titleOpt: Option[String]): String =
     titleOpt.fold("")(title => s"title=${escapeText(title)}")
 
@@ -148,3 +148,59 @@ object Markdown extends Markup(
   private def renderWikiLink(body: String): String =
     val (url: String, text: Option[String]) = Files.split(body.trim, '|')
     s"""<a class="wiki-link" href="${escapeUrl(url)}">${text.fold("")(text => escapeText(text))}</a>"""
+
+  // WOW! ZIO Blocks Markdown parser misparses nested lists!
+  // This is what gets printed:
+  //<div>
+  //  <h1>Nested Lists</h1>
+  //  <ul>
+  //    <li>
+  //      <p>First item</p>
+  //    </li>
+  //    <li>
+  //      <p>Second item</p>
+  //    </li>
+  //    <li>
+  //      <p>Third item</p>
+  //    </li>
+  //    <li>
+  //      <p>Indented item</p>
+  //    </li>
+  //    <li>
+  //      <p>Indented item</p>
+  //    </li>
+  //    <li>
+  //      <p>Fourth item</p>
+  //    </li>
+  //  </ul>
+  //</div>
+  //  
+  //  And this is what gets printed when using FlexMark:
+  //<div>
+  //  <h1>Nested Lists</h1>
+  //  <ul>
+  //    <li>First item</li>
+  //    <li>Second item</li>
+  //    <li>
+  //      Third item
+  //      <ul>
+  //        <li>Indented item</li>
+  //        <li>Indented item</li>
+  //      </ul>
+  //    </li>
+  //    <li>Fourth item</li>
+  //  </ul>
+  //</div>  
+  def main(args: Array[String]): Unit =
+    val xml = parse(Path.root,
+      """# Nested Lists
+        |
+        |  - First item
+        |  - Second item
+        |  - Third item
+        |    - Indented item
+        |    - Indented item
+        |  - Fourth item
+        |""".stripMargin
+    ).toOption.get
+    println(Html.write(xml))
