@@ -44,7 +44,6 @@ object PageKind:
     override def isAssetAllowed: Boolean = false
 
     override def isMarkupAllowed(markup: Markup): Boolean = markup match
-      case MarkdownZioBlocks => true
       case MarkdownFlexMark => true
       case _ => false
 

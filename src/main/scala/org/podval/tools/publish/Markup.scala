@@ -2,6 +2,12 @@ package org.podval.tools.publish
 
 import zio.blocks.schema.xml.Xml
 
+object Markup:
+  val all: List[Markup] = List(
+    MarkdownFlexMark,
+    Html
+  )
+  
 abstract class Markup(
   final val extension: String,
   additionalExtensions: Set[String]
@@ -16,9 +22,3 @@ abstract class Markup(
 
   def linkElementResolvers: Seq[LinkElementResolver]
 
-object Markup:
-  val all: List[Markup] = List(
-//    MarkdownZioBlocks,
-    MarkdownFlexMark,
-    Html
-  )

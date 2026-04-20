@@ -6,7 +6,7 @@ import zio.test.*
 
 object MarkdownSpec extends ZIOSpecDefault:
   def parse(input: String, verify: Xml => TestResult): TestResult =
-    val parsed = MarkdownZioBlocks.parse(Path.root, input)
+    val parsed = MarkdownFlexMark.parse(Path.root, input)
     assertTrue(parsed.isRight) && verify(parsed.toOption.get)
 
   override def spec: Spec[TestEnvironment & Scope, Any] = suite("Markdown")(
