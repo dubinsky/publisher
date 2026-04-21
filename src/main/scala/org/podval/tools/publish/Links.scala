@@ -12,12 +12,12 @@ final class Links(pages: List[Page], warnings: Warnings):
   private given CanEqual[XmlName, XmlName] = CanEqual.derived
 
   def resolve(page: Page): Unit =
-    val linkElementResolvers: Seq[LinkElementResolver] = page.markup.linkElementResolvers
+    val linkElementResolvers: Seq[Link.ElementResolver] = page.markup.linkElementResolvers
     def loop(xml: Xml): Xml = xml match
       case Xml.Element(name, attributes, children) =>
         val resolved: Option[Xml.Element] = for
           linkElementResolver <- linkElementResolvers.find(_.elementName == name)
-          url <- Html.getAttribute(attributes, linkElementResolver.urlAttributeName)
+          url <- XmlUtil.getAttribute(attributes, linkElementResolver.urlAttributeName)
           linkResolved <- resolve(Link.From(
             page = page,
             url = url,
@@ -26,8 +26,8 @@ final class Links(pages: List[Page], warnings: Warnings):
           ))
         yield Xml.Element(
           name,
-          Html.replaceAttribute(attributes, linkElementResolver.urlAttributeName, Html.escapeUrl(linkResolved.url)),
-          if !children.isEmpty then children else Chunk(Xml.Text(Html.escapeText(linkResolved.text)))
+          XmlUtil.replaceAttribute(attributes, linkElementResolver.urlAttributeName, XmlUtil.escapeUrl(linkResolved.url)),
+          if !children.isEmpty then children else Chunk(Xml.Text(XmlUtil.escapeText(linkResolved.text)))
         )
 
         resolved.getOrElse(Xml.Element(name, attributes, children.map(loop)))

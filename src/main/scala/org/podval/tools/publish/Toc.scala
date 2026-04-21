@@ -65,12 +65,12 @@ object Toc:
             catch case _: NumberFormatException => None
 
       val section: Option[Section] = sectionLevel.map(level =>
-        val title: String = Html.toSimpleString(xml)
+        val title: String = XmlUtil.toSimpleString(xml)
         Section(
           sections = Seq.empty,
           level = level,
           title = title,
-          id = Html.toId(title)
+          id = XmlUtil.toId(title)
         )
       )
 
@@ -79,7 +79,7 @@ object Toc:
       val result: Xml.Element = Xml.Element(
         name = name,
         children = subs.map(_._1),
-        attributes = section.map(section => Html.replaceAttribute(attributes, Html.id, section.id)).getOrElse(attributes)
+        attributes = section.map(section => XmlUtil.replaceAttribute(attributes, XmlUtil.id, section.id)).getOrElse(attributes)
       )
 
       (result, section.toSeq ++ subs.flatMap(_._2))

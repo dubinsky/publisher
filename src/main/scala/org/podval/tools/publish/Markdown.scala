@@ -10,7 +10,7 @@ import com.vladsch.flexmark.ext.toc.TocExtension
 import com.vladsch.flexmark.html.HtmlRenderer
 import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.data.MutableDataSet
-import Html.{childWhen, el}
+import XmlUtil.{childWhen, el}
 import scala.annotation.tailrec
 
 // WOW! ZIO Blocks Markdown parser misparses nested lists!
@@ -70,7 +70,7 @@ object Markdown extends Markup(
   additionalExtensions = Set.empty,
   noWikiLinksElements = Html.noWikiLinksElements
 ):
-  override def linkElementResolvers: Seq[LinkElementResolver] = Html.linkElementResolvers
+  override def linkElementResolvers: Seq[Link.ElementResolver] = Html.linkElementResolvers
 
   private val flexMarkExtensions: List[Parser.ParserExtension & HtmlRenderer.HtmlRendererExtension] = List(
     //      AnchorLinkExtension.create,

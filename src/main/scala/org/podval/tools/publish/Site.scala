@@ -76,7 +76,7 @@ final class Site(
       val targetFile: File = page.targetPath.file(config.targetDirectory)
       Files.write(
         toFile = targetFile,
-        content = Html.write(Minima(config, page, links.backLinks(page)).render)
+        content = XmlUtil.write(Minima(config, page, links.backLinks(page)).render)
       )
       log.debug(s"Wrote: $page")
 

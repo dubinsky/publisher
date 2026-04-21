@@ -1,12 +1,12 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.{Xml, XmlName}
-import Html.{module, script, stylesheet}
+import XmlUtil.{module, script, stylesheet}
 
 final class Highlights(
   version: String,
   languages: Set[String]
-) extends Html.JavascriptLibrary:
+) extends XmlUtil.JavascriptLibrary:
   private val cdn: String = s"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/$version"
 
   override val head: List[Xml.Element] = List(stylesheet(s"$cdn/styles/default.min.css"))
@@ -31,9 +31,9 @@ object Highlights:
   
   private def getLanguages(xml: Xml): Set[String] = xml match
     case Xml.Element(name, attributes, children) =>
-      if name != Html.code then children.flatMap(getLanguages).toSet else
+      if name != XmlUtil.code then children.flatMap(getLanguages).toSet else
         val result = for
-          classes <- Html.getAttribute(attributes, Html.`class`)
+          classes <- XmlUtil.getAttribute(attributes, XmlUtil.`class`)
           language <- classes
             .split(" ")
             .map(_.trim)

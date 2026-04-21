@@ -1,5 +1,7 @@
 package org.podval.tools.publish
 
+import zio.blocks.schema.xml.XmlName
+
 final case class Link(
   from: Link.From,
   toPage: Page
@@ -26,3 +28,9 @@ object Link:
       val fragment: String = if sections.isEmpty then "" else sections.map(_.title).mkString("#", "#", "")
       s"${page.title}$fragment"
 
+  abstract class ElementResolver(
+    val elementName: XmlName,
+    val urlAttributeName: XmlName,
+    val category: Option[String]
+  )
+  

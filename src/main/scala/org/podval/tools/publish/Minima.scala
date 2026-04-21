@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.{Xml, XmlBuilder}
-import Html.{apply, childWhen, childrenWhen, el}
+import XmlUtil.{apply, childWhen, childrenWhen, div, el}
 
 // Based on https://github.com/jekyll/minima
 // TODO calculate based on PageKind?
@@ -11,7 +11,7 @@ final class Minima(
   page: Page,
   backLinks: List[Link]
 ):
-  private val libraries: List[Html.JavascriptLibrary] = List(
+  private val libraries: List[XmlUtil.JavascriptLibrary] = List(
     Highlights.get(page.xml),
     Option.when(page.frontMatter.math)(MathJax)
   ).flatten
@@ -30,7 +30,7 @@ final class Minima(
           page.title
         )
       ),
-      el("div", "class" -> "post-content")(
+      div("post-content")(
         content
         // TODO add page directory listing to 'index' pages
       )
@@ -43,7 +43,7 @@ final class Minima(
         el("h1", "class" -> "post-title p-name", "itemprop" -> "name headline")(
           page.title
         ),
-        el("div", "class" -> "post-meta")
+        div("post-meta")
           // TODO
           // .childWhen(page.modified_date.isDefined,
           //    el("span", "class" -> "meta-label")("Published:")
@@ -71,7 +71,7 @@ final class Minima(
           // - default: site author
           //.childWhen(page.author.nonEmpty, XmlBuilder.text("•"))
           //.childWhen(page.author.nonEmpty,
-          //  el("div", "class" -> s"${if page.frontMatter.modified_date then "" else "force-inline "}post-authors")(
+          //  div(s"${if page.frontMatter.modified_date then "" else "force-inline "}post-authors")(
           //    TODO multiple authors?
           //    {%- for author in page.author %}
           //      <span itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -164,13 +164,13 @@ final class Minima(
         .child(header)
         .child(
           el("main", "class" -> "page-content", "aria-label" -> "Content")(
-            el("div", "class" -> "wrapper")
+            div("wrapper")
               .child(content)
               .childWhen(backLinks.nonEmpty, backlinksDiv)
               .build
           )
         )
-        .child(Html.stylesheet("https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.0.0/css/all.min.css", id = Some("fa-stylesheet")))
+        .child(XmlUtil.stylesheet("https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.0.0/css/all.min.css", id = Some("fa-stylesheet")))
         .child(footer)
         // Skipped: .child(subFooter)
         .children(libraries.flatMap(_.body) *)
@@ -178,7 +178,7 @@ final class Minima(
     )
 
   private def backlinksDiv: Xml.Element =
-    el("div", "class" -> "backlinks")
+    div("backlinks")
       .child(el("hr")())
       .child(el("h4")())
       .children(backLinks.flatMap(link => List(
@@ -195,7 +195,7 @@ final class Minima(
       // TODO {%- seo -%}: https://github.com/jekyll/jekyll-seo-tag
       .child(el("title")(page.title)) // TODO this is here until seo is implemented - it covers the title...
       .children(libraries.flatMap(_.head) *)
-      .child(Html.stylesheet("/assets/css/style.css", id = Some("main-stylesheet")))
+      .child(XmlUtil.stylesheet("/assets/css/style.css", id = Some("main-stylesheet")))
       // TODO {%- feed_meta -%}: https://github.com/jekyll/jekyll-feed
       // TODO
       // {%- if jekyll.environment == 'production' and site.google_analytics -%}
@@ -217,7 +217,7 @@ final class Minima(
 
   private def header: Xml.Element =
     el("header", "class" -> "site-header")(
-      el("div", "class" -> "wrapper")
+      div("wrapper")
         .child(
           el("a", "class" -> "site-title", "rel" -> "author", "href" -> "/")(
             config.title
@@ -240,7 +240,7 @@ final class Minima(
     )
 
   private def navItems: Xml.Element =
-    el("div", "class" -> "nav-items")(
+    div("nav-items")(
       // TODO from config.headerPages, with resolution!
       el("a", "class" -> "nav-item", "href" -> "/tags/")("Tags"),
       el("a", "class" -> "nav-item", "href" -> "/notes/")("Notes")
@@ -249,9 +249,9 @@ final class Minima(
   private def footer: Xml.Element =
     el("footer", "class" -> "site-footer h-card")(
       el("data", "class" -> "u-url", "href" -> "/")(XmlBuilder.comment("do not self-close")),
-      el("div", "class" -> "wrapper")(
-        el("div", "class" -> "footer-col-wrapper")(
-          el("div", "class" -> "footer-col footer-col-1")
+      div("wrapper")(
+        div("footer-col-wrapper")(
+          div("footer-col footer-col-1")
             .childWhen(config.author.name.isDefined || config.author.email.isDefined,
               el("ul", "class" -> "contact-list")
                 .childWhen(config.author.name.isDefined,
@@ -265,13 +265,13 @@ final class Minima(
               .build
             )
           .build,
-          el("div", "class" -> "footer-col footer-col-2")(
+          div("footer-col footer-col-2")(
             el("p")(
               config.description // TODO escape!
             )
           )
         ),
-        el("div", "class" -> "social-links")(
+        div("social-links")(
           social
         )
       )
@@ -282,10 +282,10 @@ final class Minima(
   //  private def footer: Xml.Element =
   //    el("footer", "class" -> "site-footer h-card")(
   //      el("data", "class" -> "u-url", "href" -> "/")(XmlBuilder.comment("do not self-close")),
-  //      el("div", "class" -> "wrapper")(
+  //      div("wrapper")(
   //        el("h2", "class" -> "footer-heading")(config.title),
-  //        el("div", "class" -> "footer-col-wrapper")(
-  //          el("div", "class" -> "footer-col footer-col-1")(
+  //        div("footer-col-wrapper")(
+  //          div("footer-col footer-col-1")(
   //            el("ul", "class" -> "contact-list")(
   //              el("li", "class" -> "p-name")(config.author.name.get), // TODO conditional!
   //              el("li")(
@@ -293,7 +293,7 @@ final class Minima(
   //              )
   //            )
   //          ),
-  //          el("div", "class" -> "footer-col footer-col-2")(
+  //          div("footer-col footer-col-2")(
   //            el("ul", "class" -> "social-media-list")
   //              // TODO from Config
   //              //    <li><a href="https://github.com/dubinsky"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">dubinsky</span></a></li>
@@ -301,7 +301,7 @@ final class Minima(
   //              //    <li><a href="https://www.twitter.com/leoniddubinsky"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">leoniddubinsky</span></a></li>
   //              .build
   //          ),
-  //          el("div", "class" -> "footer-col footer-col-3")(config.description)
+  //          div("footer-col footer-col-3")(config.description)
   //        )
   //      )
   //    )

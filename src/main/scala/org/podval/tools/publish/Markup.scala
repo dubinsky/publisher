@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
-import org.podval.tools.publish.Html.childWhen
 import zio.blocks.schema.xml.{Xml, XmlName}
+import XmlUtil.childWhen
 import scala.annotation.tailrec
 
 object Markup:
@@ -23,7 +23,7 @@ abstract class Markup(
 
   def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element]
 
-  def linkElementResolvers: Seq[LinkElementResolver]
+  def linkElementResolvers: Seq[Link.ElementResolver]
 
   def findWikiLinks(xml: Xml): Xml = xml match
     case element: Xml.Element => findWikiLinksElement(element)
@@ -62,7 +62,7 @@ abstract class Markup(
       val linkText: String = linkTextOpt.fold("")(_.trim)
 
       // TODO handle embedded images etc. right here
-      val wikiLink: Xml.Element = Html.el(
+      val wikiLink: Xml.Element = XmlUtil.el(
           "a",
           "class" -> (if isEmbed then "embed" else "wiki-link"),
           "href" -> linkUrl.trim
