@@ -68,7 +68,7 @@ import scala.annotation.tailrec
 object Markdown extends Markup(
   extension = "md",
   additionalExtensions = Set.empty,
-  noWikiLinksElements = Html.noWikiLinksElements
+  doNotResolveLinksElements = Html.doNotResolveLinksElements
 ):
   override def linkElementResolvers: Seq[Link.ElementResolver] = Html.linkElementResolvers
 

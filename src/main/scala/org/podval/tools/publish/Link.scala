@@ -10,27 +10,29 @@ final case class Link(
 object Link:
   final case class From(
     page: Page,
-    url: String, // could be `name`, `path/name`, `name#section`, `name#section#subsection`, `name#^block`...
+    ref: String, // could be `name`, `path/name`, `name#section`, `name#section#subsection`, `name#^block`...
     category: Option[String],  // TEI org/person/place, facsimile, etc.
-    context: Option[String],
+    context: Option[String],  // TODO retrieve link context
     // TODO section
   )
 
-  final case class Resolved(
-    page: Page,
-    sections: Seq[Toc.Section]
-  ):
-    def url: String =
-      val fragment: String = if sections.isEmpty then "" else s"#${sections.last.id}"
-      s"${page.targetPath.toString}$fragment"
-
-    def text: String =
-      val fragment: String = if sections.isEmpty then "" else sections.map(_.title).mkString("#", "#", "")
-      s"${page.title}$fragment"
-
   abstract class ElementResolver(
     val elementName: XmlName,
-    val urlAttributeName: XmlName,
+    val refAttributeName: XmlName,
     val category: Option[String]
   )
   
+  sealed trait Resolved:
+    def url: String
+    def text: String
+    
+  object Resolved:
+    final case class ToPage(page: Page) extends Resolved:
+      override def url: String = page.targetPath.toString
+      override def text: String = page.title
+      
+    final case class ToSection(page: Page, sections: Seq[Toc.Section]) extends Resolved:
+      override def url: String = s"${page.targetPath.toString}#${sections.last.id}"
+      override def text: String = s"${page.title}#${sections.map(_.title).mkString("#")}"
+      
+//    final case class ToBlock(page: Page, ) extends Resolved // TODO block!

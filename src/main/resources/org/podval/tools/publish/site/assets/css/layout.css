@@ -429,3 +429,49 @@
         width: calc(50% - (var(--spacing-unit) / 2));
     }
 }
+
+
+/* LMD */
+.page-tag {
+    display: inline-block;
+    background: var(--brand-color-light);
+    padding: 0 .5rem;
+    margin-right: .5rem;
+    border-radius: 4px;
+    color: var(--text-color);
+    font-size: 90%;
+    &:before {
+        content: "\f02b";
+        font-family: FontAwesome;
+        padding-right: .5em;
+    }
+    &:hover {
+        text-decoration: none;
+        background: var(--brand-color);
+        color: var(--background-color);
+    }
+}
+
+.page-list {
+    font-size: 18px;
+
+    & i {
+        font-size: 14px;
+    // Based on blockquote.
+    color: #828282;
+    }
+}
+
+.wiki-link::before {
+    content: "[[";
+}
+.wiki-link::after {
+    content: "]]";
+}
+.invalid-wiki-link {
+    background: red;
+}
+
+.backlink {
+    font-style: italic;
+}

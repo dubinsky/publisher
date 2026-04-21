@@ -1,11 +1,14 @@
 package org.podval.tools.publish
 
 import java.io.File
-import java.net.{URI, URL}
+import java.net.URI
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Paths, StandardCopyOption, StandardOpenOption, Files as NFiles, Path as NPath}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 object Files:
+  val imageExtensions: Set[String] = Set("jpg")
+
   def requireExists(file: File): Unit = require(file.exists, s"File does not exist: $file")
 
   def requireDirectory(file: File): Unit = require(file.isDirectory, s"File is not a directory: $file")
@@ -31,6 +34,9 @@ object Files:
     requireFile(fromFile)
     toFile.getParentFile.mkdirs()
     NFiles.copy(fromFile.toPath, toFile.toPath, StandardCopyOption.REPLACE_EXISTING)
+
+  def readResource(name: String) =
+    String(getClass.getResourceAsStream(name).readAllBytes(), StandardCharsets.UTF_8)
 
   def listResources(base: String): Unit =
     val basePath: NPath = Paths.get(getClass.getClassLoader.getResource(base).toURI)

@@ -4,11 +4,12 @@ import org.podval.tools.publish.Toc.Section
 import zio.blocks.chunk.Chunk
 import zio.blocks.schema.xml.Xml
 import scala.annotation.tailrec
+import XmlUtil.replaceAttribute
 
 // TODO to implement transclusion, build *real* sections, with content!
 // TODO add TOC to page as needed
 final case class Toc(sections: Seq[Toc.Section]):
-  def resolveFragment(fragment: String): Option[Seq[Toc.Section]] =
+  def resolveSection(names: Seq[String]): Option[Seq[Toc.Section]] =
     def resolve(result: Seq[Section], sections: Seq[Section], names: Seq[String]): Option[Seq[Section]] =
       if names.isEmpty then Some(result) else find(names.head, sections)
         .flatMap(section => resolve(
@@ -20,7 +21,7 @@ final case class Toc(sections: Seq[Toc.Section]):
     resolve(
       result = Seq.empty,
       sections = sectionsFlat,
-      names = fragment.split('#').map(_.trim).toSeq
+      names = names
     )
 
   private val sectionsFlat: Seq[Section] = sections.flatMap(_.sectionsFlat)
@@ -38,8 +39,8 @@ object Toc:
 
     def sectionsFlat: Seq[Section] = sections.flatMap(_.sectionsFlat)
 
-  def apply(xml: Xml.Element): (Xml, Toc) =
-    val (result: Xml, sections: Seq[Section]) = setAnchorsAndGetSections(xml)
+  def apply(xml: Xml.Element): (Xml.Element, Toc) =
+    val (result: Xml.Element, sections: Seq[Section]) = setAnchorsAndGetSectionsForElement(xml)
     (result, new Toc(nest(sections)))
 
   private def nest(sections: Seq[Section]): Seq[Section] = nest(Seq.empty, sections)
@@ -55,31 +56,24 @@ object Toc:
     case element: Xml.Element => setAnchorsAndGetSectionsForElement(element)
     case xml => (xml, Seq.empty)
 
-  private def setAnchorsAndGetSectionsForElement(xml: Xml.Element): (Xml.Element, Seq[Section]) = xml match
-    case Xml.Element(name, attributes, children) =>
-      // Extract level of the HTML '<h>' element.
-      val sectionLevel: Option[Int] =
-        if name.prefix.isDefined then None else
-          if !name.localName.startsWith("h") then None else
-            try Some(name.localName.substring(1).toInt)
-            catch case _: NumberFormatException => None
+  private def setAnchorsAndGetSectionsForElement(element: Xml.Element): (Xml.Element, Seq[Section]) = 
+    // Extract level of the HTML '<h>' element.
+    val sectionLevel: Option[Int] = XmlUtil.headerLevel(element)
 
-      val section: Option[Section] = sectionLevel.map(level =>
-        val title: String = XmlUtil.toSimpleString(xml)
-        Section(
-          sections = Seq.empty,
-          level = level,
-          title = title,
-          id = XmlUtil.toId(title)
-        )
+    val section: Option[Section] = sectionLevel.map(level =>
+      val title: String = XmlUtil.toSimpleString(element)
+      Section(
+        sections = Seq.empty,
+        level = level,
+        title = title,
+        id = XmlUtil.toId(title)
       )
+    )
 
-      val subs: Chunk[(Xml, Seq[Section])] = children.map(setAnchorsAndGetSections)
+    val childrenWithSections: Chunk[(Xml, Seq[Section])] = element.children.map(setAnchorsAndGetSections)
+    val result: Xml.Element = element.copy(children = childrenWithSections.map(_._1))
 
-      val result: Xml.Element = Xml.Element(
-        name = name,
-        children = subs.map(_._1),
-        attributes = section.map(section => XmlUtil.replaceAttribute(attributes, XmlUtil.id, section.id)).getOrElse(attributes)
-      )
-
-      (result, section.toSeq ++ subs.flatMap(_._2))
+    (
+      section.fold(result)(section => result.replaceAttribute(XmlUtil.id, section.id)),
+      section.toSeq ++ childrenWithSections.flatMap(_._2)
+    )

@@ -8,7 +8,7 @@ final class Page(
   val pageKind: PageKind,
   val markup: Markup,
   val frontMatter: FrontMatter,
-  var xml: Xml,
+  var xml: Xml.Element,
   val toc: Toc
 ) derives CanEqual:
   override def toString: String = s"$title.$markup($sourcePath, $targetPath)"

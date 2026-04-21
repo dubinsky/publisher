@@ -1,14 +1,8 @@
 package org.podval.tools.publish
 
-import zio.blocks.chunk.Chunk
 import zio.blocks.schema.xml.{WriterConfig, Xml, XmlBuilder, XmlName, XmlWriter}
 
 object XmlUtil:
-  def el(name: String, attrs: (String, String)*): XmlBuilder.ElementBuilder =
-    attrs.foldLeft(XmlBuilder.element(name))((result, attr) => result.attr(attr._1, attr._2))
-
-  def div(cls: String): XmlBuilder.ElementBuilder = el("div", "class" -> cls)
-  
   extension (builder: XmlBuilder.ElementBuilder)
     def apply(children: Xml*): Xml.Element = builder.children(children *).build
     def apply(text: String): Xml.Element = builder.child(XmlBuilder.text(text)).build
@@ -22,16 +16,30 @@ object XmlUtil:
     def childrenWhen(when: Boolean, children: => Seq[Xml]): XmlBuilder.ElementBuilder =
       if !when then builder else builder.children(children *)
 
+  extension (element: Xml.Element)
+    def getAttribute(name: XmlName): Option[String] =
+      element.attributes.find(isAttribute(name)).map(_._2)
+      
+    def replaceAttribute(name: XmlName, value: String): Xml.Element =
+      element.copy(attributes = element.attributes.filterNot(isAttribute(name)).appended(name -> value))
+  
+  def el(name: String, attrs: (String, String)*): XmlBuilder.ElementBuilder =
+    attrs.foldLeft(XmlBuilder.element(name))((result, attr) => result.attr(attr._1, attr._2))
+
+  def div(cls: String): XmlBuilder.ElementBuilder = el("div", "class" -> cls)
+  
+  def a(cls: String, href: String): XmlBuilder.ElementBuilder = el("a", "class" -> cls, "href" -> href)
+
+  // Extract level of the HTML '<h>' element.
+  def headerLevel(element: Xml.Element): Option[Int] =
+    if element.name.prefix.isDefined then None else if !element.name.localName.startsWith("h") then None else
+      try Some(element.name.localName.substring(1).toInt)
+      catch case _: NumberFormatException => None
+
   private given CanEqual[XmlName, XmlName] = CanEqual.derived
 
   private def isAttribute(name: XmlName)(attribute: (XmlName, String)): Boolean =
     attribute._1 == name
-
-  def getAttribute(attributes: Chunk[(XmlName, String)], name: XmlName): Option[String] =
-    attributes.find(isAttribute(name)).map(_._2)
-
-  def replaceAttribute(attributes: Chunk[(XmlName, String)], name: XmlName, value: String): Chunk[(XmlName, String)] =
-    attributes.filterNot(isAttribute(name)).appended(name -> value)
   
   def stylesheet(href: String, id: Option[String] = None): Xml.Element = XmlBuilder
     .element("link")
@@ -83,5 +91,4 @@ object XmlUtil:
 
   abstract class JavascriptLibrary:
     def head: List[Xml.Element]
-
     def body: List[Xml.Element]

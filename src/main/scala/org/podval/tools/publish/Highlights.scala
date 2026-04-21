@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.{Xml, XmlName}
-import XmlUtil.{module, script, stylesheet}
+import XmlUtil.{getAttribute, module, script, stylesheet}
 
 final class Highlights(
   version: String,
@@ -30,10 +30,10 @@ object Highlights:
   private val languagePrefix: String = "language-"
   
   private def getLanguages(xml: Xml): Set[String] = xml match
-    case Xml.Element(name, attributes, children) =>
-      if name != XmlUtil.code then children.flatMap(getLanguages).toSet else
+    case element: Xml.Element =>
+      if element.name != XmlUtil.code then element.children.flatMap(getLanguages).toSet else
         val result = for
-          classes <- XmlUtil.getAttribute(attributes, XmlUtil.`class`)
+          classes <- element.getAttribute(XmlUtil.`class`)
           language <- classes
             .split(" ")
             .map(_.trim)

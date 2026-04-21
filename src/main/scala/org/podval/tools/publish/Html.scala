@@ -5,7 +5,7 @@ import zio.blocks.schema.xml.{Xml, XmlCodecError, XmlName, XmlReader}
 object Html extends Markup(
   extension = "html",
   additionalExtensions = Set.empty,
-  noWikiLinksElements = Set(XmlName("code", None, None))
+  doNotResolveLinksElements = Set(XmlName("code", None, None))
 ):
   override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] =
     try Right(XmlReader.read(content).asInstanceOf[Xml.Element])
@@ -15,7 +15,7 @@ object Html extends Markup(
 
   private object ALinkElementResolver extends Link.ElementResolver(
     elementName = XmlUtil.a,
-    urlAttributeName = XmlUtil.href,
+    refAttributeName = XmlUtil.href,
     category = None
   )
   

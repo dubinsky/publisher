@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.{Xml, XmlBuilder}
-import XmlUtil.{apply, childWhen, childrenWhen, div, el}
+import XmlUtil.{a, apply, childWhen, childrenWhen, div, el}
 
 // Based on https://github.com/jekyll/minima
 // TODO calculate based on PageKind?
@@ -65,7 +65,7 @@ final class Minima(
           // {%- endif -%}
           .childWhen(page.frontMatter.tags.nonEmpty, XmlBuilder.text("|"))
           .childrenWhen(page.frontMatter.tags.nonEmpty, page.frontMatter.tags.map(tag => // TODO link!
-            el("a", "class" -> "post-tag", "href" -> s"/tags/#$tag")(tag)
+            a("post-tag", s"/tags/#$tag")(tag)
           ))
           // TODO!
           // - default: site author
@@ -86,7 +86,7 @@ final class Minima(
         content
       ),
       // Note: skipped Disqus comments
-      // TODO el("a", "class" -> "u-url", "href" -> page.url, "hidden" -> "")()
+      // TODO a("u-url", page.url).attr("hidden", "")()
     )
   )
 
@@ -183,7 +183,7 @@ final class Minima(
       .child(el("h4")())
       .children(backLinks.flatMap(link => List(
         XmlBuilder.text("•"),
-        el("a", "class" -> "backlink", "href" -> link.from.url)(link.from.page.title)
+        a("backlink", link.from.ref)(link.from.page.title)
       )) *)
       .build
 
@@ -218,11 +218,7 @@ final class Minima(
   private def header: Xml.Element =
     el("header", "class" -> "site-header")(
       div("wrapper")
-        .child(
-          el("a", "class" -> "site-title", "rel" -> "author", "href" -> "/")(
-            config.title
-          )
-        )
+        .child(a("site-title", "/").attr("rel", "author")(config.title))
         .childWhen(config.headerPages.nonEmpty,
           el("nav", "class" -> "site-nav")(
             el("input", "type" -> "checkbox", "id" -> "nav-trigger")(),
@@ -242,8 +238,8 @@ final class Minima(
   private def navItems: Xml.Element =
     div("nav-items")(
       // TODO from config.headerPages, with resolution!
-      el("a", "class" -> "nav-item", "href" -> "/tags/")("Tags"),
-      el("a", "class" -> "nav-item", "href" -> "/notes/")("Notes")
+      a("nav-item", "/tags/")("Tags"),
+      a("nav-item", "/notes/")("Notes")
     )
 
   private def footer: Xml.Element =
@@ -259,7 +255,7 @@ final class Minima(
                 )
                 .childWhen(config.author.email.isDefined,
                   el("li")(
-                    el("a", "class" -> "u-email", "href" -> s"mailto:${config.author.email.get}")(config.author.email.get)
+                    a("u-email", s"mailto:${config.author.email.get}")(config.author.email.get)
                   )
                 )
               .build
@@ -289,7 +285,7 @@ final class Minima(
   //            el("ul", "class" -> "contact-list")(
   //              el("li", "class" -> "p-name")(config.author.name.get), // TODO conditional!
   //              el("li")(
-  //                el("a", "class" -> "u-email", "href" -> s"mailto:${config.author.email.get}")(config.author.email.get)  // TODO conditional!
+  //                a("u-email", s"mailto:${config.author.email.get}")(config.author.email.get)  // TODO conditional!
   //              )
   //            )
   //          ),

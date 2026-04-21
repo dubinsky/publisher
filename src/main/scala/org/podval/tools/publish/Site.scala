@@ -4,7 +4,6 @@ import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
 import zio.blocks.schema.xml.Xml
 import java.io.File
-import java.nio.charset.StandardCharsets
 import Util.ifDefined
 
 final class Site(
@@ -41,7 +40,7 @@ final class Site(
     _ = resourcesList.foreach: resourceName =>
       Files.write(
         toFile = File(config.targetDirectory, resourceName),
-        content = new String(getClass.getResourceAsStream(resourcesBase + resourceName).readAllBytes(), StandardCharsets.UTF_8)
+        content = Files.readResource(resourcesBase + resourceName)
       )
       log.debug(s"Copied embedded asset: $resourceName")
 
@@ -73,9 +72,8 @@ final class Site(
 
     // Write pages
     _ = pages.foreach: page =>
-      val targetFile: File = page.targetPath.file(config.targetDirectory)
       Files.write(
-        toFile = targetFile,
+        toFile = page.targetPath.file(config.targetDirectory),
         content = XmlUtil.write(Minima(config, page, links.backLinks(page)).render)
       )
       log.debug(s"Wrote: $page")
@@ -137,24 +135,22 @@ final class Site(
           )): _ =>
             val (frontMatterOrError: Either[PageError, FrontMatter], content: String) = FrontMatter
               .parse(Files.read(sourceFile)) match
-              case (Right(frontMatter), content) =>
-                (Right(frontMatter), content)
-              case (Left(yamlError), content) =>
-                (Left(PageError(sourcePath, "Malformed FrontMatter", Some(yamlError))), content)
+                case (Right(frontMatter), content) =>
+                  (Right(frontMatter), content)
+                case (Left(yamlError), content) =>
+                  (Left(PageError(sourcePath, "Malformed FrontMatter", Some(yamlError))), content)
 
             for
               frontMatter: FrontMatter <- warnings.recover(frontMatterOrError)(FrontMatter.absent)
-              result: Option[Page] <- ifDefined(warnings.recoverNone(markup.parse(sourcePath, content))): xmlRaw =>
-                val (xmlWithAnchors: Xml, toc: Toc) = Toc(xmlRaw)
-                val xmlWithWikiLinks: Xml = markup.findWikiLinks(xmlWithAnchors)
-
+              result: Option[Page] <- ifDefined(warnings.recoverNone(markup.parse(sourcePath, content))): xml =>
+                val (xmlWithAnchors: Xml.Element, toc: Toc) = Toc(xml) // TODO different for TEI...
                 Right(Some(Page(
                   sourcePath = sourcePath,
                   targetPath = targetPath.withExtension(Html.extension),
                   pageKind = pageKind,
                   markup = markup,
                   frontMatter = frontMatter,
-                  xml = xmlWithWikiLinks,
+                  xml = xmlWithAnchors,
                   toc = toc
                 )))
             yield
