@@ -67,11 +67,10 @@ import scala.annotation.tailrec
 // I may need to add some extensions to handle GitHub task lists and such...
 object Markdown extends Markup(
   extension = "md",
-  additionalExtensions = Set.empty
+  additionalExtensions = Set.empty,
+  noWikiLinksElements = Html.noWikiLinksElements
 ):
-  override def linkElementResolvers: Seq[LinkElementResolver] = Seq(
-    LinkElementResolver.A
-  )
+  override def linkElementResolvers: Seq[LinkElementResolver] = Html.linkElementResolvers
 
   private val flexMarkExtensions: List[Parser.ParserExtension & HtmlRenderer.HtmlRendererExtension] = List(
     //      AnchorLinkExtension.create,
@@ -99,39 +98,10 @@ object Markdown extends Markup(
     .extensions(flexMarkExtensions.asJava)
     .build
 
-  def parse(sourcePath: Path, content: String): Either[PageError, Xml] =
+  override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] =
     // TODO catch errors!
     val doc = parser.parse(content)
-    Html
-      .parseDiv(sourcePath, renderer.render(doc))
-      .map(processWikiLinks)
-
-  // Processes wiki links.
-  private def processWikiLinks(element: Xml.Element): Xml =
-    @tailrec
-    def loop(result: Seq[Xml], text: String): Seq[Xml] =
-      if text.isEmpty then result else
-        val start: Int = text.indexOf("[[")
-        val end: Int = if start == -1 then -1 else text.indexOf("]]", start + 2)
-        if end == -1
-        then loop(result ++ Seq(Xml.Text(text)), "")
-        else
-          val before: String = text.substring(0, start)
-          val (linkUrl: String, linkTextOpt: Option[String]) = Files.split(text.substring(start + 2, end).trim, '|')
-          val textText: String = linkTextOpt.fold("")(_.trim)
-          val wikiLink: Xml.Element = el("a", "class" -> "wiki-link", "href" -> linkUrl.trim)
-            .childWhen(textText.nonEmpty, Xml.Text(textText))
-            .build
-          
-          loop(
-            result = result ++
-              Option.when(before.nonEmpty)(Xml.Text(before)).toSeq ++
-              Seq(wikiLink),
-            text = text.substring(end + 2)
-          )
-
-    Xml.Element(element.name, element.attributes, element.children.flatMap {
-      case element: Xml.Element => Seq(processWikiLinks(element))
-      case Xml.Text(value) => loop(Seq.empty, value)
-      case xml => Seq(xml)
-    })
+    // Wrap Markdown rendered as HTML in a 'div' and parse.
+    // TODO unwrap into Chunk[XMl]
+    Html.parse(sourcePath, s"<div>${renderer.render(doc)}</div>")
+    

@@ -5,7 +5,8 @@ import zio.blocks.schema.xml.{WriterConfig, Xml, XmlBuilder, XmlCodecError, XmlN
 
 object Html extends Markup(
   extension = "html",
-  additionalExtensions = Set.empty
+  additionalExtensions = Set.empty,
+  noWikiLinksElements = Set(XmlName("code", None, None))
 ):
   override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] =
     try Right(XmlReader.read(content).asInstanceOf[Xml.Element])
@@ -14,11 +15,6 @@ object Html extends Markup(
   override def linkElementResolvers: Seq[LinkElementResolver] = Seq(
     LinkElementResolver.A
   )
-
-  // Wrap Markdown rendered as HTML in a 'div' and parse.
-  // TODO unwrap into Chunk[XMl]
-  def parseDiv(sourcePath: Path, htmlBlocks: String): Either[PageError, Xml.Element] =
-    parse(sourcePath, s"<div>$htmlBlocks</div>")
   
   // TODO port my pretty-printer; make sure that elements do not self-close (script, data, span).
   def write(xml: Xml): String = XmlWriter.write(xml, WriterConfig.pretty)

@@ -2,6 +2,7 @@ package org.podval.tools.publish
 
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
+import zio.blocks.schema.xml.Xml
 import java.io.File
 import java.nio.charset.StandardCharsets
 import Util.ifDefined
@@ -143,14 +144,18 @@ final class Site(
 
             for
               frontMatter: FrontMatter <- warnings.recover(frontMatterOrError)(FrontMatter.absent)
-              result: Option[Page] <- ifDefined(warnings.recoverNone(markup.parse(sourcePath, content))): xml =>
+              result: Option[Page] <- ifDefined(warnings.recoverNone(markup.parse(sourcePath, content))): xmlRaw =>
+                val (xmlWithAnchors: Xml, toc: Toc) = Toc(xmlRaw)
+                val xmlWithWikiLinks: Xml = markup.findWikiLinks(xmlWithAnchors)
+
                 Right(Some(Page(
-                  sourcePath,
-                  targetPath.withExtension(Html.extension),
-                  pageKind,
-                  markup,
-                  frontMatter,
-                  xml
+                  sourcePath = sourcePath,
+                  targetPath = targetPath.withExtension(Html.extension),
+                  pageKind = pageKind,
+                  markup = markup,
+                  frontMatter = frontMatter,
+                  xml = xmlWithWikiLinks,
+                  toc = toc
                 )))
             yield
               result

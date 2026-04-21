@@ -5,6 +5,7 @@ import zio.blocks.chunk.Chunk
 import zio.blocks.schema.xml.Xml
 import scala.annotation.tailrec
 
+// TODO to implement transclusion, build *real* sections, with content!
 // TODO add TOC to page as needed
 final case class Toc(sections: Seq[Toc.Section]):
   def resolveFragment(fragment: String): Option[Seq[Toc.Section]] =
@@ -37,8 +38,8 @@ object Toc:
 
     def sectionsFlat: Seq[Section] = sections.flatMap(_.sectionsFlat)
 
-  def apply(xml: Xml): (Xml, Toc) =
-    val (result: Xml, sections: Seq[Section]) = setAnchorsAndGetSections(xml: Xml)
+  def apply(xml: Xml.Element): (Xml, Toc) =
+    val (result: Xml, sections: Seq[Section]) = setAnchorsAndGetSections(xml)
     (result, new Toc(nest(sections)))
 
   private def nest(sections: Seq[Section]): Seq[Section] = nest(Seq.empty, sections)
@@ -54,7 +55,7 @@ object Toc:
     case element: Xml.Element => setAnchorsAndGetSectionsForElement(element)
     case xml => (xml, Seq.empty)
 
-  private def setAnchorsAndGetSectionsForElement(xml: Xml.Element): (Xml, Seq[Section]) = xml match
+  private def setAnchorsAndGetSectionsForElement(xml: Xml.Element): (Xml.Element, Seq[Section]) = xml match
     case Xml.Element(name, attributes, children) =>
       // Extract level of the HTML '<h>' element.
       val sectionLevel: Option[Int] =

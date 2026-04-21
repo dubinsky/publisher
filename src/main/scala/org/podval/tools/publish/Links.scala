@@ -57,7 +57,7 @@ final class Links(pages: List[Page], warnings: Warnings):
       pages.find(_.is(toPath)).flatMap: toPage =>
         val result: Option[Link.Resolved] = fragment match
           case None => Some(Link.Resolved(toPage, Seq.empty))
-          // TODO block references and transclusion
+          // TODO block references, transclusion and other embeds
           case Some(fragment) => toPage.toc.resolveFragment(fragment).map(Link.Resolved(toPage, _))
 
         result.foreach(_ => links = links.appended(Link(from, toPage)))
