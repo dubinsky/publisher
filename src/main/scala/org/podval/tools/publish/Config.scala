@@ -100,8 +100,8 @@ object Config:
 
   final class Blog(
     val source: Option[String] = None,
-    val target: Option[String] = None, // TODO
-    val daily: Option[String] = None
+    val target: Option[String] = None, // TODO implement
+    val daily: Option[String] = None // TODO write those to the blog target
   )
 
   final class Analytics(

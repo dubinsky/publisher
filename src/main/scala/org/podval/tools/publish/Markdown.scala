@@ -1,8 +1,7 @@
 package org.podval.tools.publish
 
 import org.podval.tools.publish.PageError
-import zio.blocks.schema.xml.Xml
-
+import zio.blocks.schema.xml.{Xml, XmlName}
 import scala.jdk.CollectionConverters.SeqHasAsJava
 import com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension
 import com.vladsch.flexmark.ext.autolink.AutolinkExtension
@@ -65,12 +64,9 @@ import scala.annotation.tailrec
 // (no unclosed tags like 'br', 'hr', 'input' and 'img'; attributes have values etc.),
 // FlexMark renders valid XML out of the box.
 // I may need to add some extensions to handle GitHub task lists and such...
-object Markdown extends Markup(
-  extension = "md",
-  additionalExtensions = Set.empty,
-  doNotResolveLinksElements = Html.doNotResolveLinksElements
-):
-  override def linkElementResolvers: Seq[Link.ElementResolver] = Html.linkElementResolvers
+object Markdown extends MarkupHtmlLike:
+  override val extension: String = "md"
+  override val additionalExtensions: Set[String] = Set.empty
 
   private val flexMarkExtensions: List[Parser.ParserExtension & HtmlRenderer.HtmlRendererExtension] = List(
     //      AnchorLinkExtension.create,
@@ -102,6 +98,5 @@ object Markdown extends Markup(
     // TODO catch errors!
     val doc = parser.parse(content)
     // Wrap Markdown rendered as HTML in a 'div' and parse.
-    // TODO unwrap into Chunk[XMl]
     Html.parse(sourcePath, s"<div>${renderer.render(doc)}</div>")
-    
+

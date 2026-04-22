@@ -39,7 +39,7 @@ object FrontMatter:
 
   private val schema: Schema[FrontMatter] = Schema.derived
 
-  // TODO these are from the schema; codec name-maps...
+  // TODO these are from the schema; since codec turns the names to kebab case, some are not going to match...
   private val fieldNames: Set[String] = schema
     .reflect
     .asRecord

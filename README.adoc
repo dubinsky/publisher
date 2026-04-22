@@ -128,10 +128,10 @@ Wiki links in Obsidian:
 - do they take into account file name, title property, document title?
 - how do they look in the file if name reference is ambiguous?
 - can they be split between the lines?
-- do they support |?
 - do they support any kind of agglutination?
 - categories can be wiki links?!
 - handle permalinks and multi-name redirects
+- handle aliases
 
 CLI:
 

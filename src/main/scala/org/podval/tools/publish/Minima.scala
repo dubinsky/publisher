@@ -15,9 +15,7 @@ final class Minima(
     Highlights.get(page.xml),
     Option.when(page.frontMatter.math)(MathJax)
   ).flatten
-
-  // TODO val isBlogPost: Boolean = page.targetPath.path.last != "index"
-
+  
   def render: Xml = page.frontMatter.layout match
     case Some("post") => postLayout(page.xml)
     case Some("default") => baseLayout(page.xml)
@@ -183,7 +181,7 @@ final class Minima(
       .child(el("h4")())
       .children(backLinks.flatMap(link => List(
         XmlBuilder.text("•"),
-        a("backlink", link.from.ref)(link.from.page.title)
+        a("backlink", link.from.fromElement.ref.getOrElse("/"))(link.from.page.title)
       )) *)
       .build
 

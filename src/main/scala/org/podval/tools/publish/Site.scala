@@ -2,7 +2,6 @@ package org.podval.tools.publish
 
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
-import zio.blocks.schema.xml.Xml
 import java.io.File
 import Util.ifDefined
 
@@ -67,8 +66,7 @@ final class Site(
     links: Links = Links(pages, warnings)
 
     // Resolve links
-    // TODO do the warning.recover/sequence dance!
-    _ = pages.foreach(links.resolve)
+    _ = links.resolve()
 
     // Write pages
     _ = pages.foreach: page =>
@@ -143,15 +141,13 @@ final class Site(
             for
               frontMatter: FrontMatter <- warnings.recover(frontMatterOrError)(FrontMatter.absent)
               result: Option[Page] <- ifDefined(warnings.recoverNone(markup.parse(sourcePath, content))): xml =>
-                val (xmlWithAnchors: Xml.Element, toc: Toc) = Toc(xml) // TODO different for TEI...
                 Right(Some(Page(
                   sourcePath = sourcePath,
                   targetPath = targetPath.withExtension(Html.extension),
                   pageKind = pageKind,
                   markup = markup,
                   frontMatter = frontMatter,
-                  xml = xmlWithAnchors,
-                  toc = toc
+                  xmlRaw = xml
                 )))
             yield
               result

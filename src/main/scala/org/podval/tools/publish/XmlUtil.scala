@@ -1,5 +1,6 @@
 package org.podval.tools.publish
 
+import zio.blocks.chunk.Chunk
 import zio.blocks.schema.xml.{WriterConfig, Xml, XmlBuilder, XmlName, XmlWriter}
 
 object XmlUtil:
@@ -22,6 +23,10 @@ object XmlUtil:
       
     def replaceAttribute(name: XmlName, value: String): Xml.Element =
       element.copy(attributes = element.attributes.filterNot(isAttribute(name)).appended(name -> value))
+      
+    def childrenWhenEmpty(text: Option[String]): Xml.Element =
+      if element.children.nonEmpty then element
+      else text.fold(element)(text => element.copy(children = Chunk(Xml.Text(text))))
   
   def el(name: String, attrs: (String, String)*): XmlBuilder.ElementBuilder =
     attrs.foldLeft(XmlBuilder.element(name))((result, attr) => result.attr(attr._1, attr._2))
@@ -32,7 +37,7 @@ object XmlUtil:
 
   // Extract level of the HTML '<h>' element.
   def headerLevel(element: Xml.Element): Option[Int] =
-    if element.name.prefix.isDefined then None else if !element.name.localName.startsWith("h") then None else
+    if element.name.prefix.isDefined || !element.name.localName.startsWith("h") then None else
       try Some(element.name.localName.substring(1).toInt)
       catch case _: NumberFormatException => None
 

@@ -1,6 +1,7 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.Xml
+import scala.annotation.tailrec
 
 final class Page(
   val sourcePath: Path,
@@ -8,9 +9,12 @@ final class Page(
   val pageKind: PageKind,
   val markup: Markup,
   val frontMatter: FrontMatter,
-  var xml: Xml.Element,
-  val toc: Toc
+  xmlRaw: Xml.Element
 ) derives CanEqual:
+  
+  private var xmlVar: Xml.Element = markup.dropAnchors(xmlRaw)
+  def xml: Xml.Element = xmlVar
+
   override def toString: String = s"$title.$markup($sourcePath, $targetPath)"
 
   def title: String = frontMatter.title.getOrElse(targetPath.path.last)
@@ -26,3 +30,88 @@ final class Page(
   override def equals(obj: Any): Boolean = obj match
     case that: Page => this.targetPath == that.targetPath
     case _ => false
+
+  // TODO add TOC to page as needed
+
+  private val sections: Seq[Section] = markup.sections(xml)
+
+  private val sectionsFlat: Seq[Section] = sections.flatMap(_.sectionsFlat)
+
+  def section(names: Seq[String]): Option[Seq[Section]] =
+    def loop(result: Seq[Section], sections: Seq[Section], names: Seq[String]): Option[Seq[Section]] =
+      if names.isEmpty then Some(result) else sections.find(_.is(names.head)).flatMap(section => loop(
+        result = result :+ section,
+        sections = section.sections,
+        names = names.tail
+      ))
+
+    loop(
+      result = Seq.empty,
+      sections = sectionsFlat,
+      names = names
+    )
+
+  def block(id: String): Option[Block] = None // TODO
+  
+  // TODO We do not resolve links inside link elements - should we?
+  def resolveLinks(links: Links): Unit =
+    def loop(element: Xml.Element): Xml.Element =
+      if !markup.resolveLinks(element) then element else markup.linkFromElement(element) match
+        case Some(linkFromElement) if linkFromElement.ref.isDefined => links.resolve(Link.From(
+          page = this,
+          fromElement = linkFromElement,
+          context = None,
+          element = Some(element),
+          transclude = false
+        ))
+        case _ => element.copy(children = element.children.flatMap {
+          case element: Xml.Element if markup.resolveLinks(element) => Seq(loop(element))
+          case Xml.Text(value) if markup.resolveWikiLinks => resolveWikiLinks(value, links)
+          case xml => Seq(xml)
+        })
+
+    xmlVar = loop(xml)
+
+  // see https://obsidian.md/help/links
+  private def resolveWikiLinks(text: String, links: Links): Seq[Xml] =
+    @tailrec
+    def loop(result: Seq[Xml], text: String): Seq[Xml] =
+      if text.isEmpty then result else
+        resolveWikiLink(text, "![[", "]]", transclude = true, links)
+          .orElse(resolveWikiLink(text, "[[", "]]", transclude = false, links)) match
+          case None => result ++ Seq(Xml.Text(text))
+          case Some(xml: Seq[Xml], after: String) => loop(result ++ xml, after)
+
+    loop(Seq.empty, text)
+
+  private def resolveWikiLink(
+    text: String,
+    start: String,
+    end: String,
+    transclude: Boolean,
+    links: Links
+  ): Option[(Seq[Xml], String)] =
+    val startIndex: Int = text.indexOf(start)
+    val endIndex: Int = if startIndex == -1 then -1 else text.indexOf(end, startIndex + start.length)
+    if endIndex == -1 then None else
+      val before: String = text.substring(0, startIndex).trim
+      val body: String = text.substring(startIndex + start.length, endIndex).trim
+      val after: String = text.substring(endIndex + end.length).trim
+      val (ref: String, textOpt: Option[String]) = Files.split(body, '|')
+
+      val result: Xml.Element = links.resolve(Link.From(
+        page = this,
+        fromElement = Link.FromElement(
+          ref = Some(ref.trim),
+          text = textOpt.map(_.trim),
+          category = None,
+        ),
+        context = None,
+        element = None,
+        transclude = transclude
+      ))
+
+      Some(
+        Option.when(before.nonEmpty)(Xml.Text(before)).toSeq ++ Seq(result),
+        after
+      )

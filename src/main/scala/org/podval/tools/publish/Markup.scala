@@ -1,6 +1,7 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.{Xml, XmlName}
+import zio.blocks.schema.xml.Xml
+import XmlUtil.replaceAttribute
 
 object Markup:
   val all: List[Markup] = List(
@@ -8,24 +9,45 @@ object Markup:
     Html
   )
 
-abstract class Markup(
-  final val extension: String,
-  additionalExtensions: Set[String],
-  val doNotResolveLinksElements: Set[XmlName]
-) derives CanEqual:
+abstract class Markup derives CanEqual:
+  def extension: String
+
+  def additionalExtensions: Set[String]
+
   override def toString: String = extension
 
-  private val extensions: Set[String] = Set(extension) ++ additionalExtensions
+  private lazy val extensions: Set[String] = Set(extension) ++ additionalExtensions
 
   final def isExtension(extension: String): Boolean = extensions.contains(extension)
 
   def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element]
 
-  final def doResolveLinks(element: Xml.Element): Boolean = !doNotResolveLinksElements.contains(element.name)
+  def resolveLinks(element: Xml.Element): Boolean
+
+  def resolveWikiLinks: Boolean
   
-  def linkElementResolvers: Seq[Link.ElementResolver]
+  def linkToElement(element: Xml.Element): Option[Link.ToElement]
 
-  private given CanEqual[XmlName, XmlName] = CanEqual.derived
+  def linkFromElement(element: Xml.Element): Option[Link.FromElement]
 
-  final def linkElementResolver(element: Xml.Element): Option[Link.ElementResolver] =
-    linkElementResolvers.find(_.elementName == element.name)
+  def sections(xml: Xml.Element): Seq[Section]
+
+  final def dropAnchors(element: Xml.Element): Xml.Element =
+    if !resolveLinks(element) then element else
+      val result: Xml.Element = linkToElement(element) match
+        case None => element
+        case Some(linkToElement) =>
+          if linkToElement.id.isDefined then element else element.replaceAttribute(
+            XmlUtil.id,
+            linkToElement
+              .title
+              .map(XmlUtil.toId)
+              .getOrElse(throw IllegalArgumentException(s"Defect: No id or title on ${XmlUtil.toSimpleString(element)}"))
+          )
+  
+      result.copy(children = result.children.map {
+        case element: Xml.Element => dropAnchors(element)
+        case xml => xml
+      })
+
+  

@@ -1,6 +1,6 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.XmlName
+import zio.blocks.schema.xml.Xml
 
 final case class Link(
   from: Link.From,
@@ -8,31 +8,24 @@ final case class Link(
 )
 
 object Link:
-  final case class From(
-    page: Page,
-    ref: String, // could be `name`, `path/name`, `name#section`, `name#section#subsection`, `name#^block`...
-    category: Option[String],  // TEI org/person/place, facsimile, etc.
-    context: Option[String],  // TODO retrieve link context
-    // TODO section
+  final case class ToElement(
+    id: Option[String],
+    title: Option[String]
   )
 
-  abstract class ElementResolver(
-    val elementName: XmlName,
-    val refAttributeName: XmlName,
-    val category: Option[String]
+  final case class From(
+    page: Page,
+    fromElement: FromElement,
+    context: Option[String],  // TODO retrieve link context
+    // TODO section
+    element: Option[Xml.Element],
+    transclude: Boolean
+  ):
+    def isWikiLink: Boolean = element.isEmpty
+
+  // TODO rename Ref?
+  final case class FromElement(
+    ref: Option[String], // could be `name`, `path/name`(?), `name#section`, `name#section#subsection`, `name#^block`.
+    text: Option[String],
+    category: Option[String] // TEI org/person/place, facsimile, etc.
   )
-  
-  sealed trait Resolved:
-    def url: String
-    def text: String
-    
-  object Resolved:
-    final case class ToPage(page: Page) extends Resolved:
-      override def url: String = page.targetPath.toString
-      override def text: String = page.title
-      
-    final case class ToSection(page: Page, sections: Seq[Toc.Section]) extends Resolved:
-      override def url: String = s"${page.targetPath.toString}#${sections.last.id}"
-      override def text: String = s"${page.title}#${sections.map(_.title).mkString("#")}"
-      
-//    final case class ToBlock(page: Page, ) extends Resolved // TODO block!
