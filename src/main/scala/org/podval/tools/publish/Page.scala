@@ -5,32 +5,28 @@ import scala.annotation.tailrec
 
 final class Page(
   val sourcePath: Path,
-  val targetPath: Path,
-  val pageKind: PageKind,
+  targetPath: Path,
+  pageKind: PageKind,
   val markup: Markup,
-  val frontMatter: FrontMatter,
+  frontMatter: FrontMatter,
   xmlRaw: Xml.Element
-) derives CanEqual:
-  
-  private var xmlVar: Xml.Element = markup.dropAnchors(xmlRaw)
-  def xml: Xml.Element = xmlVar
-
+) extends PageBase(
+  targetPath,
+  pageKind,
+  frontMatter
+):
   override def toString: String = s"$title.$markup($sourcePath, $targetPath)"
 
-  def title: String = frontMatter.title.getOrElse(targetPath.path.last)
-
-  def is(url: String): Boolean = List(
+  private var xmlVar: Xml.Element = markup.dropAnchors(xmlRaw)
+  override def xml: Xml.Element = xmlVar
+  
+  override def paths: List[Path] = List(
     sourcePath,
     sourcePath.withoutExtension,
     targetPath,
     targetPath.withoutExtension
   )
-    .exists(_.toString.endsWith(url))
-
-  override def equals(obj: Any): Boolean = obj match
-    case that: Page => this.targetPath == that.targetPath
-    case _ => false
-
+  
   // TODO add TOC to page as needed
 
   private val sections: Seq[Section] = markup.sections(xml)
@@ -105,7 +101,7 @@ final class Page(
         fromElement = Link.FromElement(
           ref = Some(ref.trim),
           text = textOpt.map(_.trim),
-          category = None,
+          kind = None,
         ),
         context = None,
         element = None,

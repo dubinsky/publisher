@@ -1,14 +1,14 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.{Xml, XmlBuilder}
-import XmlUtil.{a, apply, childWhen, childrenWhen, div, el, stylesheet}
+import XmlUtil.{a, apply, childWhen, childrenWhen, div, el, setId, stylesheet}
 
 // Based on https://github.com/jekyll/minima
 // TODO calculate based on PageKind?
 // TODO icons!
 final class Minima(
   config: Config,
-  page: Page,
+  page: PageBase,
   backLinks: List[Link]
 ):
   private val libraries: List[XmlUtil.JavascriptLibrary] = List(
@@ -213,7 +213,7 @@ final class Minima(
         .child(a("site-title", "/").attr("rel", "author")(config.title))
         .childWhen(config.headerPages.nonEmpty,
           el("nav", "class" -> "site-nav")(
-            el("input", "type" -> "checkbox", "id" -> "nav-trigger")(),
+            el("input", "type" -> "checkbox").setId("nav-trigger")(),
             el("label", "for" -> "nav-trigger")(
               el("span", "class" -> "menu-icon")(
 //                el("svg", "viewBox" -> "0 0 18 15", "width" -> "18px", "height" -> "15px")(

@@ -4,7 +4,7 @@ import zio.blocks.schema.xml.Xml
 
 final case class Link(
   from: Link.From,
-  toPage: Page
+  toPage: PageBase
 )
 
 object Link:
@@ -27,5 +27,5 @@ object Link:
   final case class FromElement(
     ref: Option[String], // could be `name`, `path/name`(?), `name#section`, `name#section#subsection`, `name#^block`.
     text: Option[String],
-    category: Option[String] // TEI org/person/place, facsimile, etc.
+    kind: Option[String] // TEI org/person/place, facsimile, etc.
   )

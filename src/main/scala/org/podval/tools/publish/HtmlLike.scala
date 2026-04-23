@@ -26,7 +26,7 @@ abstract class HtmlLike extends Markup:
     Option.when(element.name == XmlUtil.a)(Link.FromElement(
       ref = element.getAttribute(XmlUtil.href),
       text = Option.when(element.children.nonEmpty)(XmlUtil.toSimpleString(element)),
-      category = None
+      kind = None
     ))
 
   final override def sections(xml: Xml.Element): Seq[Section] = nest(getSections(xml))

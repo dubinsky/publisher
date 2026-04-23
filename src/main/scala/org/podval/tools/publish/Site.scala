@@ -21,18 +21,34 @@ final class Site(
   private val log: Logger = LoggerFactory.getLogger(this.getClass)
 
   private val config: Config = Config(sourceDirectoryPath)
+  
+  private var pagesVar: List[Page] = scala.compiletime.uninitialized
+  def pages: List[Page] = pagesVar
 
-  private val warnings: Warnings = Warnings(treatWarningsAsErrors = true)
-
-  private var pages: List[Page] = scala.compiletime.uninitialized
-
+  private val syntheticPages: List[SyntheticPage] = List(
+    TagsPage(Path(List("tags")), this)
+  )
+  
   private var links: List[Link] = List.empty
 
+  // TODO record warnings and generate report page(s):
+  //- broken links
+  //- inconsistent titles
+
+  private def recover[A](z: => Either[PageError, A])(default: => A): Either[PageError, A] = z match
+    case Right(value) => Right(value)
+    case Left(error) => recover(error, default)
+
+  private def recoverNone[A](z: => Either[PageError, A]): Either[PageError, Option[A]] = z match
+    case Right(value) => Right(Some(value))
+    case Left(error) => recover(error, None)
+
   // TODO use for nav items
-  def resolveRef(ref: String): Option[LinkResolved] = LinkResolved(pages, ref)
+  private def resolveRef(ref: String): Option[LinkResolved] = 
+    LinkResolved.resolvePage(pages, ref).orElse(LinkResolved.resolveSyntheticPage(syntheticPages, ref))
 
   // TODO one backlink per page
-  def backLinks(page: Page): List[Link] = links.filter(_.toPage == page).filterNot(_.from.page == page)
+  def backLinks(page: PageBase): List[Link] = links.filter(_.toPage == page).filterNot(_.from.page == page)
 
   def generateAndReport(): Unit = generate match
     case Right(()) => println("Done!")
@@ -48,7 +64,7 @@ final class Site(
 
     // Enumerate all pages
     pages: List[Page] <- directoryPages(List.empty, config.sourceDirectory)
-    _ = this.pages = pages
+    _ = this.pagesVar = pages
 
     // TODO add synthetic markup pages:
     //- tags.html
@@ -57,7 +73,7 @@ final class Site(
     //- feed.xml
 
     // Report conflicting pages
-    _ <- warnings.recoverNone:
+    _ <- recoverNone:
       pages.groupBy(_.targetPath).filter(_._2.length > 1).toList match
         case Nil => Right(Some(()))
         case duplicates => Util.sequence(duplicates)((targetPath: Path, pages: List[Page]) =>
@@ -73,7 +89,7 @@ final class Site(
     _ = pages.foreach(_.resolveLinks(this))
 
     // Write pages
-    _ = pages.foreach: page =>
+    _ = (syntheticPages ++ pages).foreach: page =>
       Files.write(
         toFile = page.targetPath.file(config.targetDirectory),
         content = XmlUtil.write(Minima(config, page, backLinks(page)).render)
@@ -82,6 +98,13 @@ final class Site(
 
   yield ()
   
+  private def recover[A](error: PageError, default: A): Either[PageError, A] =
+    if treatWarningsAsErrors then Left(error) else
+      // TODO collect all warnings with their kinds and sources
+      // and generate reports for them!
+      log.warn(s"Ignoring error: ${error.toString}")
+      Right(default)
+
   private def directoryPages(path: List[String], directory: File): Either[PageError, List[Page]] =
     Files.requireExists(directory)
     Files.requireDirectory(directory)
@@ -117,10 +140,10 @@ final class Site(
     val sourceFile: File = sourcePath.file(config.sourceDirectory)
     val markup: Option[Markup] = sourcePath.extension.flatMap(extension => Markup.all.find(_.isExtension(extension)))
 
-    ifDefined(warnings.recoverNone(pageKind.targetPath(sourcePath))): (targetPath: Path) =>
+    ifDefined(recoverNone(pageKind.targetPath(sourcePath))): (targetPath: Path) =>
       ifDefined(markup match
         case None =>
-          ifDefined(warnings.recoverNone(
+          ifDefined(recoverNone(
             if pageKind.isAssetAllowed
             then Right(())
             else Left(PageError(sourcePath, s"Asset not allowed in $pageKind"))
@@ -130,7 +153,7 @@ final class Site(
             Right(None)
 
         case Some(markup) =>
-          ifDefined(warnings.recoverNone(
+          ifDefined(recoverNone(
             if pageKind.isMarkupAllowed(markup)
             then Right(())
             else Left(PageError(sourcePath, s"Markup $markup not allowed in $pageKind"))
@@ -143,8 +166,8 @@ final class Site(
                   (Left(PageError(sourcePath, "Malformed FrontMatter", Some(yamlError))), content)
 
             for
-              frontMatter: FrontMatter <- warnings.recover(frontMatterOrError)(FrontMatter.absent)
-              result: Option[Page] <- ifDefined(warnings.recoverNone(markup.parse(sourcePath, content))): xml =>
+              frontMatter: FrontMatter <- recover(frontMatterOrError)(FrontMatter.absent)
+              result: Option[Page] <- ifDefined(recoverNone(markup.parse(sourcePath, content))): xml =>
                 Right(Some(Page(
                   sourcePath = sourcePath,
                   targetPath = targetPath.withExtension(Html.extension),
@@ -195,11 +218,11 @@ object Site:
   private def embedLink(ref: String, text: Option[String]): Option[Xml.Element] =
     Files.nameAndExtension(ref)._2.flatMap: extension =>
       if Files.imageExtensions.contains(extension) then None
-      // Embedd image
+      // Embed image
       //      else if Files.audioExtensions.contains(extension) then
       //        // Embed audio player
       //      else if extension == "pdf" then
-      //        // Embed pdf viewer
+      //        // Embed PDF viewer
       else None
 
   private def externalRef(ref: String): Option[URI] =
@@ -211,5 +234,5 @@ object Site:
       catch
         case e: URISyntaxException =>
           // TODO handle errors better - and log them
-          println(s"Malformed URL: ${ref} $e")
+          println(s"Malformed URL: $ref $e")
           None

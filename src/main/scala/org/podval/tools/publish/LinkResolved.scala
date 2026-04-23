@@ -1,12 +1,12 @@
 package org.podval.tools.publish
 
-sealed abstract class LinkResolved(val page: Page):
+sealed abstract class LinkResolved(val page: PageBase):
   def url: String
 
   def text: String
 
 object LinkResolved:
-  private final case class ToPage(override val page: Page) extends LinkResolved(page):
+  private final case class ToPage(override val page: PageBase) extends LinkResolved(page):
     override def url: String = page.targetPath.toString
     override def text: String = page.title
 
@@ -18,7 +18,9 @@ object LinkResolved:
     override def url: String = s"${page.targetPath.toString}#${block.id}"
     override def text: String = s"${page.title}#^${block.id}"
 
-  def apply(pages: List[Page], ref: String): Option[LinkResolved] =
+  // TODO move into Site while keeping syntax here
+  // TODO register warnings
+  def resolvePage(pages: List[Page], ref: String): Option[LinkResolved] =
     val (toPath: String, fragment: Option[String]) = Files.split(ref, '#')
 
     pages.find(_.is(toPath)).flatMap: toPage =>
@@ -35,4 +37,10 @@ object LinkResolved:
             for
               names: Seq[String] = fragment.split('#').map(_.trim).toSeq
               sections: Seq[Section] <- toPage.section(names)
-            yield LinkResolved.ToSection(toPage, sections) 
+            yield LinkResolved.ToSection(toPage, sections)
+
+  def resolveSyntheticPage(pages: List[SyntheticPage], ref: String): Option[LinkResolved] =
+    val (toPath: String, fragment: Option[String]) = Files.split(ref, '#')
+    // TODO warning if fragment.nonEmpty
+
+    pages.find(_.is(toPath)).flatMap(toPage => Some(LinkResolved.ToPage(toPage)))

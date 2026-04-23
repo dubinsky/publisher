@@ -8,6 +8,9 @@ object XmlUtil:
     def apply(children: Xml*): Xml.Element = builder.children(children *).build
     def apply(text: String): Xml.Element = builder.child(XmlBuilder.text(text)).build
 
+    def setId(value: String): XmlBuilder.ElementBuilder =
+      builder.attr(id, value)
+      
     def attrWhen(when: Boolean, name: String, value: => String): XmlBuilder.ElementBuilder =
       if !when then builder else builder.attr(name, value)
 
@@ -46,20 +49,17 @@ object XmlUtil:
   private def isAttribute(name: XmlName)(attribute: (XmlName, String)): Boolean =
     attribute._1 == name
   
-  def stylesheet(href: String, id: Option[String] = None): Xml.Element = XmlBuilder
-    .element("link")
+  def stylesheet(href: String, id: Option[String] = None): Xml.Element = el("link")
     .attrWhen(id.nonEmpty, "id", id.get)
     .attr("rel", "stylesheet")
     .attr("href", href)
     .build
 
-  def script(text: String): Xml.Element = XmlBuilder
-    .element("script")
+  def script(text: String): Xml.Element = el("script")
     .child(XmlBuilder.text(text))
     .build
 
-  def module(src: String): Xml.Element = XmlBuilder
-    .element("script")
+  def module(src: String): Xml.Element = el("script")
     .attr("src", src)
     .child(XmlBuilder.comment("self-closing script elements do not work"))
     .build

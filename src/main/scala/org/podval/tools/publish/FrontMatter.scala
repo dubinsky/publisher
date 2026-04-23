@@ -9,6 +9,8 @@ import scala.util.control.NonFatal
 final class FrontMatter(
   val layout: Option[String] = None,
   val title: Option[String] = None,
+  val description: Option[String] = None,
+  val permalink: Option[String] = None,
   val author: Option[String] = None,
   val lang: Option[String] = None,
   val math: Boolean = false,
