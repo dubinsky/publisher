@@ -196,7 +196,7 @@ pre {
     }
 }
 
-.wrapper:after {
+.wrapper::after {
     content: "";
     display: table;
     clear: both;

@@ -77,6 +77,7 @@ object Config:
     "node_modules",
     "settings.gradle",
     "src",
+    "tags.html", // my Jekyll customization; I am going to synthesize it
     "vendor",
   )
 

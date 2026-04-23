@@ -1,15 +1,21 @@
 package org.podval.tools.publish
 
+import zio.blocks.schema.xml.{Xml, XmlName}
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
 import java.io.File
+import java.net.{URI, URISyntaxException}
 import Util.ifDefined
+import XmlUtil.{a, apply, childrenWhenEmpty, href, replaceAttribute}
 
 final class Site(
   sourceDirectoryPath: String,
   treatWarningsAsErrors: Boolean,
   logLevel: Level = Level.INFO
 ):
+  private given CanEqual[File, File] = CanEqual.derived
+  private given CanEqual[XmlName, XmlName] = CanEqual.derived
+
   Logging.configureLogBack(level = logLevel, useLogStash = false)
 
   private val log: Logger = LoggerFactory.getLogger(this.getClass)
@@ -18,33 +24,31 @@ final class Site(
 
   private val warnings: Warnings = Warnings(treatWarningsAsErrors = true)
 
-  private given CanEqual[File, File] = CanEqual.derived
+  private var pages: List[Page] = scala.compiletime.uninitialized
+
+  private var links: List[Link] = List.empty
+
+  // TODO use for nav items
+  def resolveRef(ref: String): Option[LinkResolved] = LinkResolved(pages, ref)
+
+  // TODO one backlink per page
+  def backLinks(page: Page): List[Link] = links.filter(_.toPage == page).filterNot(_.from.page == page)
 
   def generateAndReport(): Unit = generate match
-      case Right(()) => println("Done!")
-      case Left(error) => println(s"Error generating site: $error")
-
-  private val resourcesBase: String = "/org/podval/tools/publish/site"
-
-  // TODO list using Files.listResources
-  private val resourcesList: List[String] = List(
-    "/assets/css/base.css",
-    "/assets/css/initialize.css",
-    "/assets/css/layout.css",
-    "/assets/css/skin.css",
-    "/assets/css/style.css",
-  )
+    case Right(()) => println("Done!")
+    case Left(error) => println(s"Error generating site: $error")
 
   private def generate: Either[PageError, Unit] = for
-    _ = resourcesList.foreach: resourceName =>
+    _ = Site.resourcesList.foreach: resourceName =>
       Files.write(
         toFile = File(config.targetDirectory, resourceName),
-        content = Files.readResource(resourcesBase + resourceName)
+        content = Files.readResource(Site.resourcesBase + resourceName)
       )
       log.debug(s"Copied embedded asset: $resourceName")
 
     // Enumerate all pages
     pages: List[Page] <- directoryPages(List.empty, config.sourceDirectory)
+    _ = this.pages = pages
 
     // TODO add synthetic markup pages:
     //- tags.html
@@ -63,16 +67,16 @@ final class Site(
           ))
         )
 
-    links: Links = Links(pages, warnings)
-
     // Resolve links
-    _ = links.resolve()
+    // TODO do the warning.recover/sequence dance!
+    // TODO sort the pages in transclusion order and transclude
+    _ = pages.foreach(_.resolveLinks(this))
 
     // Write pages
     _ = pages.foreach: page =>
       Files.write(
         toFile = page.targetPath.file(config.targetDirectory),
-        content = XmlUtil.write(Minima(config, page, links.backLinks(page)).render)
+        content = XmlUtil.write(Minima(config, page, backLinks(page)).render)
       )
       log.debug(s"Wrote: $page")
 
@@ -154,3 +158,58 @@ final class Site(
       ): (page: Page) =>
         Right(Some(page))
 
+  // TODO mark errors with class attribute
+  def resolveLink(from: Link.From): Xml.Element =
+    def unresolved: Xml.Element = from.element.getOrElse(a("wiki-link", from.fromElement.ref.getOrElse("/"))())
+      .childrenWhenEmpty(from.fromElement.text)
+      
+    from.fromElement.ref match
+      case None => unresolved
+      case Some(ref) => (if !from.transclude then None else Site.embedLink(ref, from.fromElement.text)).getOrElse:
+        Site.externalRef(ref).fold(resolveRef(ref))(_ => None) match
+          case None => unresolved
+          case Some(linkResolved) =>
+            // Register resolved link
+            links = links.appended(Link(from, linkResolved.page))
+  
+            if from.transclude then a("transclude", linkResolved.url)(linkResolved.text) else
+              val result: Xml.Element = from.element match
+                case None => a("wiki-link", linkResolved.url)()
+                case Some(element) => element.copy(name = a).replaceAttribute(href, XmlUtil.escapeUrl(linkResolved.url))
+  
+              result.childrenWhenEmpty(Some(linkResolved.text))
+
+object Site:
+  private val resourcesBase: String = "/org/podval/tools/publish/site"
+
+  // TODO list using Files.listResources
+  private val resourcesList: List[String] = List(
+    "/assets/css/base.css",
+    "/assets/css/initialize.css",
+    "/assets/css/layout.css",
+    "/assets/css/skin.css",
+    "/assets/css/style.css",
+  )
+
+  // see https://obsidian.md/help/embeds
+  private def embedLink(ref: String, text: Option[String]): Option[Xml.Element] =
+    Files.nameAndExtension(ref)._2.flatMap: extension =>
+      if Files.imageExtensions.contains(extension) then None
+      // Embedd image
+      //      else if Files.audioExtensions.contains(extension) then
+      //        // Embed audio player
+      //      else if extension == "pdf" then
+      //        // Embed pdf viewer
+      else None
+
+  private def externalRef(ref: String): Option[URI] =
+    if ref.contains(" ") then None else
+      try
+        val uri: URI = URI(ref)
+        // TODO recognize and resolve links to *this* site
+        Option.when(uri.getScheme != null)(uri)
+      catch
+        case e: URISyntaxException =>
+          // TODO handle errors better - and log them
+          println(s"Malformed URL: ${ref} $e")
+          None

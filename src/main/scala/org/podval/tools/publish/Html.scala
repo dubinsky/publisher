@@ -2,7 +2,7 @@ package org.podval.tools.publish
 
 import zio.blocks.schema.xml.{Xml, XmlCodecError, XmlName, XmlReader}
 
-object Html extends MarkupHtmlLike:
+object Html extends HtmlLike:
   override val extension: String = "html"
   override val additionalExtensions: Set[String] = Set.empty
   

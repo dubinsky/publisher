@@ -7,7 +7,7 @@ import scala.annotation.tailrec
 // Common for markup formats whose XML representation is actually HTML:
 // HTML itself, Markdown, and likely Re-Structured text and AsciiDoc;
 // pure XML markup formats like TEI and DocBook are different.
-abstract class MarkupHtmlLike extends Markup:
+abstract class HtmlLike extends Markup:
   private given CanEqual[XmlName, XmlName] = CanEqual.derived
 
   final override def resolveLinks(element: Xml.Element): Boolean =

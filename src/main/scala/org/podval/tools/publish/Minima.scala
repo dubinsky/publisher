@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.{Xml, XmlBuilder}
-import XmlUtil.{a, apply, childWhen, childrenWhen, div, el}
+import XmlUtil.{a, apply, childWhen, childrenWhen, div, el, stylesheet}
 
 // Based on https://github.com/jekyll/minima
 // TODO calculate based on PageKind?
@@ -15,7 +15,7 @@ final class Minima(
     Highlights.get(page.xml),
     Option.when(page.frontMatter.math)(MathJax)
   ).flatten
-  
+
   def render: Xml = page.frontMatter.layout match
     case Some("post") => postLayout(page.xml)
     case Some("default") => baseLayout(page.xml)
@@ -24,9 +24,7 @@ final class Minima(
   private def pageLayout(content: Xml): Xml.Element = baseLayout(
     el("article", "class" -> "post")(
       el("header", "class" -> "post-header")(
-        el("h1", "class" -> "post-title")(
-          page.title
-        )
+        el("h1", "class" -> "post-title")(page.title)
       ),
       div("post-content")(
         content
@@ -38,9 +36,7 @@ final class Minima(
   private def postLayout(content: Xml): Xml.Element = baseLayout(
     el("article", "class" -> "post h-entry", "itemscope" -> "", "itemtype" -> "http://schema.org/BlogPosting")(
       el("header", "class" -> "post-header")(
-        el("h1", "class" -> "post-title p-name", "itemprop" -> "name headline")(
-          page.title
-        ),
+        el("h1", "class" -> "post-title p-name", "itemprop" -> "name headline")(page.title),
         div("post-meta")
           // TODO
           // .childWhen(page.modified_date.isDefined,
@@ -80,11 +76,11 @@ final class Minima(
           //)
           .build
       ),
-      el("div", "class" -> "post-content e-content", "itemprop" -> "articleBody")(
+      div("post-content e-content").attr("itemprop", "articleBody")(
         content
       ),
       // Note: skipped Disqus comments
-      // TODO a("u-url", page.url).attr("hidden", "")()
+      a("u-url", page.targetPath.toString).attr("hidden", "")()
     )
   )
 
@@ -168,39 +164,37 @@ final class Minima(
               .build
           )
         )
-        .child(XmlUtil.stylesheet("https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.0.0/css/all.min.css", id = Some("fa-stylesheet")))
+        // TODO move to head?
+//        .child(stylesheet("https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.0.0/css/all.min.css", id = Some("fa-stylesheet")))
         .child(footer)
-        // Skipped: .child(subFooter)
         .children(libraries.flatMap(_.body) *)
         .build
     )
 
-  private def backlinksDiv: Xml.Element =
-    div("backlinks")
-      .child(el("hr")())
-      .child(el("h4")())
-      .children(backLinks.flatMap(link => List(
-        XmlBuilder.text("•"),
-        a("backlink", link.from.fromElement.ref.getOrElse("/"))(link.from.page.title)
-      )) *)
-      .build
+  private def backlinksDiv: Xml.Element = div("backlinks")
+    .child(el("hr")())
+    .child(el("h4")())
+    .children(backLinks.flatMap(link => List(
+      XmlBuilder.text("•"),
+      a("backlink", link.from.fromElement.ref.getOrElse("/"))(link.from.page.title) // TODO!
+    )) *)
+    .build
 
-  private def head: Xml.Element =
-    el("head")
-      .child(el("meta", "charset" -> "utf-8")())
-      .child(el("meta", "http-equiv" -> "X-UA-Compatible", "content" -> "IE=edge")())
-      .child(el("meta", "name" -> "viewport", "content" -> "width=device-width, initial-scale=1")())
-      // TODO {%- seo -%}: https://github.com/jekyll/jekyll-seo-tag
-      .child(el("title")(page.title)) // TODO this is here until seo is implemented - it covers the title...
-      .children(libraries.flatMap(_.head) *)
-      .child(XmlUtil.stylesheet("/assets/css/style.css", id = Some("main-stylesheet")))
-      // TODO {%- feed_meta -%}: https://github.com/jekyll/jekyll-feed
-      // TODO
-      // {%- if jekyll.environment == 'production' and site.google_analytics -%}
-      //   .children(googleAnalytics*)
-      // {%- endif -%}
-      // Skipped: {%- include custom-head.html -%}
-      .build
+  private def head: Xml.Element = el("head")
+    .child(el("meta", "charset" -> "utf-8")())
+    .child(el("meta", "http-equiv" -> "X-UA-Compatible", "content" -> "IE=edge")())
+    .child(el("meta", "name" -> "viewport", "content" -> "width=device-width, initial-scale=1")())
+    // TODO {%- seo -%}: https://github.com/jekyll/jekyll-seo-tag
+    .child(el("title")(page.title)) // TODO this is here until seo is implemented - it covers the title...
+    .children(libraries.flatMap(_.head) *)
+    .child(stylesheet("/assets/css/style.css", id = Some("main-stylesheet")))
+    // TODO {%- feed_meta -%}: https://github.com/jekyll/jekyll-feed
+    // TODO
+    // {%- if jekyll.environment == 'production' and site.google_analytics -%}
+    //   .children(googleAnalytics*)
+    // {%- endif -%}
+    // Skipped: {%- include custom-head.html -%}
+    .build
 
   private def googleAnalytics: Seq[Xml.Element] = Seq.empty
     // TODO
@@ -242,8 +236,9 @@ final class Minima(
 
   private def footer: Xml.Element =
     el("footer", "class" -> "site-footer h-card")(
-      el("data", "class" -> "u-url", "href" -> "/")(XmlBuilder.comment("do not self-close")),
+      el("data", "class" -> "u-url", "href" -> "/")(XmlBuilder.comment("do not self-close")), // TODO base url?
       div("wrapper")(
+        // TODO used to be: el("h2", "class" -> "footer-heading")(config.title),
         div("footer-col-wrapper")(
           div("footer-col footer-col-1")
             .childWhen(config.author.name.isDefined || config.author.email.isDefined,
@@ -265,40 +260,30 @@ final class Minima(
             )
           )
         ),
-        div("social-links")(
-          social
-        )
+        div("social-links")(social)
       )
     )
 
   // TODO alternative
-  //  // TODO data href: base?
-  //  private def footer: Xml.Element =
-  //    el("footer", "class" -> "site-footer h-card")(
-  //      el("data", "class" -> "u-url", "href" -> "/")(XmlBuilder.comment("do not self-close")),
-  //      div("wrapper")(
-  //        el("h2", "class" -> "footer-heading")(config.title),
-  //        div("footer-col-wrapper")(
-  //          div("footer-col footer-col-1")(
-  //            el("ul", "class" -> "contact-list")(
-  //              el("li", "class" -> "p-name")(config.author.name.get), // TODO conditional!
-  //              el("li")(
-  //                a("u-email", s"mailto:${config.author.email.get}")(config.author.email.get)  // TODO conditional!
-  //              )
-  //            )
-  //          ),
-  //          div("footer-col footer-col-2")(
-  //            el("ul", "class" -> "social-media-list")
-  //              // TODO from Config
-  //              //    <li><a href="https://github.com/dubinsky"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">dubinsky</span></a></li>
-  //              //    <li><a href="https://www.linkedin.com/in/leoniddubinsky"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#linkedin"></use></svg> <span class="username">leoniddubinsky</span></a></li>
-  //              //    <li><a href="https://www.twitter.com/leoniddubinsky"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">leoniddubinsky</span></a></li>
-  //              .build
-  //          ),
-  //          div("footer-col footer-col-3")(config.description)
-  //        )
-  //      )
-  //    )
+  private def footerAlt: Xml.Element =
+    el("footer", "class" -> "site-footer h-card")(
+      el("data", "class" -> "u-url", "href" -> "/")(XmlBuilder.comment("do not self-close")), // TODO base url?
+      div("wrapper")(
+        el("h2", "class" -> "footer-heading")(config.title),
+        div("footer-col-wrapper")(
+          div("footer-col footer-col-1")(
+            el("ul", "class" -> "contact-list")(
+              el("li", "class" -> "p-name")(config.author.name.get), // TODO conditional!
+              el("li")(
+                a("u-email", s"mailto:${config.author.email.get}")(config.author.email.get)  // TODO conditional!
+              )
+            )
+          ),
+          div("footer-col footer-col-2")(socialAlt),
+          div("footer-col footer-col-3")(config.description)
+        )
+      )
+    )
 
   private def social: Xml.Element =
     el("ul", "class" -> "social-media-list")
@@ -327,3 +312,10 @@ final class Minima(
     .build
 
 
+  private def socialAlt =
+    el("ul", "class" -> "social-media-list")
+      // TODO from Config
+      //    <li><a href="https://github.com/dubinsky"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">dubinsky</span></a></li>
+      //    <li><a href="https://www.linkedin.com/in/leoniddubinsky"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#linkedin"></use></svg> <span class="username">leoniddubinsky</span></a></li>
+      //    <li><a href="https://www.twitter.com/leoniddubinsky"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">leoniddubinsky</span></a></li>
+      .build

@@ -53,34 +53,35 @@ final class Page(
 
   def block(id: String): Option[Block] = None // TODO
   
-  // TODO We do not resolve links inside link elements - should we?
-  def resolveLinks(links: Links): Unit =
+  def resolveLinks(site: Site): Unit =
     def loop(element: Xml.Element): Xml.Element =
-      if !markup.resolveLinks(element) then element else markup.linkFromElement(element) match
-        case Some(linkFromElement) if linkFromElement.ref.isDefined => links.resolve(Link.From(
-          page = this,
-          fromElement = linkFromElement,
-          context = None,
-          element = Some(element),
-          transclude = false
-        ))
-        case _ => element.copy(children = element.children.flatMap {
-          case element: Xml.Element if markup.resolveLinks(element) => Seq(loop(element))
-          case Xml.Text(value) if markup.resolveWikiLinks => resolveWikiLinks(value, links)
+      if !markup.resolveLinks(element) then element else
+        val result: Xml.Element = element.copy(children = element.children.flatMap {
+          case element: Xml.Element => Seq(loop(element))
+          case Xml.Text(value) if markup.resolveWikiLinks => resolveWikiLinks(value, site)
           case xml => Seq(xml)
         })
+        markup.linkFromElement(result) match
+          case None => result
+          case Some(linkFromElement) => site.resolveLink(Link.From(
+            page = this,
+            fromElement = linkFromElement,
+            context = None,
+            element = Some(element),
+            transclude = false
+          ))
 
     xmlVar = loop(xml)
 
   // see https://obsidian.md/help/links
-  private def resolveWikiLinks(text: String, links: Links): Seq[Xml] =
+  private def resolveWikiLinks(text: String, site: Site): Seq[Xml] =
     @tailrec
     def loop(result: Seq[Xml], text: String): Seq[Xml] =
       if text.isEmpty then result else
-        resolveWikiLink(text, "![[", "]]", transclude = true, links)
-          .orElse(resolveWikiLink(text, "[[", "]]", transclude = false, links)) match
-          case None => result ++ Seq(Xml.Text(text))
-          case Some(xml: Seq[Xml], after: String) => loop(result ++ xml, after)
+        resolveWikiLink(text, "![[", "]]", transclude = true, site)
+          .orElse(resolveWikiLink(text, "[[", "]]", transclude = false, site)) match
+            case None => result ++ Seq(Xml.Text(text))
+            case Some(xml: Seq[Xml], after: String) => loop(result ++ xml, after)
 
     loop(Seq.empty, text)
 
@@ -89,7 +90,7 @@ final class Page(
     start: String,
     end: String,
     transclude: Boolean,
-    links: Links
+    site: Site
   ): Option[(Seq[Xml], String)] =
     val startIndex: Int = text.indexOf(start)
     val endIndex: Int = if startIndex == -1 then -1 else text.indexOf(end, startIndex + start.length)
@@ -99,7 +100,7 @@ final class Page(
       val after: String = text.substring(endIndex + end.length).trim
       val (ref: String, textOpt: Option[String]) = Files.split(body, '|')
 
-      val result: Xml.Element = links.resolve(Link.From(
+      val result: Xml.Element = site.resolveLink(Link.From(
         page = this,
         fromElement = Link.FromElement(
           ref = Some(ref.trim),
