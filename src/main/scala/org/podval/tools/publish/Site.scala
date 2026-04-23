@@ -20,6 +20,13 @@ final class Site(
 
   private val log: Logger = LoggerFactory.getLogger(this.getClass)
 
+  private val config: Config = Config(sourceDirectoryPath)
+
+  def title: String = config.title
+  def description: String = config.description
+  def author: Config.Author = config.author
+  def lang: Option[String] = config.lang
+
   // TODO generate report page(s):
   //- broken links
   //- inconsistent titles
@@ -40,10 +47,11 @@ final class Site(
     case Right(value) => Right(Some(value))
     case Left(error) => recover(error, None)
 
-  private val config: Config = Config(sourceDirectoryPath)
-  
   private var pagesVar: List[Page] = scala.compiletime.uninitialized
   def pages: List[Page] = pagesVar
+
+  private var headerPagesVar: List[PageBase] = scala.compiletime.uninitialized
+  def headerPages: List[PageBase] = headerPagesVar
 
   private val syntheticPages: List[SyntheticPage] = List(
     TagsPage(Path(List("tags")), this)
@@ -52,17 +60,34 @@ final class Site(
   private var links: List[Link] = List.empty
 
   // TODO use for nav items
+  private def resolveHeaderPage(ref: String): Option[PageBase] =
+    resolveRef(ref).flatMap {
+      case LinkResolved.ToPage(page) => Some(page)
+      case linkResolved =>
+        // TODO report error
+        None
+    }
+
   private def resolveRef(ref: String): Option[LinkResolved] = 
     LinkResolved.resolvePage(pages, ref).orElse(LinkResolved.resolveSyntheticPage(syntheticPages, ref))
 
   // TODO one backlink per page
   def backLinks(page: PageBase): List[Link] = links.filter(_.toPage == page).filterNot(_.from.page == page)
 
-  def generateAndReport(): Unit = generate match
-    case Right(()) => println("Done!")
-    case Left(error) => println(s"Error generating site: $error")
+  def generateAndReport(): Unit =
+    val result: Either[PageError, Unit] =
+      try generate
+      catch case error: PageError => Left(error)
+
+    result match
+      case Right(()) => println("Done!")
+      case Left(error) => println(s"Error generating site: $error")
 
   private def generate: Either[PageError, Unit] = for
+    // Wipe out output directory
+    _ = Files.deleteDirectory(config.targetDirectory)
+
+    // Write embedded resources
     _ = Site.resourcesList.foreach: resourceName =>
       Files.write(
         toFile = File(config.targetDirectory, resourceName),
@@ -74,8 +99,7 @@ final class Site(
     pages: List[Page] <- directoryPages(List.empty, config.sourceDirectory)
     _ = this.pagesVar = pages
 
-    // TODO add synthetic markup pages:
-    //- tags.html
+    // TODO write:
     //- sitemap.xml
     //- robots.txt
     //- feed.xml
@@ -96,11 +120,13 @@ final class Site(
     // TODO sort the pages in transclusion order and transclude
     _ = pages.foreach(_.resolveLinks(this))
 
+    _ = headerPagesVar = config.headerPages.flatMap(resolveHeaderPage)
+
     // Write pages
     _ = (syntheticPages ++ pages).foreach: page =>
       Files.write(
         toFile = page.targetPath.file(config.targetDirectory),
-        content = XmlUtil.write(Minima(config, page, backLinks(page)).render)
+        content = XmlUtil.write(Minima(this, page, backLinks(page)).render)
       )
       log.debug(s"Wrote: $page")
 

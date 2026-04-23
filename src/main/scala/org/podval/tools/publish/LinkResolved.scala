@@ -6,15 +6,15 @@ sealed abstract class LinkResolved(val page: PageBase):
   def text: String
 
 object LinkResolved:
-  private final case class ToPage(override val page: PageBase) extends LinkResolved(page):
+  final case class ToPage(override val page: PageBase) extends LinkResolved(page):
     override def url: String = page.targetPath.toString
     override def text: String = page.title
 
-  private final case class ToSection(override val page: Page, sections: Seq[Section]) extends LinkResolved(page):
+  final case class ToSection(override val page: Page, sections: Seq[Section]) extends LinkResolved(page):
     override def url: String = s"${page.targetPath.toString}#${sections.last.id}"
     override def text: String = s"${page.title}#${sections.map(_.title).mkString("#")}"
 
-  private final case class ToBlock(override val page: Page, block: Block) extends LinkResolved(page):
+  final case class ToBlock(override val page: Page, block: Block) extends LinkResolved(page):
     override def url: String = s"${page.targetPath.toString}#${block.id}"
     override def text: String = s"${page.title}#^${block.id}"
 

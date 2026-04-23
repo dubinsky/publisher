@@ -28,7 +28,11 @@ object Files:
   def write(toFile: File, content: String): Unit =
     toFile.getParentFile.mkdirs()
     NFiles.writeString(toFile.toPath, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
-  
+
+  def deleteDirectory(file: File): Unit =
+    if file.isDirectory then file.listFiles.foreach(deleteDirectory)
+    file.delete
+
   def copy(fromFile: File, toFile: File): Unit =
     requireExists(fromFile)
     requireFile(fromFile)

@@ -7,7 +7,7 @@ import XmlUtil.{a, apply, childWhen, childrenWhen, div, el, setId, stylesheet}
 // TODO calculate based on PageKind?
 // TODO icons!
 final class Minima(
-  config: Config,
+  site: Site,
   page: PageBase,
   backLinks: List[Link]
 ):
@@ -152,7 +152,7 @@ final class Minima(
     //</div>
 
   private def baseLayout(content: Xml): Xml.Element =
-    el("html", "lang" -> page.frontMatter.lang.orElse(config.lang).getOrElse("en"))(
+    el("html", "lang" -> page.frontMatter.lang.orElse(site.lang).getOrElse("en"))(
       head,
       el("body")
         .child(header)
@@ -210,8 +210,8 @@ final class Minima(
   private def header: Xml.Element =
     el("header", "class" -> "site-header")(
       div("wrapper")
-        .child(a("site-title", "/").attr("rel", "author")(config.title))
-        .childWhen(config.headerPages.nonEmpty,
+        .child(a("site-title", "/").attr("rel", "author")(site.title))
+        .childWhen(site.headerPages.nonEmpty,
           el("nav", "class" -> "site-nav")(
             el("input", "type" -> "checkbox").setId("nav-trigger")(),
             el("label", "for" -> "nav-trigger")(
@@ -229,26 +229,24 @@ final class Minima(
 
   private def navItems: Xml.Element =
     div("nav-items")(
-      // TODO from config.headerPages, with resolution!
-      a("nav-item", "/tags/")("Tags"),
-      a("nav-item", "/notes/")("Notes")
+      site.headerPages.map(page => a("nav-item", page.targetPath.toString)(page.title))*
     )
 
   private def footer: Xml.Element =
     el("footer", "class" -> "site-footer h-card")(
       el("data", "class" -> "u-url", "href" -> "/")(XmlBuilder.comment("do not self-close")), // TODO base url?
       div("wrapper")(
-        // TODO used to be: el("h2", "class" -> "footer-heading")(config.title),
+        // TODO used to be: el("h2", "class" -> "footer-heading")(site.title),
         div("footer-col-wrapper")(
           div("footer-col footer-col-1")
-            .childWhen(config.author.name.isDefined || config.author.email.isDefined,
+            .childWhen(site.author.name.isDefined || site.author.email.isDefined,
               el("ul", "class" -> "contact-list")
-                .childWhen(config.author.name.isDefined,
-                  el("li", "class" -> "p-name")(config.author.name.get) // TODO escape
+                .childWhen(site.author.name.isDefined,
+                  el("li", "class" -> "p-name")(site.author.name.get) // TODO escape
                 )
-                .childWhen(config.author.email.isDefined,
+                .childWhen(site.author.email.isDefined,
                   el("li")(
-                    a("u-email", s"mailto:${config.author.email.get}")(config.author.email.get)
+                    a("u-email", s"mailto:${site.author.email.get}")(site.author.email.get)
                   )
                 )
               .build
@@ -256,7 +254,7 @@ final class Minima(
           .build,
           div("footer-col footer-col-2")(
             el("p")(
-              config.description // TODO escape!
+              site.description // TODO escape!
             )
           )
         ),
@@ -269,18 +267,18 @@ final class Minima(
     el("footer", "class" -> "site-footer h-card")(
       el("data", "class" -> "u-url", "href" -> "/")(XmlBuilder.comment("do not self-close")), // TODO base url?
       div("wrapper")(
-        el("h2", "class" -> "footer-heading")(config.title),
+        el("h2", "class" -> "footer-heading")(site.title),
         div("footer-col-wrapper")(
           div("footer-col footer-col-1")(
             el("ul", "class" -> "contact-list")(
-              el("li", "class" -> "p-name")(config.author.name.get), // TODO conditional!
+              el("li", "class" -> "p-name")(site.author.name.get), // TODO conditional!
               el("li")(
-                a("u-email", s"mailto:${config.author.email.get}")(config.author.email.get)  // TODO conditional!
+                a("u-email", s"mailto:${site.author.email.get}")(site.author.email.get)  // TODO conditional!
               )
             )
           ),
           div("footer-col footer-col-2")(socialAlt),
-          div("footer-col footer-col-3")(config.description)
+          div("footer-col footer-col-3")(site.description)
         )
       )
     )
