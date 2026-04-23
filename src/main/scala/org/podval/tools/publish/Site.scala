@@ -20,6 +20,26 @@ final class Site(
 
   private val log: Logger = LoggerFactory.getLogger(this.getClass)
 
+  // TODO generate report page(s):
+  //- broken links
+  //- inconsistent titles
+  private var errors: List[PageError] = List.empty
+  private def addError(error: PageError): Unit =
+    errors = errors.appended(error)
+    log.warn(error.getMessage)
+
+  private def recover[A](error: PageError, default: A): Either[PageError, A] =
+    addError(error)
+    if treatWarningsAsErrors then Left(error) else Right(default)
+
+  private def recover[A](z: => Either[PageError, A])(default: => A): Either[PageError, A] = z match
+    case Right(value) => Right(value)
+    case Left(error) => recover(error, default)
+
+  private def recoverNone[A](z: => Either[PageError, A]): Either[PageError, Option[A]] = z match
+    case Right(value) => Right(Some(value))
+    case Left(error) => recover(error, None)
+
   private val config: Config = Config(sourceDirectoryPath)
   
   private var pagesVar: List[Page] = scala.compiletime.uninitialized
@@ -30,18 +50,6 @@ final class Site(
   )
   
   private var links: List[Link] = List.empty
-
-  // TODO record warnings and generate report page(s):
-  //- broken links
-  //- inconsistent titles
-
-  private def recover[A](z: => Either[PageError, A])(default: => A): Either[PageError, A] = z match
-    case Right(value) => Right(value)
-    case Left(error) => recover(error, default)
-
-  private def recoverNone[A](z: => Either[PageError, A]): Either[PageError, Option[A]] = z match
-    case Right(value) => Right(Some(value))
-    case Left(error) => recover(error, None)
 
   // TODO use for nav items
   private def resolveRef(ref: String): Option[LinkResolved] = 
@@ -77,10 +85,10 @@ final class Site(
       pages.groupBy(_.targetPath).filter(_._2.length > 1).toList match
         case Nil => Right(Some(()))
         case duplicates => Util.sequence(duplicates)((targetPath: Path, pages: List[Page]) =>
-          Left(PageError(
+          PageError.Duplicate(
             pages.head.sourcePath,
             s"Duplicates for the target path $targetPath: ${pages.map(_.sourcePath).tail.mkString(", ")}"
-          ))
+          )
         )
 
     // Resolve links
@@ -97,13 +105,6 @@ final class Site(
       log.debug(s"Wrote: $page")
 
   yield ()
-  
-  private def recover[A](error: PageError, default: A): Either[PageError, A] =
-    if treatWarningsAsErrors then Left(error) else
-      // TODO collect all warnings with their kinds and sources
-      // and generate reports for them!
-      log.warn(s"Ignoring error: ${error.toString}")
-      Right(default)
 
   private def directoryPages(path: List[String], directory: File): Either[PageError, List[Page]] =
     Files.requireExists(directory)
@@ -146,7 +147,7 @@ final class Site(
           ifDefined(recoverNone(
             if pageKind.isAssetAllowed
             then Right(())
-            else Left(PageError(sourcePath, s"Asset not allowed in $pageKind"))
+            else PageError.FileKind(sourcePath, s"Asset not allowed in $pageKind")
           )): _ =>
             Files.copy(fromFile = sourceFile, toFile = targetPath.file(config.targetDirectory))
             log.debug(s"Copied asset: $targetPath")
@@ -156,14 +157,14 @@ final class Site(
           ifDefined(recoverNone(
             if pageKind.isMarkupAllowed(markup)
             then Right(())
-            else Left(PageError(sourcePath, s"Markup $markup not allowed in $pageKind"))
+            else PageError.FileKind(sourcePath, s"Markup $markup not allowed in $pageKind")
           )): _ =>
             val (frontMatterOrError: Either[PageError, FrontMatter], content: String) = FrontMatter
               .parse(Files.read(sourceFile)) match
                 case (Right(frontMatter), content) =>
                   (Right(frontMatter), content)
                 case (Left(yamlError), content) =>
-                  (Left(PageError(sourcePath, "Malformed FrontMatter", Some(yamlError))), content)
+                  (PageError.Parsing(sourcePath, "Malformed FrontMatter", Some(yamlError)), content)
 
             for
               frontMatter: FrontMatter <- recover(frontMatterOrError)(FrontMatter.absent)

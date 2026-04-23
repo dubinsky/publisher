@@ -8,4 +8,4 @@ object Html extends HtmlLike:
   
   override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] =
     try Right(XmlReader.read(content).asInstanceOf[Xml.Element])
-    catch case e: XmlCodecError => Left(PageError(sourcePath, e.getMessage))
+    catch case e: XmlCodecError => PageError.Parsing(sourcePath, "", Some(e))

@@ -28,9 +28,9 @@ object PageKind:
     override def targetPath(sourcePath: Path): Either[PageError, Path] =
       val fileName: String = sourcePath.path.last
       if fileName(10) != '-'
-      then Left(PageError(sourcePath, s"Malformed blog post name: $fileName"))
+      then PageError.FileName(sourcePath, s"Malformed blog post name: $fileName")
       else parseDate(fileName.substring(0, 10)) match
-        case Left(error) => Left(PageError(sourcePath, s"Blog post file name must have the date", Some(error)))
+        case Left(error) => PageError.FileName(sourcePath, s"Blog post file name must have the date", Some(error))
         case Right(date) => Right(Path(List(
           f"${date.getYear}%04d",
           f"${date.getMonthValue}%02d",
@@ -51,7 +51,7 @@ object PageKind:
     override def targetPath(sourcePath: Path): Either[PageError, Path] =
       parseDate(sourcePath.path.last) match
         case Right(date) => Right(sourcePath)
-        case Left(error) => Left(PageError(sourcePath, s"Daily note file name must be the date", Some(error)))
+        case Left(error) => PageError.FileName(sourcePath, s"Daily note file name must be the date", Some(error))
 
   private def parseDate(string: String): Either[Throwable, LocalDate] =
     try Right(LocalDate.parse(string))
