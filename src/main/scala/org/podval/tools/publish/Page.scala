@@ -6,13 +6,11 @@ import scala.annotation.tailrec
 final class Page(
   val sourcePath: Path,
   targetPath: Path,
-  pageKind: PageKind,
   val markup: Markup,
   frontMatter: FrontMatter,
   xmlRaw: Xml.Element
 ) extends PageBase(
   targetPath,
-  pageKind,
   frontMatter
 ):
   override def toString: String = s"$title.$markup($sourcePath, $targetPath)"

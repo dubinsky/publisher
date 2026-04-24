@@ -3,17 +3,16 @@ package org.podval.tools.publish
 import zio.blocks.schema.xml.Xml
 import XmlUtil.{apply, a, div, el, setId}
 
-final class TagsPage(
+final class TagsReport(
   targetPath: Path,
   site: Site
 ) extends SyntheticPage(
-  targetPath,
-  PageKind.Plain,
-  FrontMatter(
+  targetPathSynthetic = targetPath,
+  frontMatter = FrontMatter(
     title = Some("Tags"),
     layout = Some("page"),
     description = Some("Pages by tags"),
-//    permalink = Some(targetPath.withoutExtension.toString)
+    //    permalink = Some(targetPath.withoutExtension.toString)
   )
 ):
   private def slugify(text: String): String = text.replace(' ', '-')

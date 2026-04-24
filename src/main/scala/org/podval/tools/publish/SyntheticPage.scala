@@ -1,12 +1,10 @@
 package org.podval.tools.publish
 
 abstract class SyntheticPage(
-  targetPath: Path,
-  pageKind: PageKind,
+  targetPathSynthetic: Path,
   frontMatter: FrontMatter
 ) extends PageBase(
-  targetPath.withExtension(Html.extension),
-  pageKind,
+  targetPathSynthetic.withExtension(Html.extension),
   frontMatter
 ):
   override def toString: String = s"$title.${Html.extension}($targetPath)"

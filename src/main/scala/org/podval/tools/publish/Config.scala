@@ -32,17 +32,12 @@ final class Config(
     Files.requireDirectory(result)
     result
 
-  private def blogDirectoryName: String = blog.source.getOrElse(PageKind.BlogPost.sourceDirectoryName)
-  private def dailyNotesDirectoryName: String = blog.daily.getOrElse(PageKind.DailyNote.sourceDirectoryName)
-
-  def specialPageKindSourcePathStartsWith(pageKind: PageKind.Special): String = pageKind match
-    case PageKind.BlogPost => blogDirectoryName
-    case PageKind.DailyNote => dailyNotesDirectoryName
-
-  private val includedSet: Set[String] = Set(
-    blogDirectoryName,
-    dailyNotesDirectoryName
-  )
+  def blogDirectoryName: String = blog.source.getOrElse(Locator.BlogPost.sourceDirectoryNameDefault)
+  def dailyNotesDirectoryName: Option[String] = blog.daily // TODO get out of the Obsidian configuration
+  
+  private val includedSet: Set[String] = 
+    Set(blogDirectoryName) ++
+    dailyNotesDirectoryName.toSet
 
   private val excludeSet: Set[String] = exclude.toSet
 

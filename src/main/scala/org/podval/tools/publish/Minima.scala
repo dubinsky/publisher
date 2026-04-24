@@ -18,8 +18,9 @@ final class Minima(
 
   def render: Xml = page.frontMatter.layout match
     case Some("post") => postLayout(page.xml)
-    case Some("default") => baseLayout(page.xml)
-    case _ => pageLayout(page.xml)
+    case Some("page") => pageLayout(page.xml)
+    case Some("home") => homeLayout(page.xml)
+    case _ => baseLayout(page.xml)
 
   private def pageLayout(content: Xml): Xml.Element = baseLayout(
     el("article", "class" -> "post")(
@@ -86,43 +87,34 @@ final class Minima(
 
   // TODO used for the main index!!!
   private def homeLayout(content: Xml.Element): Xml.Element =
-    ???
-    //<div class="home">
-    //  {%- if page.title -%}
-    //    <h1 class="page-heading">{{ page.title }}</h1>
-    //  {%- endif -%}
-    //
-    //  {{ content }}
-    //
-    //
+    val posts: List[Page] = site.pages.filter(_.isPost)
+
+    div("home")
+      .child(el("h1", "class" -> "page-heading")(page.title))
+      .child(content)
+    // TODO pagination
     //  {% if site.paginate %}
     //    {% assign posts = paginator.posts %}
     //  {% else %}
     //    {% assign posts = site.posts %}
     //  {% endif %}
     //
-    //
-    //  {%- if posts.size > 0 -%}
-    //    {%- if page.list_title -%}
+    //.childWhen(posts.nonEmpty && page.list_title,
     //      <h2 class="post-list-heading">{{ page.list_title }}</h2>
-    //    {%- endif -%}
-    //    <ul class="post-list">
+    //)
+    .child(el("ul", "class" -> "post-list")(
     //      {%- assign date_format = site.minima.date_format | default: "%b %-d, %Y" -%}
-    //      {%- for post in posts -%}
-    //      <li>
-    //        <span class="post-meta">{{ post.date | date: date_format }}</span>
-    //        <h3>
-    //          <a class="post-link" href="{{ post.url | relative_url }}">
-    //            {{ post.title | escape }}
-    //          </a>
-    //        </h3>
+      posts.map(post => el("li")
+      //.child(el("span", "class" -> "post-meta")(/* {{ post.date | date: date_format }} */))
+        .child(el("h3")(XmlUtil.a("post-link", post.targetPath.toString)(post.title)))
     //        {%- if site.minima.show_excerpts -%}
     //          {{ post.excerpt }}
     //        {%- endif -%}
-    //      </li>
-    //      {%- endfor -%}
-    //    </ul>
+       .build
+      )*
+    ))
     //
+    // TODO pagination
     //    {% if site.paginate %}
     //      <div class="pager">
     //        <ul class="pagination">
@@ -148,8 +140,7 @@ final class Minima(
     //        </ul>
     //      </div>
     //    {%- endif %}
-    //  {%- endif -%}
-    //</div>
+    .build
 
   private def baseLayout(content: Xml): Xml.Element =
     el("html", "lang" -> page.frontMatter.lang.orElse(site.lang).getOrElse("en"))(
@@ -221,15 +212,10 @@ final class Minima(
 //                )
               ) // TODO is it ok for span to self-close?
             ),
-            navItems
+            div("nav-items")(site.headerPages.map(_.a("nav-item"))*)
           )
         )
         .build
-    )
-
-  private def navItems: Xml.Element =
-    div("nav-items")(
-      site.headerPages.map(page => a("nav-item", page.targetPath.toString)(page.title))*
     )
 
   private def footer: Xml.Element =

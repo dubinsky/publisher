@@ -6,7 +6,7 @@ object Cli:
   def main(args: Array[String]): Unit =
     Site(
       sourceDirectoryPath = "/home/dub/Podval/dub.podval.org",
-      treatWarningsAsErrors = true,
+      treatErrorsAsWarnings = false,
       logLevel = Level.INFO
     )
       .generateAndReport()

@@ -10,7 +10,11 @@ object XmlUtil:
 
     def setId(value: String): XmlBuilder.ElementBuilder =
       builder.attr(id, value)
-      
+
+    def setId(value: Option[String]): XmlBuilder.ElementBuilder = value match
+      case None => builder
+      case Some(id) => builder.setId(id)
+
     def attrWhen(when: Boolean, name: String, value: => String): XmlBuilder.ElementBuilder =
       if !when then builder else builder.attr(name, value)
 
@@ -50,9 +54,9 @@ object XmlUtil:
     attribute._1 == name
   
   def stylesheet(href: String, id: Option[String] = None): Xml.Element = el("link")
-    .attrWhen(id.nonEmpty, "id", id.get)
+    .setId(id)
     .attr("rel", "stylesheet")
-    .attr("href", href)
+    .attr(hrefAttribute, href)
     .build
 
   def script(text: String): Xml.Element = el("script")
@@ -68,7 +72,7 @@ object XmlUtil:
 
   val id: XmlName = localName("id")
   val a: XmlName = localName("a")
-  val href: XmlName = localName("href")
+  val hrefAttribute: XmlName = localName("href")
   val `class`: XmlName = localName("class")
   val code: XmlName = localName("code")
 

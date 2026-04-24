@@ -1,25 +1,34 @@
 package org.podval.tools.publish
 
+import zio.blocks.schema.xml.Xml
+import XmlUtil.{apply, childrenWhenEmpty, replaceAttribute}
+
 sealed abstract class LinkResolved(val page: PageBase):
   def url: String
-
   def text: String
+  
+  final def a(cls: String): Xml.Element = XmlUtil.a(cls, url)(text)
+  
+  final def a(element: Xml.Element): Xml.Element = element
+    .copy(name = XmlUtil.a)
+    .replaceAttribute(XmlUtil.hrefAttribute, XmlUtil.escapeUrl(url))
+    .childrenWhenEmpty(Some(text))
 
 object LinkResolved:
   final case class ToPage(override val page: PageBase) extends LinkResolved(page):
     override def url: String = page.targetPath.toString
     override def text: String = page.title
 
-  final case class ToSection(override val page: Page, sections: Seq[Section]) extends LinkResolved(page):
+  private final case class ToSection(override val page: Page, sections: Seq[Section]) extends LinkResolved(page):
     override def url: String = s"${page.targetPath.toString}#${sections.last.id}"
     override def text: String = s"${page.title}#${sections.map(_.title).mkString("#")}"
 
-  final case class ToBlock(override val page: Page, block: Block) extends LinkResolved(page):
+  private final case class ToBlock(override val page: Page, block: Block) extends LinkResolved(page):
     override def url: String = s"${page.targetPath.toString}#${block.id}"
     override def text: String = s"${page.title}#^${block.id}"
 
   // TODO move into Site while keeping syntax here
-  // TODO register warnings
+  // TODO reportError()
   def resolvePage(pages: List[Page], ref: String): Option[LinkResolved] =
     val (toPath: String, fragment: Option[String]) = Files.split(ref, '#')
 

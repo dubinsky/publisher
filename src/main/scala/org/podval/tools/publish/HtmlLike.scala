@@ -24,7 +24,7 @@ abstract class HtmlLike extends Markup:
   // TODO do 'img' too?
   final override def linkFromElement(element: Xml.Element): Option[Link.FromElement] =
     Option.when(element.name == XmlUtil.a)(Link.FromElement(
-      ref = element.getAttribute(XmlUtil.href),
+      ref = element.getAttribute(XmlUtil.hrefAttribute),
       text = Option.when(element.children.nonEmpty)(XmlUtil.toSimpleString(element)),
       kind = None
     ))

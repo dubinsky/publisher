@@ -5,12 +5,11 @@ import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
 import java.io.File
 import java.net.{URI, URISyntaxException}
-import Util.ifDefined
-import XmlUtil.{a, apply, childrenWhenEmpty, href, replaceAttribute}
+import XmlUtil.{a, apply, childrenWhenEmpty}
 
 final class Site(
   sourceDirectoryPath: String,
-  treatWarningsAsErrors: Boolean,
+  treatErrorsAsWarnings: Boolean,
   logLevel: Level = Level.INFO
 ):
   private given CanEqual[File, File] = CanEqual.derived
@@ -22,73 +21,57 @@ final class Site(
 
   private val config: Config = Config(sourceDirectoryPath)
 
+  private val locators: List[Locator] =
+    List(Locator.BlogPost(config.blogDirectoryName)) ++
+    config.dailyNotesDirectoryName.map(Locator.DailyNote(_)).toList
+
+  private var links: List[Link] = List.empty
+
+  private var pagesVar: List[Page] = scala.compiletime.uninitialized
+  def pages: List[Page] = pagesVar
+
+  private var headerPagesVar: List[LinkResolved.ToPage] = scala.compiletime.uninitialized
+  def headerPages: List[LinkResolved.ToPage] = headerPagesVar
+
+  private var errorsVar: List[PageError] = List.empty
+  def errors: List[PageError] = errorsVar
+
+  private def reportError(error: PageError): Unit = if !treatErrorsAsWarnings then throw error else
+    errorsVar = errorsVar.appended(error)
+    log.warn(error.getMessage)
+
+  private def recoverNone[A](z: => Either[PageError, A]): Option[A] = z match
+    case Right(value) => Some(value)
+    case Left(error) =>
+      reportError(error)
+      None
+
   def title: String = config.title
   def description: String = config.description
   def author: Config.Author = config.author
   def lang: Option[String] = config.lang
 
-  // TODO generate report page(s):
-  //- broken links
-  //- inconsistent titles
-  private var errors: List[PageError] = List.empty
-  private def addError(error: PageError): Unit =
-    errors = errors.appended(error)
-    log.warn(error.getMessage)
-
-  private def recover[A](error: PageError, default: A): Either[PageError, A] =
-    addError(error)
-    if treatWarningsAsErrors then Left(error) else Right(default)
-
-  private def recover[A](z: => Either[PageError, A])(default: => A): Either[PageError, A] = z match
-    case Right(value) => Right(value)
-    case Left(error) => recover(error, default)
-
-  private def recoverNone[A](z: => Either[PageError, A]): Either[PageError, Option[A]] = z match
-    case Right(value) => Right(Some(value))
-    case Left(error) => recover(error, None)
-
-  private var pagesVar: List[Page] = scala.compiletime.uninitialized
-  def pages: List[Page] = pagesVar
-
-  private var headerPagesVar: List[PageBase] = scala.compiletime.uninitialized
-  def headerPages: List[PageBase] = headerPagesVar
-
   private val syntheticPages: List[SyntheticPage] = List(
-    TagsPage(Path(List("tags")), this)
+    TagsReport(Path(List("tags")), this),
+    ErrorsReport(Path(List("errors")), this),
   )
-  
-  private var links: List[Link] = List.empty
-
-  // TODO use for nav items
-  private def resolveHeaderPage(ref: String): Option[PageBase] =
-    resolveRef(ref).flatMap {
-      case LinkResolved.ToPage(page) => Some(page)
-      case linkResolved =>
-        // TODO report error
-        None
-    }
-
-  private def resolveRef(ref: String): Option[LinkResolved] = 
-    LinkResolved.resolvePage(pages, ref).orElse(LinkResolved.resolveSyntheticPage(syntheticPages, ref))
 
   // TODO one backlink per page
   def backLinks(page: PageBase): List[Link] = links.filter(_.toPage == page).filterNot(_.from.page == page)
 
   def generateAndReport(): Unit =
-    val result: Either[PageError, Unit] =
-      try generate
-      catch case error: PageError => Left(error)
+    try
+      generate()
+      println("Done!")
+    catch case error: PageError =>
+      println(s"Error generating site: ${error.getMessage}")
 
-    result match
-      case Right(()) => println("Done!")
-      case Left(error) => println(s"Error generating site: $error")
-
-  private def generate: Either[PageError, Unit] = for
+  private def generate(): Unit =
     // Wipe out output directory
-    _ = Files.deleteDirectory(config.targetDirectory)
+    Files.deleteDirectory(config.targetDirectory)
 
     // Write embedded resources
-    _ = Site.resourcesList.foreach: resourceName =>
+    Site.resourcesList.foreach: resourceName =>
       Files.write(
         toFile = File(config.targetDirectory, resourceName),
         content = Files.readResource(Site.resourcesBase + resourceName)
@@ -96,8 +79,7 @@ final class Site(
       log.debug(s"Copied embedded asset: $resourceName")
 
     // Enumerate all pages
-    pages: List[Page] <- directoryPages(List.empty, config.sourceDirectory)
-    _ = this.pagesVar = pages
+    pagesVar = directoryPages(List.empty, config.sourceDirectory)
 
     // TODO write:
     //- sitemap.xml
@@ -105,34 +87,33 @@ final class Site(
     //- feed.xml
 
     // Report conflicting pages
-    _ <- recoverNone:
-      pages.groupBy(_.targetPath).filter(_._2.length > 1).toList match
-        case Nil => Right(Some(()))
-        case duplicates => Util.sequence(duplicates)((targetPath: Path, pages: List[Page]) =>
-          PageError.Duplicate(
-            pages.head.sourcePath,
-            s"Duplicates for the target path $targetPath: ${pages.map(_.sourcePath).tail.mkString(", ")}"
-          )
-        )
+    pages
+      .groupBy(_.targetPath)
+      .filter(_._2.length > 1)
+      .toList
+      .foreach((targetPath: Path, pages: List[Page]) =>
+        reportError(PageError.Duplicate(
+          pages.head.sourcePath,
+          s"Duplicates for the target path $targetPath: ${pages.map(_.sourcePath).tail.mkString(", ")}"
+        ))
+      )
 
     // Resolve links
     // TODO do the warning.recover/sequence dance!
     // TODO sort the pages in transclusion order and transclude
-    _ = pages.foreach(_.resolveLinks(this))
+    pages.foreach(_.resolveLinks(this))
 
-    _ = headerPagesVar = config.headerPages.flatMap(resolveHeaderPage)
+    headerPagesVar = config.headerPages.flatMap(resolveHeaderPage)
 
     // Write pages
-    _ = (syntheticPages ++ pages).foreach: page =>
+    (syntheticPages ++ pages).foreach: page =>
       Files.write(
         toFile = page.targetPath.file(config.targetDirectory),
         content = XmlUtil.write(Minima(this, page, backLinks(page)).render)
       )
       log.debug(s"Wrote: $page")
 
-  yield ()
-
-  private def directoryPages(path: List[String], directory: File): Either[PageError, List[Page]] =
+  private def directoryPages(path: List[String], directory: File): List[Page] =
     Files.requireExists(directory)
     Files.requireDirectory(directory)
 
@@ -141,72 +122,69 @@ final class Site(
       .filterNot(config.exclude)
       .partition(_.isFile)
 
-    for
-      fromFiles: List[Option[Page]] <-
-        Util.sequence(files)(filePage(path, _))
-      fromDirectories: List[List[Page]] <-
-        Util.sequence(directories)(directory => directoryPages(path :+ directory.getName, directory))
-    yield
-      fromFiles.flatten ++ fromDirectories.flatten
+    files.flatMap(filePage(path, _)) ++
+    directories.flatMap(directory => directoryPages(path :+ directory.getName, directory))
 
-  private def filePage(path: List[String], file: File): Either[PageError, Option[Page]] =
+  private def filePage(path: List[String], file: File): Option[Page] =
     Files.requireExists(file)
     Files.requireFile(file)
     val (name: String, extension: Option[String]) = Files.nameAndExtension(file.getName)
     val sourcePath: Path = Path(path :+ name, extension)
-    val result: Either[PageError, Option[Page]] = makePage(sourcePath)
-
-    result match
-      case Right(Some(page)) => log.debug(s"Read: $page")
-      case _ =>
-
-    result
-
-  private def makePage(sourcePath: Path): Either[PageError, Option[Page]] =
-    val pageKind: PageKind = PageKind(sourcePath, config)
     val sourceFile: File = sourcePath.file(config.sourceDirectory)
-    val markup: Option[Markup] = sourcePath.extension.flatMap(extension => Markup.all.find(_.isExtension(extension)))
+    val locator: Option[Locator] = locators.find(_.is(sourcePath))
+    val targetPath: Option[Path] = locator match
+      case None => Some(sourcePath)
+      case Some(locator) => recoverNone(locator.targetPath(sourcePath))
 
-    ifDefined(recoverNone(pageKind.targetPath(sourcePath))): (targetPath: Path) =>
-      ifDefined(markup match
+    targetPath.flatMap: (targetPath: Path) =>
+      sourcePath.extension.flatMap(extension => Markup.all.find(_.isExtension(extension))) match
         case None =>
-          ifDefined(recoverNone(
-            if pageKind.isAssetAllowed
-            then Right(())
-            else PageError.FileKind(sourcePath, s"Asset not allowed in $pageKind")
-          )): _ =>
+          if !locator.fold(true)(_.isAssetAllowed)
+          then
+            reportError(PageError.FileKind(sourcePath, s"Asset not allowed in $locator"))
+          else
             Files.copy(fromFile = sourceFile, toFile = targetPath.file(config.targetDirectory))
             log.debug(s"Copied asset: $targetPath")
-            Right(None)
+          None
 
         case Some(markup) =>
-          ifDefined(recoverNone(
-            if pageKind.isMarkupAllowed(markup)
-            then Right(())
-            else PageError.FileKind(sourcePath, s"Markup $markup not allowed in $pageKind")
-          )): _ =>
-            val (frontMatterOrError: Either[PageError, FrontMatter], content: String) = FrontMatter
-              .parse(Files.read(sourceFile)) match
-                case (Right(frontMatter), content) =>
-                  (Right(frontMatter), content)
-                case (Left(yamlError), content) =>
-                  (PageError.Parsing(sourcePath, "Malformed FrontMatter", Some(yamlError)), content)
+          if !locator.fold(true)(_.isMarkupAllowed(markup))
+          then
+            reportError(PageError.FileKind(sourcePath, s"Markup $markup not allowed in $locator"))
+            None
+          else
+            val (frontMatterOrError: Either[PageError, FrontMatter], content: String) =
+              FrontMatter.parse(sourcePath, Files.read(sourceFile))
 
-            for
-              frontMatter: FrontMatter <- recover(frontMatterOrError)(FrontMatter.absent)
-              result: Option[Page] <- ifDefined(recoverNone(markup.parse(sourcePath, content))): xml =>
-                Right(Some(Page(
-                  sourcePath = sourcePath,
-                  targetPath = targetPath.withExtension(Html.extension),
-                  pageKind = pageKind,
-                  markup = markup,
-                  frontMatter = frontMatter,
-                  xmlRaw = xml
-                )))
-            yield
-              result
-      ): (page: Page) =>
-        Right(Some(page))
+            val frontMatter: FrontMatter = frontMatterOrError match
+              case Right(value) => value
+              case Left(error) =>
+                reportError(error)
+                FrontMatter.absent
+
+            recoverNone(markup.parse(sourcePath, content)).map: xml =>
+              val page = Page(
+                sourcePath = sourcePath,
+                targetPath = targetPath.withExtension(Html.extension),
+                markup = markup,
+                frontMatter = frontMatter,
+                xmlRaw = xml
+              )
+              log.debug(s"Read: $page")
+              page
+
+  private def resolveHeaderPage(ref: String): Option[LinkResolved.ToPage] =
+    val result = resolveRef(ref).flatMap {
+      case page: LinkResolved.ToPage => Some(page)
+      case linkResolved =>
+        reportError(PageError.Unresolved(Path.root, s"Header page $ref resolved not to a page: $linkResolved"))
+        None
+    }
+    if result.isEmpty then reportError(PageError.Unresolved(Path.root, s"Header page $ref did not resolve"))
+    result
+
+  private def resolveRef(ref: String): Option[LinkResolved] =
+    LinkResolved.resolvePage(pages, ref).orElse(LinkResolved.resolveSyntheticPage(syntheticPages, ref))
 
   // TODO mark errors with class attribute
   def resolveLink(from: Link.From): Xml.Element =
@@ -222,12 +200,9 @@ final class Site(
             // Register resolved link
             links = links.appended(Link(from, linkResolved.page))
   
-            if from.transclude then a("transclude", linkResolved.url)(linkResolved.text) else
-              val result: Xml.Element = from.element match
-                case None => a("wiki-link", linkResolved.url)()
-                case Some(element) => element.copy(name = a).replaceAttribute(href, XmlUtil.escapeUrl(linkResolved.url))
-  
-              result.childrenWhenEmpty(Some(linkResolved.text))
+            if from.transclude then linkResolved.a("transclude") else from.element match
+              case None => linkResolved.a("wiki-link")
+              case Some(element) => linkResolved.a(element)
 
 object Site:
   private val resourcesBase: String = "/org/podval/tools/publish/site"

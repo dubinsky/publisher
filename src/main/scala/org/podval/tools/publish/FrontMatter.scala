@@ -55,6 +55,12 @@ object FrontMatter:
     .instance(TypeId.of[Date], Date.codec)
     .derive
 
+  def parse(sourcePath: Path, input: String): (Either[PageError, FrontMatter], String) = parse(input) match
+    case (Right(frontMatter), content) =>
+      (Right(frontMatter), content)
+    case (Left(yamlError), content) =>
+      (Left(PageError.Parsing(sourcePath, "Malformed FrontMatter", Some(yamlError))), content)
+      
   def parse(input: String): (Either[SchemaError, FrontMatter], String) =
     val frontMatterEnd: Int = if !input.startsWith("---\n") then -1 else input.indexOf("\n---\n", 3)
     if frontMatterEnd == -1 then (Right(absent), input) else
