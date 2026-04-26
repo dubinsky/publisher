@@ -30,8 +30,8 @@ final class Site(
   private var pagesVar: List[Page] = scala.compiletime.uninitialized
   def pages: List[Page] = pagesVar
 
-  private var headerPagesVar: List[LinkResolved.ToPage] = scala.compiletime.uninitialized
-  def headerPages: List[LinkResolved.ToPage] = headerPagesVar
+  private var headerPagesVar: List[Link.ToPage] = scala.compiletime.uninitialized
+  def headerPages: List[Link.ToPage] = headerPagesVar
 
   private var errorsVar: List[PageError] = List.empty
   def errors: List[PageError] = errorsVar
@@ -51,13 +51,15 @@ final class Site(
   def author: Config.Author = config.author
   def lang: Option[String] = config.lang
 
-  private val syntheticPages: List[SyntheticPage] = List(
+  val syntheticPages: List[SyntheticPage] = List(
     TagsReport(Path(List("tags")), this),
     ErrorsReport(Path(List("errors")), this),
   )
 
   // TODO one backlink per page
-  def backLinks(page: PageBase): List[Link] = links.filter(_.toPage == page).filterNot(_.from.page == page)
+  def backLinks(page: PageBase): List[Link] = links
+    .filter(_.to.page == page)
+    .filterNot(_.from.page == page)
 
   def generateAndReport(): Unit =
     try
@@ -173,9 +175,9 @@ final class Site(
               log.debug(s"Read: $page")
               page
 
-  private def resolveHeaderPage(ref: String): Option[LinkResolved.ToPage] =
+  private def resolveHeaderPage(ref: String): Option[Link.ToPage] =
     val result = resolveRef(ref).flatMap {
-      case page: LinkResolved.ToPage => Some(page)
+      case page: Link.ToPage => Some(page)
       case linkResolved =>
         reportError(PageError.Unresolved(Path.root, s"Header page $ref resolved not to a page: $linkResolved"))
         None
@@ -183,26 +185,22 @@ final class Site(
     if result.isEmpty then reportError(PageError.Unresolved(Path.root, s"Header page $ref did not resolve"))
     result
 
-  private def resolveRef(ref: String): Option[LinkResolved] =
-    LinkResolved.resolvePage(pages, ref).orElse(LinkResolved.resolveSyntheticPage(syntheticPages, ref))
+  private def resolveRef(ref: String): Option[Link.To] = Link.resolveRef(ref, this)
 
   // TODO mark errors with class attribute
   def resolveLink(from: Link.From): Xml.Element =
-    def unresolved: Xml.Element = from.element.getOrElse(a("wiki-link", from.fromElement.ref.getOrElse("/"))())
-      .childrenWhenEmpty(from.fromElement.text)
-      
-    from.fromElement.ref match
-      case None => unresolved
-      case Some(ref) => (if !from.transclude then None else Site.embedLink(ref, from.fromElement.text)).getOrElse:
-        Site.externalRef(ref).fold(resolveRef(ref))(_ => None) match
-          case None => unresolved
-          case Some(linkResolved) =>
-            // Register resolved link
-            links = links.appended(Link(from, linkResolved.page))
-  
-            if from.transclude then linkResolved.a("transclude") else from.element match
-              case None => linkResolved.a("wiki-link")
-              case Some(element) => linkResolved.a(element)
+    val ref: String = from.fromElement.ref
+    (if !from.transclude then None else Site.embedLink(ref, from.fromElement.text)).getOrElse:
+      Site.externalRef(ref).fold(resolveRef(ref))(_ => None) match
+        case None => from.element.getOrElse(a("wiki-link", from.fromElement.ref)())
+          .childrenWhenEmpty(from.fromElement.text)
+        case Some(linkTo) =>
+          // Register resolved link
+          links = links.appended(Link(from, linkTo))
+
+          if from.transclude then linkTo.a("transclude") else from.element match
+            case None => linkTo.a("wiki-link")
+            case Some(element) => linkTo.a(element)
 
 object Site:
   private val resourcesBase: String = "/org/podval/tools/publish/site"

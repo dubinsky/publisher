@@ -26,7 +26,7 @@ abstract class Markup derives CanEqual:
 
   def resolveWikiLinks: Boolean
   
-  def linkToElement(element: Xml.Element): Option[Link.ToElement]
+  def sectionElement(element: Xml.Element): Option[Link.SectionElement]
 
   def linkFromElement(element: Xml.Element): Option[Link.FromElement]
 
@@ -34,15 +34,15 @@ abstract class Markup derives CanEqual:
 
   final def dropAnchors(element: Xml.Element): Xml.Element =
     if !resolveLinks(element) then element else
-      val result: Xml.Element = linkToElement(element) match
+      val result: Xml.Element = sectionElement(element) match
         case None => element
-        case Some(linkToElement) =>
-          if linkToElement.id.isDefined then element else element.replaceAttribute(
+        case Some(sectionElement) =>
+          if sectionElement.id.isDefined then element else element.replaceAttribute(
             XmlUtil.id,
-            linkToElement
-              .title
+            sectionElement
+              .text
               .map(XmlUtil.toId)
-              .getOrElse(throw IllegalArgumentException(s"Defect: No id or title on ${XmlUtil.toSimpleString(element)}"))
+              .getOrElse(throw IllegalArgumentException(s"Defect: No id or title on $element"))
           )
   
       result.copy(children = result.children.map {

@@ -97,7 +97,7 @@ final class Page(
       val result: Xml.Element = site.resolveLink(Link.From(
         page = this,
         fromElement = Link.FromElement(
-          ref = Some(ref.trim),
+          ref = ref.trim,
           text = textOpt.map(_.trim),
           kind = None,
         ),

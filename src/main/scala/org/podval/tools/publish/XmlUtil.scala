@@ -41,13 +41,7 @@ object XmlUtil:
   def div(cls: String): XmlBuilder.ElementBuilder = el("div", "class" -> cls)
   
   def a(cls: String, href: String): XmlBuilder.ElementBuilder = el("a", "class" -> cls, "href" -> href)
-
-  // Extract level of the HTML '<h>' element.
-  def headerLevel(element: Xml.Element): Option[Int] =
-    if element.name.prefix.isDefined || !element.name.localName.startsWith("h") then None else
-      try Some(element.name.localName.substring(1).toInt)
-      catch case _: NumberFormatException => None
-
+  
   private given CanEqual[XmlName, XmlName] = CanEqual.derived
 
   private def isAttribute(name: XmlName)(attribute: (XmlName, String)): Boolean =
@@ -77,9 +71,12 @@ object XmlUtil:
   val code: XmlName = localName("code")
 
   // Remove markup
-  def toSimpleString(xml: Xml): String = xml match
+  def toStringOpt(element: Xml.Element): Option[String] =
+    Option.when(element.children.nonEmpty)(XmlUtil.toString(element))
+    
+  def toString(xml: Xml): String = xml match
     case Xml.Text(value) => value
-    case Xml.Element(_, _, children) => children.map(toSimpleString).mkString(" ")
+    case Xml.Element(_, _, children) => children.map(toString).mkString(" ")
     case xml => ""
 
   def toId(text: String): String = text.trim.replace(' ', '-')

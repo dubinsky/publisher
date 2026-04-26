@@ -106,7 +106,7 @@ final class Minima(
     //      {%- assign date_format = site.minima.date_format | default: "%b %-d, %Y" -%}
       posts.map(post => el("li")
       //.child(el("span", "class" -> "post-meta")(/* {{ post.date | date: date_format }} */))
-        .child(el("h3")(XmlUtil.a("post-link", post.targetPath.toString)(post.title)))
+        .child(el("h3")(XmlUtil.a("post-link", post.targetPath.toString)(post.title))) // TODO
     //        {%- if site.minima.show_excerpts -%}
     //          {{ post.excerpt }}
     //        {%- endif -%}
@@ -167,7 +167,7 @@ final class Minima(
     .child(el("h4")())
     .children(backLinks.flatMap(link => List(
       XmlBuilder.text("•"),
-      a("backlink", link.from.fromElement.ref.getOrElse("/"))(link.from.page.title) // TODO!
+      a("backlink", link.from.fromElement.ref)(link.from.page.title) // TODO!
     )) *)
     .build
 
