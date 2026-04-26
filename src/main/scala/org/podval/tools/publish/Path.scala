@@ -6,15 +6,18 @@ final class Path(
   val path: List[String],
   val extension: Option[String] = None
 ) derives CanEqual:
+  def fileName: String = path.last
+  def isIndex: Boolean = fileName == "index" && path.length > 1
+  // TODO retrieve the parent title
+  def title: String = if isIndex then path.init.last else fileName
+  
   override def equals(obj: Any): Boolean = obj match
     case that: Path => this.path == that.path && this.extension == that.extension
     case _ => false
     
   override def toString: String = path.mkString("/", "/", extensionString)
 
-  def startsWith(name: String): Boolean = path match
-    case x :: xs => x == name
-    case _ => false
+  def startsWith(names: List[String]): Boolean = path.take(names.length) == names
 
   private def extensionString: String = extension match
     case None => ""

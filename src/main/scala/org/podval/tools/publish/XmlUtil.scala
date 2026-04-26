@@ -6,7 +6,7 @@ import zio.blocks.schema.xml.{WriterConfig, Xml, XmlBuilder, XmlName, XmlWriter}
 object XmlUtil:
   extension (builder: XmlBuilder.ElementBuilder)
     def apply(children: Xml*): Xml.Element = builder.children(children *).build
-    def apply(text: String): Xml.Element = builder.child(XmlBuilder.text(text)).build
+    def withText(text: String): Xml.Element = builder.child(XmlBuilder.text(text)).build
 
     def setId(value: String): XmlBuilder.ElementBuilder =
       builder.attr(id, value)
@@ -53,9 +53,7 @@ object XmlUtil:
     .attr(hrefAttribute, href)
     .build
 
-  def script(text: String): Xml.Element = el("script")
-    .child(XmlBuilder.text(text))
-    .build
+  def script(text: String): Xml.Element = el("script").withText(text)
 
   def module(src: String): Xml.Element = el("script")
     .attr("src", src)

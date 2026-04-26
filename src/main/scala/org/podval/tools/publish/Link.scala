@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.Xml
-import XmlUtil.{apply, childrenWhenEmpty, replaceAttribute}
+import XmlUtil.{apply, childrenWhenEmpty, replaceAttribute, withText}
 
 final case class Link(
   from: Link.From,
@@ -36,7 +36,7 @@ object Link:
     def url: String
     def text: String
 
-    final def a(cls: String): Xml.Element = XmlUtil.a(cls, url)(text)
+    final def a(cls: String): Xml.Element = XmlUtil.a(cls, url).withText(text)
 
     final def a(element: Xml.Element): Xml.Element = element
       .copy(name = XmlUtil.a)
@@ -57,29 +57,25 @@ object Link:
 
   // TODO reportError()
   def resolveRef(ref: String, site: Site): Option[Link.To] =
-    Link.resolvePage(site.pages, ref).orElse(Link.resolveSyntheticPage(site.syntheticPages, ref))
-
-  private def resolvePage(pages: List[Page], ref: String): Option[To] =
     val (toPath: String, fragment: Option[String]) = Files.split(ref, '#')
 
-    pages.find(_.is(toPath)).flatMap: toPage =>
+    site.pages.find(_.is(toPath)).flatMap: toPage =>
       fragment match
-        case None =>
-          Some(ToPage(toPage))
+        case None => Some(ToPage(toPage))
         case Some(fragment) =>
-          if fragment.startsWith("^") then
-            for
-              id: String = fragment.substring(1).trim
-              block: Block <- toPage.block(id)
-            yield ToBlock(toPage, block)
-          else
-            for
-              names: Seq[String] = fragment.split('#').map(_.trim).toSeq
-              sections: Seq[Section] <- toPage.section(names)
-            yield ToSection(toPage, sections)
+          toPage match
+            case toPage: Page =>
+              if fragment.startsWith("^") then
+                for
+                  id: String = fragment.substring(1).trim
+                  block: Block <- toPage.block(id)
+                yield ToBlock(toPage, block)
+              else
+                for
+                  names: Seq[String] = fragment.split('#').map(_.trim).toSeq
+                  sections: Seq[Section] <- toPage.section(names)
+                yield ToSection(toPage, sections)
 
-  private def resolveSyntheticPage(pages: List[SyntheticPage], ref: String): Option[To] =
-    val (toPath: String, fragment: Option[String]) = Files.split(ref, '#')
-    // TODO error if fragment.nonEmpty
-
-    pages.find(_.is(toPath)).flatMap(toPage => Some(ToPage(toPage)))
+            case toPage: SyntheticPage =>
+              // TODO site.reportError()
+              None

@@ -1,15 +1,14 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.{Xml, XmlBuilder}
-import XmlUtil.{a, apply, childWhen, childrenWhen, div, el, setId, stylesheet}
+import XmlUtil.{a, apply, childWhen, childrenWhen, div, el, setId, stylesheet, withText}
 
 // Based on https://github.com/jekyll/minima
 // TODO calculate based on PageKind?
 // TODO icons!
 final class Minima(
   site: Site,
-  page: PageBase,
-  backLinks: List[Link]
+  page: PageBase
 ):
   private val libraries: List[XmlUtil.JavascriptLibrary] = List(
     Highlights.get(page.xml),
@@ -20,35 +19,44 @@ final class Minima(
     case Some("post") => postLayout(page.xml)
     case Some("page") => pageLayout(page.xml)
     case Some("home") => homeLayout(page.xml)
-    case _ => baseLayout(page.xml)
+    case _ => pageLayout(page.xml)
+//    case _  => baseLayout(page.xml)
 
-  private def pageLayout(content: Xml): Xml.Element = baseLayout(
-    el("article", "class" -> "post")(
-      el("header", "class" -> "post-header")(
-        el("h1", "class" -> "post-title")(page.title)
-      ),
-      div("post-content")(
-        content
-        // TODO add page directory listing to 'index' pages
+  private def pageLayout(content: Xml): Xml.Element =
+    // TODO better CSS; link up.
+    val subDirectories: List[PageBase] = site.subDirectories(page)
+    val subPages: List[PageBase] = site.subPages(page)
+
+    baseLayout(
+      el("article", "class" -> "post")(
+        el("header", "class" -> "post-header")(
+          el("h1", "class" -> "post-title").withText(page.title)
+        ),
+        div("post-content")(
+          content,
+          // TODO separate element *after* "post-content"
+          el("ul", "class" -> "page-list")((subDirectories ++ subPages).map(sub => el("li")(Link.ToPage(sub).a("")))*)
+        )
       )
     )
-  )
 
-  private def postLayout(content: Xml): Xml.Element = baseLayout(
+  private def postLayout(content: Xml): Xml.Element = baseLayout:
     el("article", "class" -> "post h-entry", "itemscope" -> "", "itemtype" -> "http://schema.org/BlogPosting")(
       el("header", "class" -> "post-header")(
-        el("h1", "class" -> "post-title p-name", "itemprop" -> "name headline")(page.title),
+        el("h1", "class" -> "post-title p-name", "itemprop" -> "name headline").withText(page.title),
         div("post-meta")
           // TODO
           // .childWhen(page.modified_date.isDefined,
           //    el("span", "class" -> "meta-label")("Published:")
           // )
-          // TODO!
-          //.child(
-          //  el("time", "class" -> "dt-published", "datetime" -> page.frontMatter.date, "itemprop" -> "datePublished")(
-          //    page.frontMatter.date.mmddyy
-          //  )
-          //)
+          .childWhen(page.frontMatter.date.isDefined,
+            el("time",
+              "class" -> "dt-published",
+              "datetime" -> page.frontMatter.date.get.toString,
+              "itemprop" -> "datePublished"
+            )
+              .withText(page.dateString)
+          )
           // TODO
           // {%- if page.modified_date -%}
           //   <span class="bullet-divider">•</span>
@@ -60,7 +68,7 @@ final class Minima(
           // {%- endif -%}
           .childWhen(page.frontMatter.tags.nonEmpty, XmlBuilder.text("|"))
           .childrenWhen(page.frontMatter.tags.nonEmpty, page.frontMatter.tags.map(tag => // TODO link!
-            a("post-tag", s"/tags/#$tag")(tag)
+            a("post-tag", s"/tags/#$tag").withText(tag)
           ))
           // TODO!
           // - default: site author
@@ -83,67 +91,29 @@ final class Minima(
       // Note: skipped Disqus comments
       a("u-url", page.targetPath.toString).attr("hidden", "")()
     )
-  )
 
-  // TODO used for the main index!!!
-  private def homeLayout(content: Xml.Element): Xml.Element =
-    val posts: List[Page] = site.pages.filter(_.isPost)
-
-    div("home")
-      .child(el("h1", "class" -> "page-heading")(page.title))
-      .child(content)
-    // TODO pagination
-    //  {% if site.paginate %}
-    //    {% assign posts = paginator.posts %}
-    //  {% else %}
-    //    {% assign posts = site.posts %}
-    //  {% endif %}
-    //
-    //.childWhen(posts.nonEmpty && page.list_title,
-    //      <h2 class="post-list-heading">{{ page.list_title }}</h2>
-    //)
-    .child(el("ul", "class" -> "post-list")(
-    //      {%- assign date_format = site.minima.date_format | default: "%b %-d, %Y" -%}
-      posts.map(post => el("li")
-      //.child(el("span", "class" -> "post-meta")(/* {{ post.date | date: date_format }} */))
-        .child(el("h3")(XmlUtil.a("post-link", post.targetPath.toString)(post.title))) // TODO
-    //        {%- if site.minima.show_excerpts -%}
-    //          {{ post.excerpt }}
-    //        {%- endif -%}
-       .build
-      )*
-    ))
-    //
-    // TODO pagination
-    //    {% if site.paginate %}
-    //      <div class="pager">
-    //        <ul class="pagination">
-    //        {%- if paginator.previous_page %}
-    //          <li>
-    //            <a href="{{ paginator.previous_page_path | relative_url }}" class="previous-page" title="Go to Page {{ paginator.previous_page }}">
-    //              {{ paginator.previous_page }}
-    //            </a>
-    //          </li>
-    //        {%- else %}
-    //          <li><div class="pager-edge">•</div></li>
-    //        {%- endif %}
-    //          <li><div class="current-page">{{ paginator.page }}</div></li>
-    //        {%- if paginator.next_page %}
-    //          <li>
-    //            <a href="{{ paginator.next_page_path | relative_url }}" class="next-page" title="Go to Page {{ paginator.next_page }}">
-    //              {{ paginator.next_page }}
-    //            </a>
-    //          </li>
-    //        {%- else %}
-    //          <li><div class="pager-edge">•</div></li>
-    //        {%- endif %}
-    //        </ul>
-    //      </div>
-    //    {%- endif %}
-    .build
+  // Note: not doing pagination.
+  private def homeLayout(content: Xml.Element): Xml.Element = baseLayout:
+    div("home")(
+      //      el("h1", "class" -> "page-heading").withText(page.title)
+      content,
+      el("h2", "class" -> "post-list-heading").withText("Posts"),
+      el("ul", "class" -> "post-list")(site.posts.map(post =>
+        el("li")(
+          el("span", "class" -> "post-meta").withText(post.dateString),
+          el("h3")(Link.ToPage(post).a("post-link"))
+          // {%- if site.minima.show_excerpts -%} {{ post.excerpt }} {%- endif -%}
+        )
+      )*),
+      el("p", "class" -> "rss-subscribe")(
+        XmlBuilder.text("subscribe"),
+        el("a", "href" -> "/feed.xml").withText("via RSS")
+      )
+    )
 
   private def baseLayout(content: Xml): Xml.Element =
-    el("html", "lang" -> page.frontMatter.lang.orElse(site.lang).getOrElse("en"))(
+    val backLinks: List[Link] = site.backLinks(page)
+    el("html", "lang" -> page.frontMatter.lang.getOrElse(site.lang))(
       head,
       el("body")
         .child(header)
@@ -151,7 +121,7 @@ final class Minima(
           el("main", "class" -> "page-content", "aria-label" -> "Content")(
             div("wrapper")
               .child(content)
-              .childWhen(backLinks.nonEmpty, backlinksDiv)
+              .childWhen(backLinks.nonEmpty, backLinksDiv(backLinks))
               .build
           )
         )
@@ -162,12 +132,12 @@ final class Minima(
         .build
     )
 
-  private def backlinksDiv: Xml.Element = div("backlinks")
+  private def backLinksDiv(backLinks: List[Link]): Xml.Element = div("backlinks")
     .child(el("hr")())
     .child(el("h4")())
     .children(backLinks.flatMap(link => List(
       XmlBuilder.text("•"),
-      a("backlink", link.from.fromElement.ref)(link.from.page.title) // TODO!
+      a("backlink", link.from.fromElement.ref).withText(link.from.page.title) // TODO!
     )) *)
     .build
 
@@ -176,7 +146,7 @@ final class Minima(
     .child(el("meta", "http-equiv" -> "X-UA-Compatible", "content" -> "IE=edge")())
     .child(el("meta", "name" -> "viewport", "content" -> "width=device-width, initial-scale=1")())
     // TODO {%- seo -%}: https://github.com/jekyll/jekyll-seo-tag
-    .child(el("title")(page.title)) // TODO this is here until seo is implemented - it covers the title...
+    .child(el("title").withText(page.title)) // TODO this is here until seo is implemented - it covers the title...
     .children(libraries.flatMap(_.head) *)
     .child(stylesheet("/assets/css/style.css", id = Some("main-stylesheet")))
     // TODO {%- feed_meta -%}: https://github.com/jekyll/jekyll-feed
@@ -201,7 +171,7 @@ final class Minima(
   private def header: Xml.Element =
     el("header", "class" -> "site-header")(
       div("wrapper")
-        .child(a("site-title", "/").attr("rel", "author")(site.title))
+        .child(a("site-title", "/").attr("rel", "author").withText(site.title))
         .childWhen(site.headerPages.nonEmpty,
           el("nav", "class" -> "site-nav")(
             el("input", "type" -> "checkbox").setId("nav-trigger")(),
@@ -222,26 +192,16 @@ final class Minima(
     el("footer", "class" -> "site-footer h-card")(
       el("data", "class" -> "u-url", "href" -> "/")(XmlBuilder.comment("do not self-close")), // TODO base url?
       div("wrapper")(
-        // TODO used to be: el("h2", "class" -> "footer-heading")(site.title),
+        el("h2", "class" -> "footer-heading").withText(site.title), // TODO as it used to be
         div("footer-col-wrapper")(
-          div("footer-col footer-col-1")
-            .childWhen(site.author.name.isDefined || site.author.email.isDefined,
-              el("ul", "class" -> "contact-list")
-                .childWhen(site.author.name.isDefined,
-                  el("li", "class" -> "p-name")(site.author.name.get) // TODO escape
-                )
-                .childWhen(site.author.email.isDefined,
-                  el("li")(
-                    a("u-email", s"mailto:${site.author.email.get}")(site.author.email.get)
-                  )
-                )
-              .build
+          div("footer-col footer-col-1")(
+            el("ul", "class" -> "contact-list")(
+              el("li", "class" -> "p-name").withText(site.author), // TODO escape
+              el("li")(a("u-email", s"mailto:${site.email}").withText(site.email))
             )
-          .build,
+          ),
           div("footer-col footer-col-2")(
-            el("p")(
-              site.description // TODO escape!
-            )
+            el("p").withText(site.description) // TODO escape!
           )
         ),
         div("social-links")(social)
@@ -253,18 +213,18 @@ final class Minima(
     el("footer", "class" -> "site-footer h-card")(
       el("data", "class" -> "u-url", "href" -> "/")(XmlBuilder.comment("do not self-close")), // TODO base url?
       div("wrapper")(
-        el("h2", "class" -> "footer-heading")(site.title),
+        el("h2", "class" -> "footer-heading").withText(site.title),
         div("footer-col-wrapper")(
           div("footer-col footer-col-1")(
             el("ul", "class" -> "contact-list")(
-              el("li", "class" -> "p-name")(site.author.name.get), // TODO conditional!
+              el("li", "class" -> "p-name").withText(site.author), // TODO conditional!
               el("li")(
-                a("u-email", s"mailto:${site.author.email.get}")(site.author.email.get)  // TODO conditional!
+                a("u-email", s"mailto:${site.email}").withText(site.email)  // TODO conditional!
               )
             )
           ),
           div("footer-col footer-col-2")(socialAlt),
-          div("footer-col footer-col-3")(site.description)
+          div("footer-col footer-col-3").withText(site.description)
         )
       )
     )

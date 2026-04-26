@@ -27,8 +27,12 @@ final class Site(
 
   private var links: List[Link] = List.empty
 
-  private var pagesVar: List[Page] = scala.compiletime.uninitialized
-  def pages: List[Page] = pagesVar
+  private var pagesVar: List[PageBase] = List(
+    TagsReport(Path(List("tags")), this),
+    ErrorsReport(Path(List("errors")), this),
+  )
+  
+  def pages: List[PageBase] = pagesVar
 
   private var headerPagesVar: List[Link.ToPage] = scala.compiletime.uninitialized
   def headerPages: List[Link.ToPage] = headerPagesVar
@@ -48,18 +52,33 @@ final class Site(
 
   def title: String = config.title
   def description: String = config.description
-  def author: Config.Author = config.author
-  def lang: Option[String] = config.lang
+  def author: String = config.author
+  def email: String = config.email
+  def lang: String = config.lang.getOrElse("en")
 
-  val syntheticPages: List[SyntheticPage] = List(
-    TagsReport(Path(List("tags")), this),
-    ErrorsReport(Path(List("errors")), this),
-  )
-
-  // TODO one backlink per page
   def backLinks(page: PageBase): List[Link] = links
     .filter(_.to.page == page)
     .filterNot(_.from.page == page)
+    .distinctBy(_.from.page.targetPath)
+
+  def tags: List[String] = pages.flatMap(_.frontMatter.tags).distinct.sorted
+
+  def withTag(tag: String): List[PageBase] = pages.filter(_.frontMatter.tags.contains(tag)).sortBy(_.title)
+
+  def posts: List[PageBase] = pages
+    .filter(page => page.frontMatter.layout.contains("post") && page.frontMatter.date.isDefined) // TODO
+    .sortBy(_.frontMatter.date.get)
+    .reverse
+
+  def subDirectories(page: PageBase): List[PageBase] = if !page.targetPath.isIndex then List.empty else pages
+    .filter(_.targetPath.isIndex)
+    .filter(_.targetPath.path.init.init == page.targetPath.path.init)
+    .sortBy(_.title)
+
+  def subPages(page: PageBase): List[PageBase] = if !page.targetPath.isIndex then List.empty else pages
+    .filter(_.targetPath.path.init == page.targetPath.path.init)
+    .filterNot(_ == page)
+    .sortBy(_.title)
 
   def generateAndReport(): Unit =
     try
@@ -81,8 +100,9 @@ final class Site(
       log.debug(s"Copied embedded asset: $resourceName")
 
     // Enumerate all pages
-    pagesVar = directoryPages(List.empty, config.sourceDirectory)
+    pagesVar = pagesVar ++ directoryPages(List.empty, config.sourceDirectory)
 
+    // TODO add missing index pages
     // TODO write:
     //- sitemap.xml
     //- robots.txt
@@ -93,25 +113,25 @@ final class Site(
       .groupBy(_.targetPath)
       .filter(_._2.length > 1)
       .toList
-      .foreach((targetPath: Path, pages: List[Page]) =>
+      .foreach((targetPath: Path, pages: List[PageBase]) =>
         reportError(PageError.Duplicate(
-          pages.head.sourcePath,
-          s"Duplicates for the target path $targetPath: ${pages.map(_.sourcePath).tail.mkString(", ")}"
+          targetPath,
+          s"Duplicates for the target path $targetPath: ${pages.map(_.title).tail.mkString(", ")}"
         ))
       )
 
     // Resolve links
-    // TODO do the warning.recover/sequence dance!
+    pages.collect{ case page: Page => page }.foreach(_.resolveLinks(this))
+
     // TODO sort the pages in transclusion order and transclude
-    pages.foreach(_.resolveLinks(this))
 
     headerPagesVar = config.headerPages.flatMap(resolveHeaderPage)
 
     // Write pages
-    (syntheticPages ++ pages).foreach: page =>
+    pages.foreach: page =>
       Files.write(
         toFile = page.targetPath.file(config.targetDirectory),
-        content = XmlUtil.write(Minima(this, page, backLinks(page)).render)
+        content = XmlUtil.write(Minima(this, page).render)
       )
       log.debug(s"Wrote: $page")
 

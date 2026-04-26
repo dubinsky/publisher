@@ -9,7 +9,7 @@ abstract class SyntheticPage(
 ):
   override def toString: String = s"$title.${Html.extension}($targetPath)"
 
-  override def paths: List[Path] = List(
+  override protected def paths: List[Path] = List(
     targetPath,
     targetPath.withoutExtension
   )

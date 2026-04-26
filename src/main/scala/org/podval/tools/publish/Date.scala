@@ -1,15 +1,20 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.yaml.{Yaml, YamlCodec}
-
 import java.time.{LocalDate, LocalDateTime, OffsetDateTime}
-import java.time.format.DateTimeParseException
+import java.time.format.{DateTimeFormatter, DateTimeParseException}
 
 sealed trait Date:
   def localDate: LocalDate
   def toString: String
+  final def toShortString: String = localDate.format(Date.shortFormat)
 
 object Date:
+  given Ordering[Date] = Ordering.by(_.localDate)
+
+  // TODO unfold; get Git date
+  private val shortFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("LLL dd, YYYY")
+
   final class Local(val value: LocalDate) extends Date:
     override def localDate: LocalDate = value
     override def toString: String = value.toString

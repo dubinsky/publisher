@@ -18,7 +18,7 @@ final class Page(
   private var xmlVar: Xml.Element = markup.dropAnchors(xmlRaw)
   override def xml: Xml.Element = xmlVar
   
-  override def paths: List[Path] = List(
+  override protected def paths: List[Path] = List(
     sourcePath,
     sourcePath.withoutExtension,
     targetPath,

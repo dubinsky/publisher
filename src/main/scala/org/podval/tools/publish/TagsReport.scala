@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.Xml
-import XmlUtil.{apply, a, div, el, setId}
+import XmlUtil.{apply, a, div, el, setId, withText}
 
 final class TagsReport(
   targetPath: Path,
@@ -18,22 +18,21 @@ final class TagsReport(
   private def slugify(text: String): String = text.replace(' ', '-')
 
   override def xml: Xml.Element =
-    val tags: List[String] = site.pages.flatMap(_.frontMatter.tags).distinct.sorted
-    def pagesWithTag(tag: String): List[Page] = site.pages.filter(_.frontMatter.tags.contains(tag)).sortBy(_.title)
+    val tags: List[String] = site.tags
 
     div("tags").setId("tags")
-      .child(el("h2")("All tags"))
-      .child(el("p")(tags.map(tag => a("page-tag", s"#${slugify(tag)}")(tag))*))
-      .child(el("h2")("Pages by tags"))
+      .child(el("h2").withText("All tags"))
+      .child(el("p")(tags.map(tag => a("page-tag", s"#${slugify(tag)}").withText(tag))*))
+      .child(el("h2").withText("Pages by tags"))
       .children(tags.map(tag =>
         div("tag-pages").setId(slugify(tag))
-          .child(el("h3")(tag))
-          .children(pagesWithTag(tag).map(page =>
+          .child(el("h3").withText(tag))
+          .children(site.withTag(tag).map(page =>
             el("ul")( // TODO move out
-              el("p")(a("post-link", page.targetPath.toString)(page.title))
+              el("p")(a("post-link", page.targetPath.toString).withText(page.title))
             )
-         )*)
-         .build
+          )*)
+          .build
       )*)
       .build
 

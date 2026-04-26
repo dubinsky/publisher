@@ -4,7 +4,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeParseException
 
 sealed abstract class Locator(sourceDirectoryName: String) derives CanEqual:
-  def is(sourcePath: Path): Boolean = sourcePath.startsWith(sourceDirectoryName)
+  def is(sourcePath: Path): Boolean = sourcePath.startsWith(List(sourceDirectoryName))
   def isAssetAllowed: Boolean
   def isMarkupAllowed(markup: Markup): Boolean
   // TODO isMarkupRequired: Boolean
@@ -20,7 +20,7 @@ object Locator:
     override def isMarkupAllowed(markup: Markup): Boolean = true
 
     override def targetPath(sourcePath: Path): Either[PageError, Path] =
-      val fileName: String = sourcePath.path.last
+      val fileName: String = sourcePath.fileName
       if fileName(10) != '-'
       then Left(PageError.FileName(sourcePath, s"Malformed blog post name: $fileName"))
       else parseDate(fileName.substring(0, 10)) match
@@ -41,7 +41,7 @@ object Locator:
 
     // TODO put into the blog!
     override def targetPath(sourcePath: Path): Either[PageError, Path] =
-      parseDate(sourcePath.path.last) match
+      parseDate(sourcePath.fileName) match
         case Right(date) => Right(sourcePath)
         case Left(error) => Left(PageError.FileName(sourcePath, s"Daily note file name must be the date", Some(error)))
 
