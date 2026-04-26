@@ -3,6 +3,7 @@
 :root {
     --brand-color: #818181;
     --brand-color-light: color-mix(in oklab, var(--brand-color), white 40%);
+    --brand-color-very-light: color-mix(in oklab, var(--brand-color), white 80%);
     --brand-color-dimmed: color-mix(in oklab, var(--brand-color), black 11%);
     --brand-color-dark: color-mix(in oklab, var(--brand-color), black 25%);
 

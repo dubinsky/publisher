@@ -4,7 +4,6 @@ import zio.blocks.schema.xml.{Xml, XmlBuilder}
 import XmlUtil.{a, apply, childWhen, childrenWhen, div, el, setId, stylesheet, withText}
 
 // Based on https://github.com/jekyll/minima
-// TODO calculate based on PageKind?
 // TODO icons!
 final class Minima(
   site: Site,
@@ -12,7 +11,8 @@ final class Minima(
 ):
   private val libraries: List[XmlUtil.JavascriptLibrary] = List(
     Highlights.get(page.xml),
-    Option.when(page.frontMatter.math)(MathJax)
+    Option.when(page.frontMatter.math)(MathJax),
+    Some(FontAwesome())
   ).flatten
 
   def render: Xml = page.frontMatter.layout match
@@ -35,12 +35,14 @@ final class Minima(
         div("post-content")(
           content,
           // TODO separate element *after* "post-content"
-          el("ul", "class" -> "page-list")((subDirectories ++ subPages).map(sub => el("li")(Link.ToPage(sub).a("")))*)
+          el("ul", "class" -> "page-list")((subDirectories ++ subPages).map(sub =>
+            el("li")(Link.ToPage(sub).a(""))
+          )*)
         )
       )
     )
 
-  private def postLayout(content: Xml): Xml.Element = baseLayout:
+  private def postLayout(content: Xml): Xml.Element = baseLayout(
     el("article", "class" -> "post h-entry", "itemscope" -> "", "itemtype" -> "http://schema.org/BlogPosting")(
       el("header", "class" -> "post-header")(
         el("h1", "class" -> "post-title p-name", "itemprop" -> "name headline").withText(page.title),
@@ -67,9 +69,7 @@ final class Minima(
           //   </time>
           // {%- endif -%}
           .childWhen(page.frontMatter.tags.nonEmpty, XmlBuilder.text("|"))
-          .childrenWhen(page.frontMatter.tags.nonEmpty, page.frontMatter.tags.map(tag => // TODO link!
-            a("post-tag", s"/tags/#$tag").withText(tag)
-          ))
+          .childrenWhen(page.frontMatter.tags.nonEmpty, page.frontMatter.tags.map(site.tags.tagRef))
           // TODO!
           // - default: site author
           //.childWhen(page.author.nonEmpty, XmlBuilder.text("•"))
@@ -89,11 +89,12 @@ final class Minima(
         content
       ),
       // Note: skipped Disqus comments
-      a("u-url", page.targetPath.toString).attr("hidden", "")()
+      a("u-url", page.path.toString).attr("hidden", "")()
     )
+  )
 
   // Note: not doing pagination.
-  private def homeLayout(content: Xml.Element): Xml.Element = baseLayout:
+  private def homeLayout(content: Xml.Element): Xml.Element = baseLayout(
     div("home")(
       //      el("h1", "class" -> "page-heading").withText(page.title)
       content,
@@ -101,7 +102,7 @@ final class Minima(
       el("ul", "class" -> "post-list")(site.posts.map(post =>
         el("li")(
           el("span", "class" -> "post-meta").withText(post.dateString),
-          el("h3")(Link.ToPage(post).a("post-link"))
+          el("h3")(post.ref)
           // {%- if site.minima.show_excerpts -%} {{ post.excerpt }} {%- endif -%}
         )
       )*),
@@ -110,6 +111,7 @@ final class Minima(
         el("a", "href" -> "/feed.xml").withText("via RSS")
       )
     )
+  )
 
   private def baseLayout(content: Xml): Xml.Element =
     val backLinks: List[Link] = site.backLinks(page)
@@ -125,8 +127,6 @@ final class Minima(
               .build
           )
         )
-        // TODO move to head?
-//        .child(stylesheet("https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.0.0/css/all.min.css", id = Some("fa-stylesheet")))
         .child(footer)
         .children(libraries.flatMap(_.body) *)
         .build

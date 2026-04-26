@@ -5,15 +5,15 @@ import scala.annotation.tailrec
 
 final class Page(
   val sourcePath: Path,
-  targetPath: Path,
+  path: Path,
   val markup: Markup,
   frontMatter: FrontMatter,
   xmlRaw: Xml.Element
 ) extends PageBase(
-  targetPath,
+  path,
   frontMatter
 ):
-  override def toString: String = s"$title.$markup($sourcePath, $targetPath)"
+  override def toString: String = s"$title.$markup($sourcePath, $path)"
 
   private var xmlVar: Xml.Element = markup.dropAnchors(xmlRaw)
   override def xml: Xml.Element = xmlVar
@@ -21,8 +21,8 @@ final class Page(
   override protected def paths: List[Path] = List(
     sourcePath,
     sourcePath.withoutExtension,
-    targetPath,
-    targetPath.withoutExtension
+    path,
+    path.withoutExtension
   )
   
   // TODO add TOC to page as needed

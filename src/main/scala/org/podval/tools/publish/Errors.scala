@@ -3,16 +3,16 @@ package org.podval.tools.publish
 import org.podval.tools.publish.XmlUtil.*
 import zio.blocks.schema.xml.Xml
 
-final class ErrorsReport(
-  targetPath: Path,
-  site: Site
+final class Errors(
+  site: Site,
+  path: Path
 ) extends SyntheticPage(
-  targetPathSynthetic = targetPath,
+  path = path,
   frontMatter = FrontMatter(
     title = Some("Site Errors"),
     layout = Some("page"),
     description = Some("Site errors by kind"),
-    //    permalink = Some(targetPath.withoutExtension.toString)
+    //    permalink = Some(path.withoutExtension.toString)
   )
 ):
   private def slugify(text: String): String = text.replace(' ', '-')

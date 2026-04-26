@@ -122,6 +122,14 @@ Config:
 - get `Config.dailyNotesDirectoryName` out of `.obsidian/daily-notes.json/folder`
 - make inclusion of `_drafts` configurable
 
+TOC:
+
+[source]
+----
+* TOC
+{:toc}
+----
+
 Wiki links in Obsidian:
 
 - are they case-sensitive?

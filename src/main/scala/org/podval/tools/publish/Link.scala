@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.Xml
-import XmlUtil.{apply, childrenWhenEmpty, replaceAttribute, withText}
+import XmlUtil.{childrenWhenEmpty, replaceAttribute, withText}
 
 final case class Link(
   from: Link.From,
@@ -33,8 +33,10 @@ object Link:
     def isWikiLink: Boolean = element.isEmpty
 
   sealed abstract class To(val page: PageBase):
-    def url: String
-    def text: String
+    final def url: String = page.path.toString + urlMore
+    protected def urlMore: String
+    final def text: String = page.title + textMore
+    protected def textMore: String
 
     final def a(cls: String): Xml.Element = XmlUtil.a(cls, url).withText(text)
 
@@ -44,16 +46,16 @@ object Link:
       .childrenWhenEmpty(Some(text))
 
   final case class ToPage(override val page: PageBase) extends To(page):
-    override def url: String = page.targetPath.toString
-    override def text: String = page.title
+    override protected def urlMore: String = ""
+    override protected def textMore: String = ""
 
   private final case class ToSection(override val page: Page, sections: Seq[Section]) extends To(page):
-    override def url: String = s"${page.targetPath.toString}#${sections.last.id}"
-    override def text: String = s"${page.title}#${sections.map(_.title).mkString("#")}"
+    override protected def urlMore: String = s"#${sections.last.id}"
+    override protected def textMore: String = s"#${sections.map(_.title).mkString("#")}"
 
   private final case class ToBlock(override val page: Page, block: Block) extends To(page):
-    override def url: String = s"${page.targetPath.toString}#${block.id}"
-    override def text: String = s"${page.title}#^${block.id}"
+    override protected def urlMore: String = s"#${block.id}"
+    override protected def textMore: String = s"#^${block.id}"
 
   // TODO reportError()
   def resolveRef(ref: String, site: Site): Option[Link.To] =

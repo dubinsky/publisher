@@ -8,7 +8,7 @@ sealed abstract class Locator(sourceDirectoryName: String) derives CanEqual:
   def isAssetAllowed: Boolean
   def isMarkupAllowed(markup: Markup): Boolean
   // TODO isMarkupRequired: Boolean
-  def targetPath(sourcePath: Path): Either[PageError, Path]
+  def path(sourcePath: Path): Either[PageError, Path]
 
 object Locator:
   object BlogPost:
@@ -19,7 +19,7 @@ object Locator:
 
     override def isMarkupAllowed(markup: Markup): Boolean = true
 
-    override def targetPath(sourcePath: Path): Either[PageError, Path] =
+    override def path(sourcePath: Path): Either[PageError, Path] =
       val fileName: String = sourcePath.fileName
       if fileName(10) != '-'
       then Left(PageError.FileName(sourcePath, s"Malformed blog post name: $fileName"))
@@ -40,7 +40,7 @@ object Locator:
       case _ => false
 
     // TODO put into the blog!
-    override def targetPath(sourcePath: Path): Either[PageError, Path] =
+    override def path(sourcePath: Path): Either[PageError, Path] =
       parseDate(sourcePath.fileName) match
         case Right(date) => Right(sourcePath)
         case Left(error) => Left(PageError.FileName(sourcePath, s"Daily note file name must be the date", Some(error)))

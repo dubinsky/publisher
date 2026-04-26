@@ -2,9 +2,9 @@ package org.podval.tools.publish
 
 import java.io.File
 
-final class Path(
-  val path: List[String],
-  val extension: Option[String] = None
+final case class Path(
+  path: Seq[String],
+  extension: Option[String] = None
 ) derives CanEqual:
   def fileName: String = path.last
   def isIndex: Boolean = fileName == "index" && path.length > 1
@@ -29,19 +29,21 @@ final class Path(
   private def withExtension(extension: Option[String]): Path =
     if this.extension == extension
     then this
-    else Path(path, extension)
+    else this.copy(extension = extension)
 
   def file(directory: File): File = file(directory, path)
   
   @scala.annotation.tailrec
-  private def file(directory: File, path: List[String]): File = path match
-    case x :: Nil => File(directory, x + extensionString)
-    case x :: xs => file(File(directory, x), xs)
-    case Nil => directory
+  private def file(directory: File, path: Seq[String]): File =
+    if path.isEmpty then directory
+    else if path.length == 1 then File(directory, path.head + extensionString)
+    else file(File(directory, path.head), path.tail)
 
 object Path:
-  val root: Path = Path(List.empty)
+  val root: Path = new Path(Seq.empty, None)
+  
+  def apply(path: String*) = new Path(path, None)
   
   import scala.math.Ordered.orderingToOrdered
-  given Ordering[Path] = (left: Path, right: Path) => Ordering[List[String]].compare(left.path, right.path)
+  given Ordering[Path] = (left: Path, right: Path) => Ordering[Seq[String]].compare(left.path, right.path)
   

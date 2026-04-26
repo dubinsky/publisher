@@ -7,6 +7,7 @@ import java.io.File
 import java.net.{URI, URISyntaxException}
 import XmlUtil.{a, apply, childrenWhenEmpty}
 
+// TODO add missing index pages
 final class Site(
   sourceDirectoryPath: String,
   treatErrorsAsWarnings: Boolean,
@@ -27,9 +28,13 @@ final class Site(
 
   private var links: List[Link] = List.empty
 
+  val tags: Tags = Tags(this, Path("tags").withExtension(Html.extension))
+
   private var pagesVar: List[PageBase] = List(
-    TagsReport(Path(List("tags")), this),
-    ErrorsReport(Path(List("errors")), this),
+    tags,
+    Errors(this, Path("errors").withExtension(Html.extension)),
+    Feed(this, Path("feed").withExtension("xml")),
+    Sitemap(this, Path("sitemap").withExtension("xml"))
   )
   
   def pages: List[PageBase] = pagesVar
@@ -59,24 +64,20 @@ final class Site(
   def backLinks(page: PageBase): List[Link] = links
     .filter(_.to.page == page)
     .filterNot(_.from.page == page)
-    .distinctBy(_.from.page.targetPath)
-
-  def tags: List[String] = pages.flatMap(_.frontMatter.tags).distinct.sorted
-
-  def withTag(tag: String): List[PageBase] = pages.filter(_.frontMatter.tags.contains(tag)).sortBy(_.title)
+    .distinctBy(_.from.page.path)
 
   def posts: List[PageBase] = pages
     .filter(page => page.frontMatter.layout.contains("post") && page.frontMatter.date.isDefined) // TODO
     .sortBy(_.frontMatter.date.get)
     .reverse
 
-  def subDirectories(page: PageBase): List[PageBase] = if !page.targetPath.isIndex then List.empty else pages
-    .filter(_.targetPath.isIndex)
-    .filter(_.targetPath.path.init.init == page.targetPath.path.init)
+  def subDirectories(page: PageBase): List[PageBase] = if !page.path.isIndex then List.empty else pages
+    .filter(_.path.isIndex)
+    .filter(_.path.path.init.init == page.path.path.init)
     .sortBy(_.title)
 
-  def subPages(page: PageBase): List[PageBase] = if !page.targetPath.isIndex then List.empty else pages
-    .filter(_.targetPath.path.init == page.targetPath.path.init)
+  def subPages(page: PageBase): List[PageBase] = if !page.path.isIndex then List.empty else pages
+    .filter(_.path.path.init == page.path.path.init)
     .filterNot(_ == page)
     .sortBy(_.title)
 
@@ -100,23 +101,17 @@ final class Site(
       log.debug(s"Copied embedded asset: $resourceName")
 
     // Enumerate all pages
-    pagesVar = pagesVar ++ directoryPages(List.empty, config.sourceDirectory)
-
-    // TODO add missing index pages
-    // TODO write:
-    //- sitemap.xml
-    //- robots.txt
-    //- feed.xml
-
+    pagesVar = pagesVar ++ directoryPages(Seq.empty, config.sourceDirectory)
+    
     // Report conflicting pages
     pages
-      .groupBy(_.targetPath)
+      .groupBy(_.path)
       .filter(_._2.length > 1)
       .toList
-      .foreach((targetPath: Path, pages: List[PageBase]) =>
+      .foreach((path: Path, pages: List[PageBase]) =>
         reportError(PageError.Duplicate(
-          targetPath,
-          s"Duplicates for the target path $targetPath: ${pages.map(_.title).tail.mkString(", ")}"
+          path,
+          s"Duplicates for the path $path: ${pages.map(_.title).tail.mkString(", ")}"
         ))
       )
 
@@ -130,12 +125,12 @@ final class Site(
     // Write pages
     pages.foreach: page =>
       Files.write(
-        toFile = page.targetPath.file(config.targetDirectory),
+        toFile = page.path.file(config.targetDirectory),
         content = XmlUtil.write(Minima(this, page).render)
       )
       log.debug(s"Wrote: $page")
 
-  private def directoryPages(path: List[String], directory: File): List[Page] =
+  private def directoryPages(directoryPath: Seq[String], directory: File): List[Page] =
     Files.requireExists(directory)
     Files.requireDirectory(directory)
 
@@ -144,29 +139,29 @@ final class Site(
       .filterNot(config.exclude)
       .partition(_.isFile)
 
-    files.flatMap(filePage(path, _)) ++
-    directories.flatMap(directory => directoryPages(path :+ directory.getName, directory))
+    files.flatMap(filePage(directoryPath, _)) ++
+    directories.flatMap(directory => directoryPages(directoryPath :+ directory.getName, directory))
 
-  private def filePage(path: List[String], file: File): Option[Page] =
+  private def filePage(directoryPath: Seq[String], file: File): Option[Page] =
     Files.requireExists(file)
     Files.requireFile(file)
     val (name: String, extension: Option[String]) = Files.nameAndExtension(file.getName)
-    val sourcePath: Path = Path(path :+ name, extension)
+    val sourcePath: Path = Path(directoryPath :+ name, extension)
     val sourceFile: File = sourcePath.file(config.sourceDirectory)
     val locator: Option[Locator] = locators.find(_.is(sourcePath))
-    val targetPath: Option[Path] = locator match
+    val path: Option[Path] = locator match
       case None => Some(sourcePath)
-      case Some(locator) => recoverNone(locator.targetPath(sourcePath))
+      case Some(locator) => recoverNone(locator.path(sourcePath))
 
-    targetPath.flatMap: (targetPath: Path) =>
+    path.flatMap: (path: Path) =>
       sourcePath.extension.flatMap(extension => Markup.all.find(_.isExtension(extension))) match
         case None =>
           if !locator.fold(true)(_.isAssetAllowed)
           then
             reportError(PageError.FileKind(sourcePath, s"Asset not allowed in $locator"))
           else
-            Files.copy(fromFile = sourceFile, toFile = targetPath.file(config.targetDirectory))
-            log.debug(s"Copied asset: $targetPath")
+            Files.copy(fromFile = sourceFile, toFile = path.file(config.targetDirectory))
+            log.debug(s"Copied asset: $path")
           None
 
         case Some(markup) =>
@@ -187,7 +182,7 @@ final class Site(
             recoverNone(markup.parse(sourcePath, content)).map: xml =>
               val page = Page(
                 sourcePath = sourcePath,
-                targetPath = targetPath.withExtension(Html.extension),
+                path = path.withExtension(Html.extension),
                 markup = markup,
                 frontMatter = frontMatter,
                 xmlRaw = xml

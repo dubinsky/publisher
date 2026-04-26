@@ -13,7 +13,7 @@ object Date:
   given Ordering[Date] = Ordering.by(_.localDate)
 
   // TODO unfold; get Git date
-  private val shortFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("LLL dd, YYYY")
+  private val shortFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("LLL d, YYYY")
 
   final class Local(val value: LocalDate) extends Date:
     override def localDate: LocalDate = value
