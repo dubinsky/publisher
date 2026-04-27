@@ -224,6 +224,8 @@ final class Site(
             case Some(element) => linkTo.a(element)
 
 object Site:
+  def main(args: Array[String]): Unit = Cli.main(Array("/home/dub/Podval/dub.podval.org"))
+  
   private val resourcesBase: String = "/org/podval/tools/publish/site"
 
   // TODO list using Files.listResources

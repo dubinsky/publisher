@@ -5,7 +5,7 @@ import org.slf4j.event.Level
 object  Cli:
   def main(args: Array[String]): Unit =
     Site(
-      sourceDirectoryPath = "/home/dub/Podval/dub.podval.org",
+      sourceDirectoryPath = args(0),
       treatErrorsAsWarnings = false,
       logLevel = Level.INFO
     )
