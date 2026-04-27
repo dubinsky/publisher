@@ -61,10 +61,16 @@ final class Site(
   def email: String = config.email
   def lang: String = config.lang.getOrElse("en")
 
+  val socialLinks: Seq[SocialLink] = Seq(
+    config.social.github.map(SocialLink.GitHub(_)),
+    config.social.twitter.map(SocialLink.Twitter(_)),
+    config.social.linkedin.map(SocialLink.LinkedIn(_))
+  ).flatten
+  
   def backLinks(page: PageBase): List[Link] = links
     .filter(_.to.page == page)
     .filterNot(_.from.page == page)
-    .distinctBy(_.from.page.path)
+    .distinctBy(_.from.page.path) // TODO once we have context, each link should be listed (grouped by page)
 
   def posts: List[PageBase] = pages
     .filter(page => page.frontMatter.layout.contains("post") && page.frontMatter.date.isDefined) // TODO

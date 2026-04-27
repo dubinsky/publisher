@@ -29,16 +29,16 @@ final class Minima(
 
     baseLayout(
       el("article", "class" -> "post")(
-        el("header", "class" -> "post-header")(
-          el("h1", "class" -> "post-title").withText(page.title)
-        ),
+        el("header", "class" -> "post-header")
+          .child(el("h1", "class" -> "post-title").withText(page.title))
+          .childWhen(page.frontMatter.tags.nonEmpty, tags)
+          .build,
         div("post-content")(
-          content,
-          // TODO separate element *after* "post-content"
-          el("ul", "class" -> "page-list")((subDirectories ++ subPages).map(sub =>
-            el("li")(Link.ToPage(sub).a(""))
-          )*)
-        )
+          content
+        ),
+        el("ul", "class" -> "page-list")((subDirectories ++ subPages).map(sub =>
+          el("li")(sub.ref("sub"))
+        )*)
       )
     )
 
@@ -68,8 +68,7 @@ final class Minima(
           //     {{ mdate | date: date_format }}
           //   </time>
           // {%- endif -%}
-          .childWhen(page.frontMatter.tags.nonEmpty, XmlBuilder.text("|"))
-          .childrenWhen(page.frontMatter.tags.nonEmpty, page.frontMatter.tags.map(site.tags.tagRef))
+          .childWhen(page.frontMatter.tags.nonEmpty, tags)
           // TODO!
           // - default: site author
           //.childWhen(page.author.nonEmpty, XmlBuilder.text("•"))
@@ -93,7 +92,11 @@ final class Minima(
     )
   )
 
-  // Note: not doing pagination.
+  private def tags: Xml.Element = el("span")
+    .child(XmlBuilder.text("|"))
+    .children(page.frontMatter.tags.map(site.tags.tagRef)*)
+    .build
+
   private def homeLayout(content: Xml.Element): Xml.Element = baseLayout(
     div("home")(
       //      el("h1", "class" -> "page-heading").withText(page.title)
@@ -102,7 +105,7 @@ final class Minima(
       el("ul", "class" -> "post-list")(site.posts.map(post =>
         el("li")(
           el("span", "class" -> "post-meta").withText(post.dateString),
-          el("h3")(post.ref)
+          el("h3")(post.ref("post-link"))
           // {%- if site.minima.show_excerpts -%} {{ post.excerpt }} {%- endif -%}
         )
       )*),
@@ -114,32 +117,29 @@ final class Minima(
   )
 
   private def baseLayout(content: Xml): Xml.Element =
-    val backLinks: List[Link] = site.backLinks(page)
     el("html", "lang" -> page.frontMatter.lang.getOrElse(site.lang))(
       head,
       el("body")
         .child(header)
-        .child(
-          el("main", "class" -> "page-content", "aria-label" -> "Content")(
-            div("wrapper")
-              .child(content)
-              .childWhen(backLinks.nonEmpty, backLinksDiv(backLinks))
-              .build
-          )
-        )
+        .child(el("main", "class" -> "page-content", "aria-label" -> "Content")(
+          div("wrapper")(
+            content,
+            backLinks
+          ),
+        ))
         .child(footer)
         .children(libraries.flatMap(_.body) *)
         .build
     )
 
-  private def backLinksDiv(backLinks: List[Link]): Xml.Element = div("backlinks")
-    .child(el("hr")())
-    .child(el("h4")())
-    .children(backLinks.flatMap(link => List(
-      XmlBuilder.text("•"),
-      a("backlink", link.from.fromElement.ref).withText(link.from.page.title) // TODO!
-    )) *)
-    .build
+  // TODO do not include in home and index pages
+  private def backLinks: Xml.Element = div("backlinks")(
+    el("hr")(), // TODO do a border
+    el("h4").withText("Backlinks"),
+    el("ul")(site.backLinks(page).map(link =>
+      el("li")(link.from.page.ref("backlink"))  // TODO!
+    )*)
+  )
 
   private def head: Xml.Element = el("head")
     .child(el("meta", "charset" -> "utf-8")())
@@ -170,22 +170,20 @@ final class Minima(
 
   private def header: Xml.Element =
     el("header", "class" -> "site-header")(
-      div("wrapper")
-        .child(a("site-title", "/").attr("rel", "author").withText(site.title))
-        .childWhen(site.headerPages.nonEmpty,
-          el("nav", "class" -> "site-nav")(
-            el("input", "type" -> "checkbox").setId("nav-trigger")(),
-            el("label", "for" -> "nav-trigger")(
-              el("span", "class" -> "menu-icon")(
+      div("wrapper")(
+        a("site-title", "/").attr("rel", "author").withText(site.title),
+        el("nav", "class" -> "site-nav")(
+          el("input", "type" -> "checkbox").setId("nav-trigger")(),
+          el("label", "for" -> "nav-trigger")(
+            el("span", "class" -> "menu-icon")(
 //                el("svg", "viewBox" -> "0 0 18 15", "width" -> "18px", "height" -> "15px")(
 //                  el("path", "d" -> "M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z")()
 //                )
-              ) // TODO is it ok for span to self-close?
-            ),
-            div("nav-items")(site.headerPages.map(_.a("nav-item"))*)
-          )
+            ) // TODO is it ok for span to self-close?
+          ),
+          div("nav-items")(site.headerPages.map(_.a("nav-item"))*)
         )
-        .build
+      )
     )
 
   private def footer: Xml.Element =
@@ -201,45 +199,23 @@ final class Minima(
             )
           ),
           div("footer-col footer-col-2")(
+            // Note: moved back here, where it was before, from after the footer-col-wrapper
+            div("social-links")(social)
+          ),
+          div("footer-col footer-col-3")(
             el("p").withText(site.description) // TODO escape!
           )
-        ),
-        div("social-links")(social)
-      )
-    )
-
-  // TODO alternative
-  private def footerAlt: Xml.Element =
-    el("footer", "class" -> "site-footer h-card")(
-      el("data", "class" -> "u-url", "href" -> "/")(XmlBuilder.comment("do not self-close")), // TODO base url?
-      div("wrapper")(
-        el("h2", "class" -> "footer-heading").withText(site.title),
-        div("footer-col-wrapper")(
-          div("footer-col footer-col-1")(
-            el("ul", "class" -> "contact-list")(
-              el("li", "class" -> "p-name").withText(site.author), // TODO conditional!
-              el("li")(
-                a("u-email", s"mailto:${site.email}").withText(site.email)  // TODO conditional!
-              )
-            )
-          ),
-          div("footer-col footer-col-2")(socialAlt),
-          div("footer-col footer-col-3").withText(site.description)
         )
       )
     )
 
   private def social: Xml.Element =
     el("ul", "class" -> "social-media-list")
-      // TODO
-      //{%- for entry in site.minima.social_links -%}
-      //  <li>
-      //    <a rel="me" href="{{ entry.url }}" target="_blank" title="{{ entry.title }}">
-      //      <span class="grey fa-brands fa-{{ entry.icon }} fa-lg"></span>
-      //    </a>
-      //  </li>
-      //{%- endfor -%}
-      // TODO
+      .children(site.socialLinks.map(social =>
+        el("li")(social.xml)
+      )*)
+
+      // TODO move RSS feed link here from home
       //{% unless site.minima.hide_site_feed_link %}
       //  <li>
       //    <a href="{{ site.feed.path | default: 'feed.xml' | absolute_url }}" target="_blank" title="Subscribe to syndication feed">
@@ -254,12 +230,3 @@ final class Minima(
       //  </li>
       //{%- endunless %}
     .build
-
-
-  private def socialAlt =
-    el("ul", "class" -> "social-media-list")
-      // TODO from Config
-      //    <li><a href="https://github.com/dubinsky"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">dubinsky</span></a></li>
-      //    <li><a href="https://www.linkedin.com/in/leoniddubinsky"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#linkedin"></use></svg> <span class="username">leoniddubinsky</span></a></li>
-      //    <li><a href="https://www.twitter.com/leoniddubinsky"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">leoniddubinsky</span></a></li>
-      .build

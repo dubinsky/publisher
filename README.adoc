@@ -115,6 +115,15 @@ parses exactly the same as
 
 So, it seems that I *have* to use FlexMark after all...
 
+== Farewell, Jekyll
+
+First milestone for this project is to replace Jekyll on my personal website. Some differences between the new publisher and Jekyll:
+
+- no support for paginating the post list, which I did not use with Jekyll anyway;
+- instead of the Ruby code highlighter Rouge, my publisher uses Highlights.js;
+
+
+
 == TODO
 
 Config:

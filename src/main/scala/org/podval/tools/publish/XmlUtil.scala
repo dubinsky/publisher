@@ -3,6 +3,8 @@ package org.podval.tools.publish
 import zio.blocks.chunk.Chunk
 import zio.blocks.schema.xml.{WriterConfig, Xml, XmlBuilder, XmlName, XmlWriter}
 
+// TODO split between Html and Xml
+// TODO def list()...
 object XmlUtil:
   extension (builder: XmlBuilder.ElementBuilder)
     def apply(children: Xml*): Xml.Element = builder.children(children *).build

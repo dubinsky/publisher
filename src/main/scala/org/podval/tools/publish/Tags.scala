@@ -36,7 +36,7 @@ final class Tags(
         el("li")(
           el("h3", "class" -> "page-tag").setId(slugify(tag)).withText(tag),
           el("ul")(withTag(tag).map(page =>
-            el("li")(page.ref)
+            el("li")(page.ref("post-link"))
           )*)
         )
       )*)

@@ -35,7 +35,7 @@ body {
 /**
  * Set `margin-bottom` to maintain vertical rhythm
  */
-h1, h2, h3, h4, h5, h6, p, blockquote, pre, ul, ol, dl, figure, div.highlight, figure.highlight {
+h1, h2, h3, h4, h5, h6, p, blockquote, ul, ol, dl, figure {
     margin-bottom: calc(var(--spacing-unit) * 0.5);
 }
 
@@ -149,6 +149,12 @@ blockquote {
 /**
  * Code formatting
  */
+
+/* LMD I do not have this... */
+div.highlight, figure.highlight {
+    margin-bottom: calc(var(--spacing-unit) * 0.5);
+}
+
 pre, code {
     font-family: var(--code-font-family);
     background-color: var(--code-background-color);
@@ -158,25 +164,37 @@ pre, code {
     }
 }
 
+/* from Highlights.js stylesheet: */
+/*pre code.hljs {*/
+/*    display: block;*/
+/*    overflow-x: auto;*/
+/*    padding: 1em*/
+/*}*/
+/**/
+/*code.hljs {*/
+/*    padding: 3px 5px*/
+/*}*/
+
 .hljs {
     background-color: var(--code-background-color);
 }
 
 pre {
     /* TODO I do not think I want this: padding: 8px 12px;*/
+    margin-block: 0;
     font-size: 15px;
     line-height: 1.4;
     color: var(--heading-color);
     overflow-x: auto;
 
     > code {
-        display: inline-block;
-        width: 100%;
+        /*display: inline-block;*/
+        /*width: 100%;*/
     }
 
     /* Counter-act Highlights.js styling ;) */
     > code.hljs {
-        padding: 0;
+        padding: 1em;
     }
 }
 

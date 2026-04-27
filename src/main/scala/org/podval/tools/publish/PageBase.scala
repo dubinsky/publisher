@@ -14,11 +14,11 @@ abstract class PageBase(
   final def is(url: String): Boolean = paths.exists(_.toString.endsWith(url))
   
   final def title: String = frontMatter.title.getOrElse(path.title)
-  
+
   final def dateString: String = frontMatter.date.fold("")(_.toShortString)
 
-  final def ref: Xml.Element = Link.ToPage(this).a("post-link")
-  
+  final def ref(cls: String): Xml.Element = Link.ToPage(this).a(cls)
+
   protected def paths: List[Path]
 
   def xml: Xml.Element
