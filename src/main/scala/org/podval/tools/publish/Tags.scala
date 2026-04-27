@@ -8,7 +8,8 @@ import XmlUtil.{apply, a, div, el, setId, withText}
 final class Tags(
   site: Site,
   path: Path
-) extends SyntheticPage(
+) extends Page.SyntheticMarkupPage(
+  site,
   path = path,
   frontMatter = FrontMatter(
     title = Some("Tags"),
@@ -19,12 +20,12 @@ final class Tags(
 ):
   private def slugify(text: String): String = text.replace(' ', '-')
 
-  private def tags: List[String] = site.pages.flatMap(_.frontMatter.tags).distinct.sorted
+  private def tags: List[String] = site.pagesWithFrontMatter.flatMap(_.frontMatter.tags).distinct.sorted
+
+  private def withTag(tag: String): List[Page] = site.pagesWithFrontMatter.filter(_.frontMatter.tags.contains(tag)).sortBy(_.title)
 
   def tagRef(tag: String): Xml.Element = a("page-tag", s"$path#${slugify(tag)}").withText(tag)
-
-  private def withTag(tag: String): List[PageBase] = site.pages.filter(_.frontMatter.tags.contains(tag)).sortBy(_.title)
-
+  
   override def xml: Xml.Element =
     val tags: List[String] = this.tags
 

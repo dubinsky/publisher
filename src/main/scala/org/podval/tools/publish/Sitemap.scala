@@ -7,9 +7,9 @@ import XmlUtil.{apply, el}
 final class Sitemap(
   site: Site,
   path: Path
-) extends SyntheticPage(
-  path,
-  FrontMatter.absent
+) extends Page.SyntheticXml(
+  site,
+  path
 ):
   override def xml: Xml.Element = el("urlset")
     .attr(XmlName("xsi", Some("xmlns"), None), "http://www.w3.org/2001/XMLSchema-instance")

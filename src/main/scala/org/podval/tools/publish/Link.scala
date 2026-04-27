@@ -23,7 +23,7 @@ object Link:
   )
 
   final case class From(
-    page: Page,
+    page: MarkupPage,
     fromElement: FromElement,
     context: Option[String],  // TODO retrieve link context
     // TODO section
@@ -32,7 +32,7 @@ object Link:
   ):
     def isWikiLink: Boolean = element.isEmpty
 
-  sealed abstract class To(val page: PageBase):
+  sealed abstract class To(val page: Page):
     final def url: String = page.path.toString + urlMore
     protected def urlMore: String
     final def text: String = page.title + textMore
@@ -45,7 +45,7 @@ object Link:
       .replaceAttribute(XmlUtil.hrefAttribute, XmlUtil.escapeUrl(url))
       .childrenWhenEmpty(Some(text))
 
-  final case class ToPage(override val page: PageBase) extends To(page):
+  final case class ToPage(override val page: Page) extends To(page):
     override protected def urlMore: String = ""
     override protected def textMore: String = ""
 
@@ -66,7 +66,7 @@ object Link:
         case None => Some(ToPage(toPage))
         case Some(fragment) =>
           toPage match
-            case toPage: Page =>
+            case toPage: MarkupPage =>
               if fragment.startsWith("^") then
                 for
                   id: String = fragment.substring(1).trim
@@ -78,6 +78,6 @@ object Link:
                   sections: Seq[Section] <- toPage.section(names)
                 yield ToSection(toPage, sections)
 
-            case toPage: SyntheticPage =>
+            case toPage =>
               // TODO site.reportError()
               None

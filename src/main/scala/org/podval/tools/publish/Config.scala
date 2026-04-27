@@ -8,6 +8,7 @@ import java.io.File
 final class Config(
   val title: String,
   val description: String,
+  val url: String,
   val author: String,
   val email: String,
 
@@ -17,9 +18,9 @@ final class Config(
   val exclude: List[String] = List.empty,
   val headerPages: List[String], // TODO freaking kebab case!
 
-  val target: Config.Target = Config.Target(),
-  val blog: Config.Blog = Config.Blog(),
+  val blog: Option[String] = None,
 
+  val target: Option[String] = None,
   val analytics: Config.Analytics = Config.Analytics(),
   val social: Config.Social = Config.Social()
 ):
@@ -28,16 +29,18 @@ final class Config(
   def sourceDirectory: File = sourceDirectoryOpt.get
 
   lazy val targetDirectory: File =
-    val result: File = File(sourceDirectory, target.directory)
+    val result: File = File(sourceDirectory, target.getOrElse("_site"))
     result.mkdirs()
     Files.requireExists(result)
     Files.requireDirectory(result)
     result
 
-  def blogDirectoryName: String = blog.source.getOrElse(Locator.BlogPost.sourceDirectoryNameDefault)
-  def dailyNotesDirectoryName: Option[String] = blog.daily // TODO get out of the Obsidian configuration
-  
-  private val includedSet: Set[String] = 
+  private lazy val obsidianConfig: ObsidianConfig = ObsidianConfig(sourceDirectory)
+
+  def blogDirectoryName: String = blog.getOrElse(Locator.BlogPost.sourceDirectoryNameDefault)
+  def dailyNotesDirectoryName: Option[String] = obsidianConfig.daysFolder
+
+  private lazy val includedSet: Set[String] = 
     Set(blogDirectoryName) ++
     dailyNotesDirectoryName.toSet
 
@@ -83,18 +86,6 @@ object Config:
     "_",
     "~",
     "#"
-  )
-
-  final class Target(
-    val directory: String = "_site",
-    val url: Option[String] = None,
-    val base: Option[String] = None // TODO the subpath of your site, e.g. /blog
-  )
-
-  final class Blog(
-    val source: Option[String] = None,
-    val target: Option[String] = None, // TODO implement
-    val daily: Option[String] = None // TODO write those to the blog target
   )
 
   final class Analytics(

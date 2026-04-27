@@ -1,112 +1,129 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.Xml
-import scala.annotation.tailrec
+import java.io.File
 
-final class Page(
-  val sourcePath: Path,
-  path: Path,
-  val markup: Markup,
-  frontMatter: FrontMatter,
-  xmlRaw: Xml.Element
-) extends PageBase(
-  path,
-  frontMatter
-):
-  override def toString: String = s"$title.$markup($sourcePath, $path)"
+sealed abstract class Page(
+  val site: Site,
+  val path: Path
+) derives CanEqual:
+  override def equals(obj: Any): Boolean = obj match
+    case that: Page => this.path == that.path
+    case _ => false
 
-  private var xmlVar: Xml.Element = markup.dropAnchors(xmlRaw)
-  override def xml: Xml.Element = xmlVar
-  
-  override protected def paths: List[Path] = List(
-    sourcePath,
-    sourcePath.withoutExtension,
-    path,
-    path.withoutExtension
-  )
-  
-  // TODO add TOC to page as needed
+  // TODO exact: Boolean
+  final def is(url: String): Boolean = paths.exists(_.toString.endsWith(url))
 
-  private val sections: Seq[Section] = markup.sections(xml)
+  final def ref(cls: String): Xml.Element = Link.ToPage(this).a(cls)
 
-  private val sectionsFlat: Seq[Section] = sections.flatMap(_.sectionsFlat)
+  final def targetFile: File = path.file(site.targetDirectory)
 
-  def section(names: Seq[String]): Option[Seq[Section]] =
-    def loop(result: Seq[Section], sections: Seq[Section], names: Seq[String]): Option[Seq[Section]] =
-      if names.isEmpty then Some(result) else sections.find(_.is(names.head)).flatMap(section => loop(
-        result = result :+ section,
-        sections = section.sections,
-        names = names.tail
-      ))
+  def title: String
 
-    loop(
-      result = Seq.empty,
-      sections = sectionsFlat,
-      names = names
+  protected def paths: List[Path]
+
+  def write(): Unit
+
+object Page:
+  sealed trait WithContent extends Page:
+    final override def write(): Unit = Files.write(targetFile, content)
+    def content: String
+
+  sealed trait WithXml extends WithContent:
+    final override def content: String = XmlUtil.write(xmlContent)
+    def xmlContent: Xml.Element
+    def xml: Xml.Element // TODO move down?
+
+  sealed trait WithoutFrontMatter extends Page:
+    final override def title: String = path.title
+
+  // TODO rename WithHtml?
+  sealed trait WithFrontMatter extends Page with WithXml:
+    def frontMatter: FrontMatter
+    final override def title: String = frontMatter.title.getOrElse(path.title)
+    final def dateString: String = frontMatter.date.fold("")(_.toShortString)
+    final override def xmlContent: Xml.Element = Minima(this).render
+
+  sealed trait WithoutSource extends Page:
+    final override protected def paths: List[Path] = List(
+      path,
+      path.withoutExtension
     )
 
-  def block(id: String): Option[Block] = None // TODO
-  
-  def resolveLinks(site: Site): Unit =
-    def loop(element: Xml.Element): Xml.Element =
-      if !markup.resolveLinks(element) then element else
-        val result: Xml.Element = element.copy(children = element.children.flatMap {
-          case element: Xml.Element => Seq(loop(element))
-          case Xml.Text(value) if markup.resolveWikiLinks => resolveWikiLinks(value, site)
-          case xml => Seq(xml)
-        })
-        markup.linkFromElement(result) match
-          case None => result
-          case Some(linkFromElement) => site.resolveLink(Link.From(
-            page = this,
-            fromElement = linkFromElement,
-            context = None,
-            element = Some(element),
-            transclude = false
-          ))
+  sealed trait WithSource extends Page:
+    def sourcePath: Path
 
-    xmlVar = loop(xml)
+    final override protected def paths: List[Path] = List(
+      path,
+      path.withoutExtension,
+      sourcePath,
+      sourcePath.withoutExtension
+    )
 
-  // see https://obsidian.md/help/links
-  private def resolveWikiLinks(text: String, site: Site): Seq[Xml] =
-    @tailrec
-    def loop(result: Seq[Xml], text: String): Seq[Xml] =
-      if text.isEmpty then result else
-        resolveWikiLink(text, "![[", "]]", transclude = true, site)
-          .orElse(resolveWikiLink(text, "[[", "]]", transclude = false, site)) match
-            case None => result ++ Seq(Xml.Text(text))
-            case Some(xml: Seq[Xml], after: String) => loop(result ++ xml, after)
+  final class Asset(
+    site: Site,
+    path: Path
+  ) extends Page(
+    site,
+    path
+  ) with WithoutFrontMatter with WithSource:
+    override def toString: String = s"Asset $path"
+    override def sourcePath: Path = path
+    override def write(): Unit = Files.copy(fromFile = sourcePath.file(site.sourceDirectory), toFile = targetFile)
 
-    loop(Seq.empty, text)
+  final class Resource(
+    site: Site,
+    path: Path
+  ) extends Page(
+    site,
+    path
+  ) with WithoutFrontMatter with WithoutSource with WithContent:
+    override def toString: String = s"Resource $path"
+    override def content: String = Files.readResource(Site.resourcesBase + path.toString)
 
-  private def resolveWikiLink(
-    text: String,
-    start: String,
-    end: String,
-    transclude: Boolean,
-    site: Site
-  ): Option[(Seq[Xml], String)] =
-    val startIndex: Int = text.indexOf(start)
-    val endIndex: Int = if startIndex == -1 then -1 else text.indexOf(end, startIndex + start.length)
-    if endIndex == -1 then None else
-      val before: String = text.substring(0, startIndex).trim
-      val body: String = text.substring(startIndex + start.length, endIndex).trim
-      val after: String = text.substring(endIndex + end.length).trim
-      val (ref: String, textOpt: Option[String]) = Files.split(body, '|')
+  abstract class SyntheticText(
+    site: Site,
+    path: Path
+  ) extends Page(
+    site,
+    path
+  ) with WithoutFrontMatter with WithoutSource with WithContent:
+    override def toString: String = s"SyntheticText $path"
 
-      val result: Xml.Element = site.resolveLink(Link.From(
-        page = this,
-        fromElement = Link.FromElement(
-          ref = ref.trim,
-          text = textOpt.map(_.trim),
-          kind = None,
-        ),
-        context = None,
-        element = None,
-        transclude = transclude
-      ))
+  abstract class SyntheticXml(
+    site: Site,
+    path: Path
+  ) extends Page(
+    site,
+    path
+  ) with WithoutFrontMatter with WithoutSource with WithXml:
+    override def toString: String = s"SyntheticXml $path"
+    final override def xmlContent: Xml.Element = xml
 
-      Some(
-        Option.when(before.nonEmpty)(Xml.Text(before)).toSeq ++ Seq(result),
-        after
-      )
+  abstract class SyntheticMarkupPage(
+    site: Site,
+    path: Path,
+    override val frontMatter: FrontMatter
+  ) extends Page(
+    site,
+    path
+  ) with WithFrontMatter with WithoutSource:
+    override def toString: String = s"SyntheticMarkupPage $path"
+
+  abstract class MarkupPage(
+    site: Site,
+    path: Path,
+    override val sourcePath: Path,
+    markup: Markup,
+    override val frontMatter: FrontMatter,
+    xmlRaw: Xml.Element
+  ) extends Page(
+    site,
+    path
+  ) with WithFrontMatter with WithSource:
+    protected var xmlVar: Xml.Element = xmlRaw
+    final override def xml: Xml.Element = xmlVar
+
+    override def toString: String =
+      val source: String = if sourcePath.withoutExtension == path.withoutExtension then "" else s" ($sourcePath)"
+      s"MarkupPage $path$source"

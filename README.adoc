@@ -69,6 +69,10 @@ TODO expound
 At exactly the same time I became aware of the ZIO Blocks project,
 which just added support for a few data formats that I need.
 
+== JSON
+I use ZIO Blocks JSON support to read Obsidian configuration files.
+
+
 == Markdown
 
 Pipeline:
@@ -121,8 +125,29 @@ First milestone for this project is to replace Jekyll on my personal website. So
 
 - no support for paginating the post list, which I did not use with Jekyll anyway;
 - instead of the Ruby code highlighter Rouge, my publisher uses Highlights.js;
+- while I did manage to list children pages using Jekyll,
+I never figured out how to list subdirectories;
+with my own publisher this is not a problem ;)
+- Jekyll ignores markdown files without front matter; I do not;
 
 
+== Titles and File Names
+Jekyll relies on page titles being given explicitly in the front matter
+and ignores the file names; I had to use a TODO Obsidian plugin to set the
+titles from the file names to communicate them to Jekyll;
+as a result, pages where the title is different from the file name
+(e.g., `index` pages)
+had to be marked with TODO in their front matter to disable this plugin
+from setting the front matter title.
+
+My plugin uses both the front matter title and the file name for
+link resolution, so I can remove this Obsidian plugin and
+redundant front matter titles which are the same as the file name,
+and set the title in the front matter only when it is different from the file name.
+
+Obsidian uses fle names exclusively and ignores the front matter title;
+for link resolution to use front matter titles also,
+TODO Obsidian plugin needs to be installed.
 
 == TODO
 
@@ -136,7 +161,6 @@ there are pages that in addition to HTML produce chunked HTML and PDF.
 
 Config:
 
-- get `Config.dailyNotesDirectoryName` out of `.obsidian/daily-notes.json/folder`
 - make inclusion of `_drafts` configurable
 
 TOC:
@@ -154,7 +178,7 @@ Wiki links in Obsidian:
 - how do they look in the file if name reference is ambiguous?
 - can they be split between the lines?
 - do they support any kind of agglutination?
-- handle categories; can be wiki links?!
+- handle categories; they can be wiki links?!
 - handle permalinks and multi-name redirects
 - handle aliases
 

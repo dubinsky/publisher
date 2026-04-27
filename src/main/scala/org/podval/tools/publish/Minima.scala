@@ -5,17 +5,15 @@ import XmlUtil.{a, apply, childWhen, childrenWhen, div, el, setId, stylesheet, w
 
 // Based on https://github.com/jekyll/minima
 // TODO icons!
-final class Minima(
-  site: Site,
-  page: PageBase
-):
+final class Minima(page: Page.WithFrontMatter):
+  private def site: Site = page.site
   private val libraries: List[XmlUtil.JavascriptLibrary] = List(
     Highlights.get(page.xml),
     Option.when(page.frontMatter.math)(MathJax),
     Some(FontAwesome())
   ).flatten
 
-  def render: Xml = page.frontMatter.layout match
+  def render: Xml.Element = page.frontMatter.layout match
     case Some("post") => postLayout(page.xml)
     case Some("page") => pageLayout(page.xml)
     case Some("home") => homeLayout(page.xml)
@@ -24,8 +22,8 @@ final class Minima(
 
   private def pageLayout(content: Xml): Xml.Element =
     // TODO better CSS; link up.
-    val subDirectories: List[PageBase] = site.subDirectories(page)
-    val subPages: List[PageBase] = site.subPages(page)
+    val subDirectories: List[Page] = site.subDirectories(page)
+    val subPages: List[Page] = site.subPages(page)
 
     baseLayout(
       el("article", "class" -> "post")(

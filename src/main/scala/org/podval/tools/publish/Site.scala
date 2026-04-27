@@ -7,7 +7,6 @@ import java.io.File
 import java.net.{URI, URISyntaxException}
 import XmlUtil.{a, apply, childrenWhenEmpty}
 
-// TODO add missing index pages
 final class Site(
   sourceDirectoryPath: String,
   treatErrorsAsWarnings: Boolean,
@@ -22,41 +21,11 @@ final class Site(
 
   private val config: Config = Config(sourceDirectoryPath)
 
-  private val locators: List[Locator] =
-    List(Locator.BlogPost(config.blogDirectoryName)) ++
-    config.dailyNotesDirectoryName.map(Locator.DailyNote(_)).toList
-
-  private var links: List[Link] = List.empty
-
-  val tags: Tags = Tags(this, Path("tags").withExtension(Html.extension))
-
-  private var pagesVar: List[PageBase] = List(
-    tags,
-    Errors(this, Path("errors").withExtension(Html.extension)),
-    Feed(this, Path("feed").withExtension("xml")),
-    Sitemap(this, Path("sitemap").withExtension("xml"))
-  )
-  
-  def pages: List[PageBase] = pagesVar
-
-  private var headerPagesVar: List[Link.ToPage] = scala.compiletime.uninitialized
-  def headerPages: List[Link.ToPage] = headerPagesVar
-
-  private var errorsVar: List[PageError] = List.empty
-  def errors: List[PageError] = errorsVar
-
-  private def reportError(error: PageError): Unit = if !treatErrorsAsWarnings then throw error else
-    errorsVar = errorsVar.appended(error)
-    log.warn(error.getMessage)
-
-  private def recoverNone[A](z: => Either[PageError, A]): Option[A] = z match
-    case Right(value) => Some(value)
-    case Left(error) =>
-      reportError(error)
-      None
-
+  def sourceDirectory: File = config.sourceDirectory
+  def targetDirectory: File = config.targetDirectory
   def title: String = config.title
   def description: String = config.description
+  def url: String = config.url
   def author: String = config.author
   def email: String = config.email
   def lang: String = config.lang.getOrElse("en")
@@ -66,23 +35,61 @@ final class Site(
     config.social.twitter.map(SocialLink.Twitter(_)),
     config.social.linkedin.map(SocialLink.LinkedIn(_))
   ).flatten
-  
-  def backLinks(page: PageBase): List[Link] = links
+
+  private val relocator: Relocator = Relocator(
+    config.blogDirectoryName,
+    config.dailyNotesDirectoryName
+  )
+
+  private var links: List[Link] = List.empty
+
+  val tags: Tags = Tags(this, Path("tags").withExtension(Html.extension))
+  private val sitemap: Sitemap = Sitemap(this, Path("sitemap").withExtension("xml"))
+
+  private var pagesVar: List[Page] =
+    // Embedded resources
+    Site.resourcesList.map(Page.Resource(this, _)) ++
+    // Synthetics
+    List(
+      tags,
+      Errors(this, Path("errors").withExtension(Html.extension)),
+      Feed(this, Path("feed").withExtension("xml")),
+      sitemap,
+      Robots(this, Path("robots").withExtension("txt"), sitemap)
+    )
+
+  def pages: List[Page] = pagesVar
+  def pagesWithFrontMatter: List[Page.WithFrontMatter] = pages.collect { case page: Page.WithFrontMatter => page }
+  def markupPages: List[MarkupPage] = pages.collect{ case page: MarkupPage => page }
+
+  private var headerPagesVar: List[Link.ToPage] = scala.compiletime.uninitialized
+  def headerPages: List[Link.ToPage] = headerPagesVar
+
+  private var errorsVar: List[PageError] = List.empty
+  def errors: List[PageError] = errorsVar
+
+  def reportError[R](error: PageError, result: R): R =
+    if !treatErrorsAsWarnings then throw error else
+      errorsVar = errorsVar.appended(error)
+      log.warn(error.getMessage)
+      result
+
+  def backLinks(page: Page): List[Link] = links
     .filter(_.to.page == page)
     .filterNot(_.from.page == page)
     .distinctBy(_.from.page.path) // TODO once we have context, each link should be listed (grouped by page)
 
-  def posts: List[PageBase] = pages
+  def posts: List[Page.WithFrontMatter] = pagesWithFrontMatter
     .filter(page => page.frontMatter.layout.contains("post") && page.frontMatter.date.isDefined) // TODO
     .sortBy(_.frontMatter.date.get)
     .reverse
 
-  def subDirectories(page: PageBase): List[PageBase] = if !page.path.isIndex then List.empty else pages
+  def subDirectories(page: Page): List[Page] = if !page.path.isIndex then List.empty else pages
     .filter(_.path.isIndex)
     .filter(_.path.path.init.init == page.path.path.init)
     .sortBy(_.title)
 
-  def subPages(page: PageBase): List[PageBase] = if !page.path.isIndex then List.empty else pages
+  def subPages(page: Page): List[Page] = if !page.path.isIndex then List.empty else pages
     .filter(_.path.path.init == page.path.path.init)
     .filterNot(_ == page)
     .sortBy(_.title)
@@ -98,42 +105,37 @@ final class Site(
     // Wipe out output directory
     Files.deleteDirectory(config.targetDirectory)
 
-    // Write embedded resources
-    Site.resourcesList.foreach: resourceName =>
-      Files.write(
-        toFile = File(config.targetDirectory, resourceName),
-        content = Files.readResource(Site.resourcesBase + resourceName)
-      )
-      log.debug(s"Copied embedded asset: $resourceName")
-
-    // Enumerate all pages
+    // Read pages
     pagesVar = pagesVar ++ directoryPages(Seq.empty, config.sourceDirectory)
-    
+
+    // TODO calculate parent and children for pages
+    // TODO add missing index pages
+
     // Report conflicting pages
     pages
       .groupBy(_.path)
       .filter(_._2.length > 1)
       .toList
-      .foreach((path: Path, pages: List[PageBase]) =>
+      .foreach((path: Path, pages: List[Page]) =>
         reportError(PageError.Duplicate(
           path,
           s"Duplicates for the path $path: ${pages.map(_.title).tail.mkString(", ")}"
-        ))
+        ), ())
       )
 
+    // Resolve header pages
+    headerPagesVar = config.headerPages.flatMap(resolveHeaderPage)
+
     // Resolve links
-    pages.collect{ case page: Page => page }.foreach(_.resolveLinks(this))
+    markupPages.foreach(_.resolveLinks())
 
     // TODO sort the pages in transclusion order and transclude
 
-    headerPagesVar = config.headerPages.flatMap(resolveHeaderPage)
+    // TODO add TOCs
 
     // Write pages
     pages.foreach: page =>
-      Files.write(
-        toFile = page.path.file(config.targetDirectory),
-        content = XmlUtil.write(Minima(this, page).render)
-      )
+      page.write()
       log.debug(s"Wrote: $page")
 
   private def directoryPages(directoryPath: Seq[String], directory: File): List[Page] =
@@ -145,66 +147,45 @@ final class Site(
       .filterNot(config.exclude)
       .partition(_.isFile)
 
-    files.flatMap(filePage(directoryPath, _)) ++
+    files.map(filePage(directoryPath, _)) ++
     directories.flatMap(directory => directoryPages(directoryPath :+ directory.getName, directory))
 
-  private def filePage(directoryPath: Seq[String], file: File): Option[Page] =
+  private def filePage(directoryPath: Seq[String], file: File): Page.WithSource =
     Files.requireExists(file)
     Files.requireFile(file)
     val (name: String, extension: Option[String]) = Files.nameAndExtension(file.getName)
     val sourcePath: Path = Path(directoryPath :+ name, extension)
-    val sourceFile: File = sourcePath.file(config.sourceDirectory)
-    val locator: Option[Locator] = locators.find(_.is(sourcePath))
-    val path: Option[Path] = locator match
-      case None => Some(sourcePath)
-      case Some(locator) => recoverNone(locator.path(sourcePath))
 
-    path.flatMap: (path: Path) =>
+    val page: Page.WithSource =
       sourcePath.extension.flatMap(extension => Markup.all.find(_.isExtension(extension))) match
         case None =>
-          if !locator.fold(true)(_.isAssetAllowed)
-          then
-            reportError(PageError.FileKind(sourcePath, s"Asset not allowed in $locator"))
-          else
-            Files.copy(fromFile = sourceFile, toFile = path.file(config.targetDirectory))
-            log.debug(s"Copied asset: $path")
-          None
-
+          Page.Asset(
+            site = this,
+            path = sourcePath
+          )
         case Some(markup) =>
-          if !locator.fold(true)(_.isMarkupAllowed(markup))
-          then
-            reportError(PageError.FileKind(sourcePath, s"Markup $markup not allowed in $locator"))
-            None
-          else
-            val (frontMatterOrError: Either[PageError, FrontMatter], content: String) =
-              FrontMatter.parse(sourcePath, Files.read(sourceFile))
+          val path: Path = relocator.relocate(sourcePath) match
+            case Right(path) => path
+            case Left(error) => reportError(error, sourcePath)
 
-            val frontMatter: FrontMatter = frontMatterOrError match
-              case Right(value) => value
-              case Left(error) =>
-                reportError(error)
-                FrontMatter.absent
+          MarkupPage(
+            site = this,
+            path = path.withExtension(Html.extension),
+            sourcePath = sourcePath,
+            markup = markup
+          )
 
-            recoverNone(markup.parse(sourcePath, content)).map: xml =>
-              val page = Page(
-                sourcePath = sourcePath,
-                path = path.withExtension(Html.extension),
-                markup = markup,
-                frontMatter = frontMatter,
-                xmlRaw = xml
-              )
-              log.debug(s"Read: $page")
-              page
+    log.debug(s"Read: $page")
+    page
 
   private def resolveHeaderPage(ref: String): Option[Link.ToPage] =
-    val result = resolveRef(ref).flatMap {
+    val result: Option[Link.ToPage] = resolveRef(ref).flatMap {
       case page: Link.ToPage => Some(page)
-      case linkResolved =>
-        reportError(PageError.Unresolved(Path.root, s"Header page $ref resolved not to a page: $linkResolved"))
-        None
+      case linkResolved => reportError(PageError.Unresolved(Path.root, s"Header page $ref is not a page: $linkResolved"), None)
     }
-    if result.isEmpty then reportError(PageError.Unresolved(Path.root, s"Header page $ref did not resolve"))
-    result
+    if result.isDefined
+    then result
+    else reportError(PageError.Unresolved(Path.root, s"Header page $ref did not resolve"), result)
 
   private def resolveRef(ref: String): Option[Link.To] = Link.resolveRef(ref, this)
 
@@ -225,16 +206,16 @@ final class Site(
 
 object Site:
   def main(args: Array[String]): Unit = Cli.main(Array("/home/dub/Podval/dub.podval.org"))
-  
-  private val resourcesBase: String = "/org/podval/tools/publish/site"
+
+  val resourcesBase: String = "/org/podval/tools/publish/site"
 
   // TODO list using Files.listResources
-  private val resourcesList: List[String] = List(
-    "/assets/css/base.css",
-    "/assets/css/initialize.css",
-    "/assets/css/layout.css",
-    "/assets/css/skin.css",
-    "/assets/css/style.css",
+  private val resourcesList: List[Path] = List(
+    Path("assets", "css", "base").withExtension("css"),
+    Path("assets", "css",  "initialize").withExtension("css"),
+    Path("assets", "css",  "layout").withExtension("css"),
+    Path("assets", "css",  "skin").withExtension("css"),
+    Path("assets", "css",  "style").withExtension("css"),
   )
 
   // see https://obsidian.md/help/embeds

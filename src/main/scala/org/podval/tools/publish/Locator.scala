@@ -5,9 +5,6 @@ import java.time.format.DateTimeParseException
 
 sealed abstract class Locator(sourceDirectoryName: String) derives CanEqual:
   def is(sourcePath: Path): Boolean = sourcePath.startsWith(List(sourceDirectoryName))
-  def isAssetAllowed: Boolean
-  def isMarkupAllowed(markup: Markup): Boolean
-  // TODO isMarkupRequired: Boolean
   def path(sourcePath: Path): Either[PageError, Path]
 
 object Locator:
@@ -15,10 +12,6 @@ object Locator:
     def sourceDirectoryNameDefault: String = "_posts"
 
   final class BlogPost(sourceDirectoryName: String) extends Locator(sourceDirectoryName):
-    override def isAssetAllowed: Boolean = false
-
-    override def isMarkupAllowed(markup: Markup): Boolean = true
-
     override def path(sourcePath: Path): Either[PageError, Path] =
       val fileName: String = sourcePath.fileName
       if fileName(10) != '-'
@@ -33,12 +26,6 @@ object Locator:
         )))
   
   final class DailyNote(sourceDirectoryName: String) extends Locator(sourceDirectoryName):
-    override def isAssetAllowed: Boolean = false
-
-    override def isMarkupAllowed(markup: Markup): Boolean = markup match
-      case Markdown => true
-      case _ => false
-
     // TODO put into the blog!
     override def path(sourcePath: Path): Either[PageError, Path] =
       parseDate(sourcePath.fileName) match

@@ -6,9 +6,9 @@ import XmlUtil.{apply, el}
 final class Feed(
   site: Site,
   path: Path
-) extends SyntheticPage(
-  path,
-  FrontMatter.absent
+) extends Page.SyntheticXml(
+  site,
+  path
 ):
   // TODO
   override def xml: Xml.Element =
