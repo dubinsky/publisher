@@ -83,7 +83,7 @@ and prefer to use it for all post-processing
 like HTML layout for the browser and PDF generation.
 
 Since Markdown allows embedding HTML,
-ans since opening and closing tags of the same HTML element
+and since opening and closing tags of the same HTML element
 may end up in different Markdown AST nodes,
 I can not go directly from Markdown AST to HTML AST -
 I have to go through HTML text.
@@ -125,6 +125,14 @@ First milestone for this project is to replace Jekyll on my personal website. So
 
 
 == TODO
+
+Title of an `index.html` page should be the same as the title of the parent page. This one simple consideration pushes me towards the approach
+reminiscent of the one I took with my TEI website:
+path to a page should lead not through names, but trough *pages*!
+
+Another feature of my TEI approach - "facets" of a page -
+also arises naturally: there are pages that produce XML instead of HTML (feed.xml); there are pages that produce text (robots.txt);
+there are pages that in addition to HTML produce chunked HTML and PDF.
 
 Config:
 
