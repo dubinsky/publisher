@@ -18,30 +18,25 @@ final class Config(
   val exclude: List[String] = List.empty,
   val headerPages: List[String], // TODO freaking kebab case!
 
-  val blog: Option[String] = None,
-
-  val target: Option[String] = None,
   val analytics: Config.Analytics = Config.Analytics(),
   val social: Config.Social = Config.Social()
 ):
-  private var sourceDirectoryOpt: Option[File] = None
-  def setSourceDirectory(value: File): Unit = sourceDirectoryOpt = Some(value)
-  def sourceDirectory: File = sourceDirectoryOpt.get
-
-  lazy val targetDirectory: File =
-    val result: File = File(sourceDirectory, target.getOrElse("_site"))
-    result.mkdirs()
-    Files.requireExists(result)
-    Files.requireDirectory(result)
-    result
+  // Set via method to avoid confusing the codec.
+  private var externalOpt: Option[Config.External] = None
+  def setExternal(external: Config.External): Unit = this.externalOpt = Some(external)
+  def sourceDirectory: File = externalOpt.get.sourceDirectory
+  def targetDirectory: File = externalOpt.get.targetDirectory
+  private def includeDrafts: Boolean = externalOpt.get.includeDrafts
 
   private lazy val obsidianConfig: ObsidianConfig = ObsidianConfig(sourceDirectory)
 
-  def blogDirectoryName: String = blog.getOrElse(Locator.BlogPost.sourceDirectoryNameDefault)
+  def postsDirectoryName: String = "_posts"
+  def draftsDirectoryName: Option[String] = Option.when(includeDrafts)("_drafts")
   def dailyNotesDirectoryName: Option[String] = obsidianConfig.daysFolder
 
-  private lazy val includedSet: Set[String] = 
-    Set(blogDirectoryName) ++
+  private lazy val includedSet: Set[String] =
+    Set(postsDirectoryName) ++
+    draftsDirectoryName.toSet ++
     dailyNotesDirectoryName.toSet
 
   private val excludeSet: Set[String] = exclude.toSet
@@ -57,6 +52,16 @@ final class Config(
       Config.specialStartsWith.exists(name.startsWith)
 
 object Config:
+  final class Analytics(
+    val google: Option[String] = None
+  )
+
+  final class Social(
+    val github: Option[String] = None,
+    val twitter: Option[String] = None,
+    val linkedin: Option[String] = None
+  )
+
   private val log: Logger = LoggerFactory.getLogger(this.getClass)
 
   // TODO also exclude stuff from `.gitignore` if present
@@ -88,16 +93,6 @@ object Config:
     "#"
   )
 
-  final class Analytics(
-    val google: Option[String] = None
-  )
-
-  final class Social(
-    val github: Option[String] = None,
-    val twitter: Option[String] = None,
-    val linkedin: Option[String] = None
-  )
-
   private val schema: Schema[Config] = Schema.derived
 
   private val codec: YamlCodec[Config] = schema
@@ -106,7 +101,17 @@ object Config:
 
   val fileName: String = "_site_config.yml"
 
-  def apply(sourceDirectoryPath: String): Config =
+  final class External(
+    val sourceDirectory: File,
+    val targetDirectory: File,
+    val includeDrafts: Boolean
+  )
+
+  def apply(
+    sourceDirectoryPath: String,
+    targetDirectoryName: String,
+    includeDrafts: Boolean
+  ): Config =
     val sourceDirectory: File =
       val result: File = File(sourceDirectoryPath).getAbsoluteFile
 
@@ -114,6 +119,13 @@ object Config:
       Files.requireDirectory(result)
 
       log.info(s"source directory: $result")
+      result
+
+    val targetDirectory: File =
+      val result: File = File(sourceDirectory, targetDirectoryName)
+      result.mkdirs()
+      Files.requireExists(result)
+      Files.requireDirectory(result)
       result
 
     val configFile: File =
@@ -126,6 +138,10 @@ object Config:
     codec.decode(Files.read(configFile)) match
       case Left(error) => throw IllegalArgumentException("Malformed Config", error)
       case Right(result) =>
-        result.setSourceDirectory(sourceDirectory)
+        result.setExternal(External(
+          sourceDirectory,
+          targetDirectory,
+          includeDrafts
+        ))
         log.debug(s"Config:\n" + codec.encodeToString(result))
         result

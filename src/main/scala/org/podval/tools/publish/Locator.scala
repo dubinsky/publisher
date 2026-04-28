@@ -8,9 +8,6 @@ sealed abstract class Locator(sourceDirectoryName: String) derives CanEqual:
   def path(sourcePath: Path): Either[PageError, Path]
 
 object Locator:
-  object BlogPost:
-    def sourceDirectoryNameDefault: String = "_posts"
-
   final class BlogPost(sourceDirectoryName: String) extends Locator(sourceDirectoryName):
     override def path(sourcePath: Path): Either[PageError, Path] =
       val fileName: String = sourcePath.fileName

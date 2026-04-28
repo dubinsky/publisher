@@ -9,6 +9,9 @@ import XmlUtil.{a, apply, childrenWhenEmpty}
 
 final class Site(
   sourceDirectoryPath: String,
+  production: Boolean,
+  targetDirectoryName: String,
+  includeDrafts: Boolean,
   treatErrorsAsWarnings: Boolean,
   logLevel: Level = Level.INFO
 ):
@@ -19,7 +22,11 @@ final class Site(
 
   private val log: Logger = LoggerFactory.getLogger(this.getClass)
 
-  private val config: Config = Config(sourceDirectoryPath)
+  private val config: Config = Config(
+    sourceDirectoryPath,
+    targetDirectoryName,
+    includeDrafts
+  )
 
   def sourceDirectory: File = config.sourceDirectory
   def targetDirectory: File = config.targetDirectory
@@ -37,7 +44,8 @@ final class Site(
   ).flatten
 
   private val relocator: Relocator = Relocator(
-    config.blogDirectoryName,
+    config.postsDirectoryName,
+    config.draftsDirectoryName,
     config.dailyNotesDirectoryName
   )
 

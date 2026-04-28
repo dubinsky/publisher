@@ -2,6 +2,7 @@ package org.podval.tools.publish
 
 final class Relocator(
   blogDirectoryName: String,
+  draftsDirectoryName: Option[String],
   dailyNotesDirectoryName: Option[String]
 ):
   // TODO inline
