@@ -1,6 +1,7 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.Xml
+import java.time.LocalDate
 import scala.annotation.tailrec
 
 object MarkupPage:
@@ -8,7 +9,8 @@ object MarkupPage:
     site: Site,
     path: Path,
     sourcePath: Path,
-    markup: Markup
+    markup: Markup,
+    postDate: Option[LocalDate] // if the page is a post or a daily note
   ): MarkupPage =
     val (frontMatterOrError: Either[PageError, FrontMatter], markupContent: String) =
       FrontMatter.parse(sourcePath, Files.read(sourcePath.file(site.sourceDirectory)))
@@ -18,6 +20,7 @@ object MarkupPage:
       path = path.withExtension(Html.extension),
       sourcePath = sourcePath,
       markup = markup,
+      postDate = postDate,
       frontMatter = frontMatterOrError match
         case Right(frontMatter) => frontMatter
         case Left(error) => site.reportError(error, FrontMatter.absent),
@@ -31,6 +34,7 @@ final class MarkupPage(
   path: Path,
   sourcePath: Path,
   markup: Markup,
+  postDate: Option[LocalDate],
   frontMatter: FrontMatter,
   xmlRaw: Xml.Element
 ) extends Page.MarkupPage(
@@ -38,6 +42,7 @@ final class MarkupPage(
   path = path,
   sourcePath = sourcePath,
   markup = markup,
+  postDate = postDate,
   frontMatter = frontMatter,
   xmlRaw = xmlRaw
 ):

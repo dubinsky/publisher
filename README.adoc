@@ -159,9 +159,7 @@ Another feature of my TEI approach - "facets" of a page -
 also arises naturally: there are pages that produce XML instead of HTML (feed.xml); there are pages that produce text (robots.txt);
 there are pages that in addition to HTML produce chunked HTML and PDF.
 
-Config:
-
-- make inclusion of `_drafts` configurable
+Add post hierarchy browser by year, month, day.
 
 TOC:
 
@@ -184,12 +182,10 @@ Wiki links in Obsidian:
 
 CLI:
 
-- use ZIO CLI
-- set log level from the CLI option
+- package as a GitHub Action
 - serve with filesystem watch
 - publish site into a bucket
-- package as a stand-alone executable
-- package as a GitHub Action
+
 
 Additional markup types:
 

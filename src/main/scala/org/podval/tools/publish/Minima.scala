@@ -2,6 +2,7 @@ package org.podval.tools.publish
 
 import zio.blocks.schema.xml.{Xml, XmlBuilder}
 import XmlUtil.{a, apply, childWhen, childrenWhen, div, el, setId, stylesheet, withText}
+import java.time.LocalDate
 
 // Based on https://github.com/jekyll/minima
 // TODO icons!
@@ -49,13 +50,13 @@ final class Minima(page: Page.WithFrontMatter):
           // .childWhen(page.modified_date.isDefined,
           //    el("span", "class" -> "meta-label")("Published:")
           // )
-          .childWhen(page.frontMatter.date.isDefined,
+          .childWhen(page.localDate.isDefined,
             el("time",
               "class" -> "dt-published",
               "datetime" -> page.frontMatter.date.get.toString,
               "itemprop" -> "datePublished"
             )
-              .withText(page.dateString)
+              .withText(dateString(page.localDate))
           )
           // TODO
           // {%- if page.modified_date -%}
@@ -102,7 +103,7 @@ final class Minima(page: Page.WithFrontMatter):
       el("h2", "class" -> "post-list-heading").withText("Posts"),
       el("ul", "class" -> "post-list")(site.posts.map(post =>
         el("li")(
-          el("span", "class" -> "post-meta").withText(post.dateString),
+          el("span", "class" -> "post-meta").withText(dateString(post.localDate)),
           el("h3")(post.ref("post-link"))
           // {%- if site.minima.show_excerpts -%} {{ post.excerpt }} {%- endif -%}
         )
@@ -228,3 +229,6 @@ final class Minima(page: Page.WithFrontMatter):
       //  </li>
       //{%- endunless %}
     .build
+
+  private def dateString(localDate: Option[LocalDate]): String = localDate.fold("")(Date.toString)
+  

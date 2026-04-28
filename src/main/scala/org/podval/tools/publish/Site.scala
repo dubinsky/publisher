@@ -5,6 +5,7 @@ import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
 import java.io.File
 import java.net.{URI, URISyntaxException}
+import java.time.LocalDate
 import XmlUtil.{a, apply, childrenWhenEmpty}
 
 final class Site(
@@ -87,9 +88,9 @@ final class Site(
     .filterNot(_.from.page == page)
     .distinctBy(_.from.page.path) // TODO once we have context, each link should be listed (grouped by page)
 
-  def posts: List[Page.WithFrontMatter] = pagesWithFrontMatter
-    .filter(page => page.frontMatter.layout.contains("post") && page.frontMatter.date.isDefined) // TODO
-    .sortBy(_.frontMatter.date.get)
+  def posts: List[MarkupPage] = markupPages
+    .filter(_.isPost)
+    .sortBy(_.localDate)
     .reverse
 
   def subDirectories(page: Page): List[Page] = if !page.path.isIndex then List.empty else pages
@@ -172,15 +173,18 @@ final class Site(
             path = sourcePath
           )
         case Some(markup) =>
-          val path: Path = relocator.relocate(sourcePath) match
+          val dateAndPath: Option[(LocalDate, Path)] = relocator.relocate(sourcePath) match
             case Right(path) => path
-            case Left(error) => reportError(error, sourcePath)
+            case Left(error) => reportError(error, None)
 
+          val postDate: Option[LocalDate] = dateAndPath.map(_._1)
+          val path: Path = dateAndPath.map(_._2).getOrElse(sourcePath)
           MarkupPage(
             site = this,
             path = path.withExtension(Html.extension),
             sourcePath = sourcePath,
-            markup = markup
+            markup = markup,
+            postDate = postDate
           )
 
     log.debug(s"Read: $page")

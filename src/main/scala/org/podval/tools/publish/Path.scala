@@ -8,7 +8,7 @@ final case class Path(
 ) derives CanEqual:
   def fileName: String = path.last
   def isIndex: Boolean = fileName == "index" && path.length > 1
-  // TODO retrieve the parent title
+  // TODO retrieve the parent title; remove this method:
   def title: String = if isIndex then path.init.last else fileName
   
   override def equals(obj: Any): Boolean = obj match

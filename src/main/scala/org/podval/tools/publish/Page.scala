@@ -2,6 +2,7 @@ package org.podval.tools.publish
 
 import zio.blocks.schema.xml.Xml
 import java.io.File
+import java.time.LocalDate
 
 sealed abstract class Page(
   val site: Site,
@@ -40,8 +41,8 @@ object Page:
   // TODO rename WithHtml?
   sealed trait WithFrontMatter extends Page with WithXml:
     def frontMatter: FrontMatter
+    def localDate: Option[LocalDate]
     final override def title: String = frontMatter.title.getOrElse(path.title)
-    final def dateString: String = frontMatter.date.fold("")(_.toShortString)
     final override def xmlContent: Xml.Element = Minima(this).render
 
   sealed trait WithoutSource extends Page:
@@ -100,6 +101,9 @@ object Page:
     override def toString: String = s"SyntheticXml $path"
     final override def xmlContent: Xml.Element = xml
 
+  // TODO introduce layout-like pages that both parse from existing file *and* add content;
+  // use them for the home index - and others?
+
   abstract class SyntheticMarkupPage(
     site: Site,
     path: Path,
@@ -109,21 +113,26 @@ object Page:
     path
   ) with WithFrontMatter with WithoutSource:
     override def toString: String = s"SyntheticMarkupPage $path"
+    final override def localDate: Option[LocalDate] = frontMatter.date.map(_.localDate)
 
   abstract class MarkupPage(
     site: Site,
     path: Path,
     override val sourcePath: Path,
     markup: Markup,
+    postDate: Option[LocalDate],
     override val frontMatter: FrontMatter,
     xmlRaw: Xml.Element
   ) extends Page(
     site,
     path
   ) with WithFrontMatter with WithSource:
-    protected var xmlVar: Xml.Element = xmlRaw
-    final override def xml: Xml.Element = xmlVar
-
     override def toString: String =
       val source: String = if sourcePath.withoutExtension == path.withoutExtension then "" else s" ($sourcePath)"
       s"MarkupPage $path$source"
+
+    protected var xmlVar: Xml.Element = xmlRaw
+    final override def xml: Xml.Element = xmlVar
+
+    def isPost: Boolean = postDate.isDefined || frontMatter.layout.contains("post")
+    final override def localDate: Option[LocalDate] = postDate.orElse(frontMatter.date.map(_.localDate))
