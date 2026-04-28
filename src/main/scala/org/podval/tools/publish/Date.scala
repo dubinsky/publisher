@@ -7,13 +7,13 @@ import java.time.format.{DateTimeFormatter, DateTimeParseException}
 sealed trait Date:
   def localDate: LocalDate
   def toString: String
+  def toShortString: String = localDate.format(Date.shortFormat)
 
 object Date:
-//  given Ordering[Date] = Ordering.by(_.localDate)
+  given Ordering[Date] = Ordering.by(_.localDate)
 
   // TODO get Git date?
   private val shortFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("LLL d, YYYY")
-  final def toString(localDate: LocalDate): String = localDate.format(Date.shortFormat)
 
   final class Local(val value: LocalDate) extends Date:
     override def localDate: LocalDate = value

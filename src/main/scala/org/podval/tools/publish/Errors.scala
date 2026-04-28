@@ -6,7 +6,7 @@ import zio.blocks.schema.xml.Xml
 final class Errors(
   site: Site,
   path: Path
-) extends Page.SyntheticMarkupPage(
+) extends MarkupPage.Synthetic(
   site,
   path = path,
   frontMatter = FrontMatter(

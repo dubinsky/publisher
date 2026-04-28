@@ -14,7 +14,9 @@ final class Highlights(
   override val body: List[Xml.Element] =
     List(module(s"$cdn/highlight.min.js")) ++
     languages.map(language => module(s"$cdn/languages/$language.min.js")) ++
+//    List(module("https://cdn.jsdelivr.net/npm/highlightjs-lang.js@latest/dist/highlightjs-lang.min.js")) ++
     List(script("hljs.highlightAll();"))
+//    List(script("hljs.initLangOnLoad();"))
 
 object Highlights:
   val version = "11.11.1"

@@ -8,5 +8,5 @@ final case class Section(
 ):
   def is(name: String): Boolean = title == name || id == name
 
-  // TODO move out
+  // TODO move to Toc
   def sectionsFlat: Seq[Section] = sections.flatMap(_.sectionsFlat)

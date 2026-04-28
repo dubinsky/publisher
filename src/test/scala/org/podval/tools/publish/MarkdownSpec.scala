@@ -12,12 +12,12 @@ object MarkdownSpec extends ZIOSpecDefault:
   override def spec: Spec[TestEnvironment & Scope, Any] = suite("Markdown")(
     test("nested lists") {
       parse(
-        """- l1
-          |  * l1-1
-          |- l12
+        """* TOC
+          |{:toc}
           |""".stripMargin,
         xml =>
 
+          println(XmlUtil.write(xml))
           // TODO verify
           assertTrue(
             true

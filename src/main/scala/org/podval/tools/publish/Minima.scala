@@ -1,12 +1,12 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.{Xml, XmlBuilder}
-import XmlUtil.{a, apply, childWhen, childrenWhen, div, el, setId, stylesheet, withText}
-import java.time.LocalDate
+import XmlUtil.{a, apply, childWhen, div, el, setId, stylesheet, withText}
 
 // Based on https://github.com/jekyll/minima
-// TODO icons!
-final class Minima(page: Page.WithFrontMatter):
+// TODO add up/prev/next to navigation!
+// TODO unfold?
+final class Minima(page: MarkupPage):
   private def site: Site = page.site
   private val libraries: List[XmlUtil.JavascriptLibrary] = List(
     Highlights.get(page.xml),
@@ -22,7 +22,7 @@ final class Minima(page: Page.WithFrontMatter):
 //    case _  => baseLayout(page.xml)
 
   private def pageLayout(content: Xml): Xml.Element =
-    // TODO better CSS; link up.
+    // TODO separate directories from files; better CSS; link up.
     val subDirectories: List[Page] = site.subDirectories(page)
     val subPages: List[Page] = site.subPages(page)
 
@@ -50,13 +50,13 @@ final class Minima(page: Page.WithFrontMatter):
           // .childWhen(page.modified_date.isDefined,
           //    el("span", "class" -> "meta-label")("Published:")
           // )
-          .childWhen(page.localDate.isDefined,
+          .childWhen(page.date.isDefined,
             el("time",
               "class" -> "dt-published",
               "datetime" -> page.frontMatter.date.get.toString,
               "itemprop" -> "datePublished"
             )
-              .withText(dateString(page.localDate))
+              .withText(page.date.get.toShortString)
           )
           // TODO
           // {%- if page.modified_date -%}
@@ -69,18 +69,15 @@ final class Minima(page: Page.WithFrontMatter):
           // {%- endif -%}
           .childWhen(page.frontMatter.tags.nonEmpty, tags)
           // TODO!
-          // - default: site author
-          //.childWhen(page.author.nonEmpty, XmlBuilder.text("•"))
-          //.childWhen(page.author.nonEmpty,
-          //  div(s"${if page.frontMatter.modified_date then "" else "force-inline "}post-authors")(
-          //    TODO multiple authors?
-          //    {%- for author in page.author %}
-          //      <span itemprop="author" itemscope itemtype="http://schema.org/Person">
-          //        <span class="p-author h-card" itemprop="name">{{ author }}</span></span>
-          //      {%- if forloop.last == false %}, {% endif -%}
-          //    {% endfor %}
-          //  )
-          //)
+          .childWhen(page.author.nonEmpty, XmlBuilder.text("•"))
+          .childWhen(page.author.nonEmpty,
+            div("post-authors")( // TODO s"${if page.frontMatter.modified_date then "" else "force-inline "}post-authors"
+          //    TODO multiple authors, separated by commas?
+              el("span", "itemprop" -> "author", "itemscope" -> "", "itemtype" -> "http://schema.org/Person")(
+                el("span", "class" -> "p-author h-card", "itemprop" -> "name").withText(page.author.get)
+              )
+            )
+          )
           .build
       ),
       div("post-content e-content").attr("itemprop", "articleBody")(
@@ -91,6 +88,7 @@ final class Minima(page: Page.WithFrontMatter):
     )
   )
 
+  // TODO do a div like with author
   private def tags: Xml.Element = el("span")
     .child(XmlBuilder.text("|"))
     .children(page.frontMatter.tags.map(site.tags.tagRef)*)
@@ -103,7 +101,7 @@ final class Minima(page: Page.WithFrontMatter):
       el("h2", "class" -> "post-list-heading").withText("Posts"),
       el("ul", "class" -> "post-list")(site.posts.map(post =>
         el("li")(
-          el("span", "class" -> "post-meta").withText(dateString(post.localDate)),
+          el("span", "class" -> "post-meta").withText(post.date.map(_.toShortString).getOrElse("")),
           el("h3")(post.ref("post-link"))
           // {%- if site.minima.show_excerpts -%} {{ post.excerpt }} {%- endif -%}
         )
@@ -230,5 +228,3 @@ final class Minima(page: Page.WithFrontMatter):
       //{%- endunless %}
     .build
 
-  private def dateString(localDate: Option[LocalDate]): String = localDate.fold("")(Date.toString)
-  

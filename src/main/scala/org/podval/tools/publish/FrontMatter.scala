@@ -18,6 +18,7 @@ final class FrontMatter(
   val categories: List[String] = List.empty,
   val date: Option[Date] = None
 ):
+  // TODO this with not survive round trip once FrontMatter becomes a case class and `.copy()` is used!
   private var extraKeys: Chunk[(Yaml, Yaml)] = Chunk.empty
 
   private var absent: Boolean = false

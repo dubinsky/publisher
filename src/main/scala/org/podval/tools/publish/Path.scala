@@ -7,9 +7,6 @@ final case class Path(
   extension: Option[String] = None
 ) derives CanEqual:
   def fileName: String = path.last
-  def isIndex: Boolean = fileName == "index" && path.length > 1
-  // TODO retrieve the parent title; remove this method:
-  def title: String = if isIndex then path.init.last else fileName
   
   override def equals(obj: Any): Boolean = obj match
     case that: Path => this.path == that.path && this.extension == that.extension

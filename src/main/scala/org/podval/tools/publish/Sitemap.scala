@@ -7,11 +7,11 @@ import XmlUtil.{apply, el}
 final class Sitemap(
   site: Site,
   path: Path
-) extends Page.SyntheticXml(
+) extends Asset.SyntheticXml(
   site,
   path
 ):
-  override def xml: Xml.Element = el("urlset")
+  override def xmlContent: Xml.Element = el("urlset")
     .attr(XmlName("xsi", Some("xmlns"), None), "http://www.w3.org/2001/XMLSchema-instance")
     .attr(XmlName("schemaLocation", Some("xsi")), "http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd")
     (

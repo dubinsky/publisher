@@ -70,12 +70,12 @@ object Link:
               if fragment.startsWith("^") then
                 for
                   id: String = fragment.substring(1).trim
-                  block: Block <- toPage.block(id)
+                  block: Block <- toPage.toc.block(id)
                 yield ToBlock(toPage, block)
               else
                 for
                   names: Seq[String] = fragment.split('#').map(_.trim).toSeq
-                  sections: Seq[Section] <- toPage.section(names)
+                  sections: Seq[Section] <- toPage.toc.section(names)
                 yield ToSection(toPage, sections)
 
             case toPage =>

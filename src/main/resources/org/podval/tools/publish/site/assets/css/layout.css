@@ -268,7 +268,10 @@
             padding-inline: 5px;
         }
     }
-    .post-authors { margin-top: 3px }
+    .post-authors {
+        /*margin-top: 3px;*/
+        display: inline;
+    }
 }
 
 .post-title,

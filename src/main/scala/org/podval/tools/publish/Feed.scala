@@ -6,12 +6,12 @@ import XmlUtil.{apply, el}
 final class Feed(
   site: Site,
   path: Path
-) extends Page.SyntheticXml(
+) extends Asset.SyntheticXml(
   site,
   path
 ):
   // TODO
-  override def xml: Xml.Element =
+  override def xmlContent: Xml.Element =
     el("feed", "xmlns" -> "http://www.w3.org/2005/Atom")(
       //<generator uri="https://jekyllrb.com/" version="4.4.1">Jekyll</generator>
       //<link href="http://dub.podval.org/feed.xml" rel="self" type="application/atom+xml"/>

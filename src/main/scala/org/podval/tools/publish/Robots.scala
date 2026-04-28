@@ -4,7 +4,7 @@ final class Robots(
   site: Site,
   path: Path,
   sitemap: Sitemap
-) extends Page.SyntheticText(
+) extends Asset.Synthetic(
   site,
   path
 ):

@@ -6,6 +6,7 @@ import org.slf4j.event.Level
 import java.io.File
 import java.net.{URI, URISyntaxException}
 import java.time.LocalDate
+import java.time.format.DateTimeParseException
 import XmlUtil.{a, apply, childrenWhenEmpty}
 
 final class Site(
@@ -44,12 +45,6 @@ final class Site(
     config.social.linkedin.map(SocialLink.LinkedIn(_))
   ).flatten
 
-  private val relocator: Relocator = Relocator(
-    config.postsDirectoryName,
-    config.draftsDirectoryName,
-    config.dailyNotesDirectoryName
-  )
-
   private var links: List[Link] = List.empty
 
   val tags: Tags = Tags(this, Path("tags").withExtension(Html.extension))
@@ -57,7 +52,7 @@ final class Site(
 
   private var pagesVar: List[Page] =
     // Embedded resources
-    Site.resourcesList.map(Page.Resource(this, _)) ++
+    Site.resourcesList.map(Asset.Embedded(this, _)) ++
     // Synthetics
     List(
       tags,
@@ -68,11 +63,9 @@ final class Site(
     )
 
   def pages: List[Page] = pagesVar
-  def pagesWithFrontMatter: List[Page.WithFrontMatter] = pages.collect { case page: Page.WithFrontMatter => page }
   def markupPages: List[MarkupPage] = pages.collect{ case page: MarkupPage => page }
 
-  private var headerPagesVar: List[Link.ToPage] = scala.compiletime.uninitialized
-  def headerPages: List[Link.ToPage] = headerPagesVar
+  lazy val headerPages: List[Link.ToPage] = config.headerPages.flatMap(resolveHeaderPage)
 
   private var errorsVar: List[PageError] = List.empty
   def errors: List[PageError] = errorsVar
@@ -90,15 +83,15 @@ final class Site(
 
   def posts: List[MarkupPage] = markupPages
     .filter(_.isPost)
-    .sortBy(_.localDate)
+    .sortBy(_.date)
     .reverse
 
-  def subDirectories(page: Page): List[Page] = if !page.path.isIndex then List.empty else pages
-    .filter(_.path.isIndex)
+  def subDirectories(page: Page): List[Page] = if !page.isIndex then List.empty else pages
+    .filter(_.isIndex)
     .filter(_.path.path.init.init == page.path.path.init)
     .sortBy(_.title)
 
-  def subPages(page: Page): List[Page] = if !page.path.isIndex then List.empty else pages
+  def subPages(page: Page): List[Page] = if !page.isIndex then List.empty else pages
     .filter(_.path.path.init == page.path.path.init)
     .filterNot(_ == page)
     .sortBy(_.title)
@@ -118,6 +111,7 @@ final class Site(
     pagesVar = pagesVar ++ directoryPages(Seq.empty, config.sourceDirectory)
 
     // TODO calculate parent and children for pages
+
     // TODO add missing index pages
 
     // Report conflicting pages
@@ -132,15 +126,12 @@ final class Site(
         ), ())
       )
 
-    // Resolve header pages
-    headerPagesVar = config.headerPages.flatMap(resolveHeaderPage)
+    // TODO insert missing index pages; calculate parent/subdirectories/subfiles
 
     // Resolve links
     markupPages.foreach(_.resolveLinks())
 
     // TODO sort the pages in transclusion order and transclude
-
-    // TODO add TOCs
 
     // Write pages
     pages.foreach: page =>
@@ -168,12 +159,12 @@ final class Site(
     val page: Page.WithSource =
       sourcePath.extension.flatMap(extension => Markup.all.find(_.isExtension(extension))) match
         case None =>
-          Page.Asset(
+          Asset.WithSource(
             site = this,
             path = sourcePath
           )
         case Some(markup) =>
-          val dateAndPath: Option[(LocalDate, Path)] = relocator.relocate(sourcePath) match
+          val dateAndPath: Option[(LocalDate, Path)] = relocate(sourcePath) match
             case Right(path) => path
             case Left(error) => reportError(error, None)
 
@@ -189,6 +180,45 @@ final class Site(
 
     log.debug(s"Read: $page")
     page
+
+  private val dailiesMixedWithPosts: Boolean = config.dailyNotesDirectoryName.contains(config.postsDirectoryName)
+
+  private def relocate(sourcePath: Path): Either[PageError, Option[(LocalDate, Path)]] =
+    val isPost: Boolean =
+      sourcePath.startsWith(List(config.postsDirectoryName)) ||
+      config.draftsDirectoryName.exists(draftsDirectoryName => sourcePath.startsWith(List(draftsDirectoryName)))
+    val isDaily: Boolean =
+      config.dailyNotesDirectoryName.exists(dailyNotesDirectoryName => sourcePath.startsWith(List(dailyNotesDirectoryName)))
+
+    if !isPost && !isDaily then Right(None) else
+      val fileName: String = sourcePath.fileName
+
+      for
+        date: LocalDate <-
+          try
+            if fileName.length < 10 then throw DateTimeParseException("Date is too short", fileName, 0)
+            Right(LocalDate.parse(fileName.substring(0, 10)))
+          catch case e: DateTimeParseException =>
+            Left(PageError.FileName(sourcePath, s"Post and daily note names must start with date: $fileName", Some(e)))
+
+        title: String <-
+          val titleString: String = if fileName.length <= 11 then "" else fileName.substring(11).trim
+          val title: String = if titleString.nonEmpty then titleString else "index"
+          if dailiesMixedWithPosts then Right(title) else if isPost && titleString.isEmpty
+          then Left(PageError.FileName(sourcePath, s"Post must have title: $fileName"))
+          else if isDaily && titleString.nonEmpty
+          then Left(PageError.FileName(sourcePath, s"Daily note can not have title: $fileName"))
+          else Right(title)
+      yield
+        Some(
+          date,
+          Path(
+            f"${date.getYear}%04d",
+            f"${date.getMonthValue}%02d",
+            f"${date.getDayOfMonth}%02d",
+            title
+          )
+        )
 
   private def resolveHeaderPage(ref: String): Option[Link.ToPage] =
     val result: Option[Link.ToPage] = resolveRef(ref).flatMap {
@@ -231,6 +261,7 @@ object Site:
   )
 
   // see https://obsidian.md/help/embeds
+  // TODO FlexMark inlines image links for the ![]() references - but does not process image sizes...
   private def embedLink(ref: String, text: Option[String]): Option[Xml.Element] =
     Files.nameAndExtension(ref)._2.flatMap: extension =>
       if Files.imageExtensions.contains(extension) then None

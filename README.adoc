@@ -128,7 +128,11 @@ First milestone for this project is to replace Jekyll on my personal website. So
 - while I did manage to list children pages using Jekyll,
 I never figured out how to list subdirectories;
 with my own publisher this is not a problem ;)
-- Jekyll ignores markdown files without front matter; I do not;
+- Jekyll ignores Markdown files without front matter; I do not;
+- I added directory navigation: up, prev, next; TODO;
+- I added path navigation; TODO;
+- I added title transplantation; TODO;
+- insetton of missing index pages; TODO;
 
 
 == Titles and File Names
@@ -151,6 +155,9 @@ TODO Obsidian plugin needs to be installed.
 
 == TODO
 
+- remove spurious vertical space around `code` in the `pre`;
+- WrappingMarkupPage;
+
 Title of an `index.html` page should be the same as the title of the parent page. This one simple consideration pushes me towards the approach
 reminiscent of the one I took with my TEI website:
 path to a page should lead not through names, but trough *pages*!
@@ -161,13 +168,6 @@ there are pages that in addition to HTML produce chunked HTML and PDF.
 
 Add post hierarchy browser by year, month, day.
 
-TOC:
-
-[source]
-----
-* TOC
-{:toc}
-----
 
 Wiki links in Obsidian:
 
