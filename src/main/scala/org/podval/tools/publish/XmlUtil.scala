@@ -87,13 +87,6 @@ object XmlUtil:
     .replace("\"", "&quot;")
     .replace("'", "&apos;")
 
-  // TODO I need to port my pretty-printer:
-  // when I use ZIO Blocks' one with "pretty",
-  // it inserts spaces between book titles and quotes around them -
-  // and destroys the code blocks;
-  // default one does not, but then the result is not pretty -
-  // and I have to prevent some elements (script, data, span) from self-closing
-  // by inserting comments into them, which is ugly.
   def write(xml: Xml): String = XmlWriter.write(xml/*, WriterConfig.pretty*/)
 
   abstract class JavascriptLibrary:

@@ -75,6 +75,16 @@ object MarkupPage:
     final override def resolveLinks(): Unit = ()
     final override def postProcess(): Unit = ()
 
+  final class Index(
+    site: Site,
+    path: Path
+  ) extends Synthetic(
+    site,
+    path,
+    FrontMatter.absent
+  ):
+    override def xml: Xml.Element = XmlUtil.div("empty-content").build
+
   def apply(
     site: Site,
     path: Path,

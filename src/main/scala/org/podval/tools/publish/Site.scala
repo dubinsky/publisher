@@ -65,6 +65,12 @@ final class Site(
   def pages: List[Page] = pagesVar
   def markupPages: List[MarkupPage] = pages.collect{ case page: MarkupPage => page }
 
+  def addIndexPage(path: Path): MarkupPage =
+    println(s"Adding index: $path")
+    val result: MarkupPage.Index = MarkupPage.Index(this, path)
+    pagesVar = pagesVar :+ result
+    result
+
   lazy val headerPages: List[Link.ToPage] = config.headerPages.flatMap(resolveHeaderPage)
 
   private var errorsVar: List[PageError] = List.empty
@@ -86,16 +92,6 @@ final class Site(
     .sortBy(_.date)
     .reverse
 
-  def subDirectories(page: Page): List[Page] = if !page.isIndex then List.empty else pages
-    .filter(_.isIndex)
-    .filter(_.path.path.init.init == page.path.path.init)
-    .sortBy(_.title)
-
-  def subPages(page: Page): List[Page] = if !page.isIndex then List.empty else pages
-    .filter(_.path.path.init == page.path.path.init)
-    .filterNot(_ == page)
-    .sortBy(_.title)
-
   def generateAndReport(): Unit =
     try
       generate()
@@ -110,10 +106,6 @@ final class Site(
     // Read pages
     pagesVar = pagesVar ++ directoryPages(Seq.empty, config.sourceDirectory)
 
-    // TODO calculate parent and children for pages
-
-    // TODO add missing index pages
-
     // Report conflicting pages
     pages
       .groupBy(_.path)
@@ -126,7 +118,8 @@ final class Site(
         ), ())
       )
 
-    // TODO insert missing index pages; calculate parent/subdirectories/subfiles
+    // Implicitly force insertion of the missing `index` pages.
+    markupPages.filterNot(_.isPost).foreach(_.parent)
 
     // Resolve links
     markupPages.foreach(_.resolveLinks())
@@ -168,14 +161,12 @@ final class Site(
             case Right(path) => path
             case Left(error) => reportError(error, None)
 
-          val postDate: Option[LocalDate] = dateAndPath.map(_._1)
-          val path: Path = dateAndPath.map(_._2).getOrElse(sourcePath)
           MarkupPage(
             site = this,
-            path = path.withExtension(Html.extension),
+            path = dateAndPath.map(_._2).getOrElse(sourcePath).withExtension(Html.extension),
             sourcePath = sourcePath,
             markup = markup,
-            postDate = postDate
+            postDate = dateAndPath.map(_._1)
           )
 
     log.debug(s"Read: $page")
@@ -248,7 +239,7 @@ final class Site(
 
 object Site:
   def main(args: Array[String]): Unit = Cli.main(Array(
-    "--log-level=INFO",
+    "--log-level=DEBUG",
     "/home/dub/Podval/dub.podval.org"
   ))
 

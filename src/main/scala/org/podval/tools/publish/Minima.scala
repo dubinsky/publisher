@@ -22,23 +22,30 @@ final class Minima(page: MarkupPage):
 //    case _  => baseLayout(page.xml)
 
   private def pageLayout(content: Xml): Xml.Element =
-    // TODO separate directories from files; better CSS; link up.
-    val subDirectories: List[Page] = site.subDirectories(page)
-    val subPages: List[Page] = site.subPages(page)
-
     baseLayout(
-      el("article", "class" -> "post")(
-        el("header", "class" -> "post-header")
-          .child(el("h1", "class" -> "post-title").withText(page.title))
-          .child(tags)
-          .build,
-        div("post-content")(
-          content
-        ),
-        el("ul", "class" -> "page-list")((subDirectories ++ subPages).map(sub =>
-          el("li")(sub.ref("sub"))
-        )*)
-      )
+      el("article", "class" -> "post")
+        .child(
+          el("header", "class" -> "post-header")
+            .child(el("h1", "class" -> "post-title").withText(page.title))
+            .child(tags)
+            .build
+        )
+        .child(div("post-content")(content))
+        .child(pageList(page.directories, "Directories", "directories-list"))
+        .child(pageList(page.pages, "Pages", "pages-list"))
+        .build
+    )
+
+  private def pageList(
+    pages: List[Page],
+    title: String,
+    cls: String
+  ): Option[Xml.Element] = Option.when(pages.nonEmpty):
+    div(s"page-list $cls")(
+      el("h3").withText(title),
+      el("ul")(pages.map(page =>
+        el("li")(page.ref("sub"))
+      )*)
     )
 
   private def postLayout(content: Xml): Xml.Element = baseLayout(

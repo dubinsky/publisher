@@ -49,8 +49,6 @@ It also occurred to me that I can add publishing to X Articles -
 if X ever makes an API for that. This would allow me
 to own my blog - and at the same time use X ;)
 
-== Approach
-
 === Opinionated
 
 Since I am writing this site generator for my own use,
@@ -64,16 +62,35 @@ it is going to be opinionated:
 
 TODO expound
 
-=== ZIO Blocks
+=== Titles and File Names
+Jekyll relies on page titles being given explicitly in the front matter
+and ignores the file names; I had to use a TODO Obsidian plugin to set the
+titles from the file names to communicate them to Jekyll;
+as a result, pages where the title is different from the file name
+(e.g., `index` pages)
+had to be marked with TODO in their front matter to disable this plugin
+from setting the front matter title.
+
+My plugin uses both the front matter title and the file name for
+link resolution, so I can remove this Obsidian plugin and
+redundant front matter titles which are the same as the file name,
+and set the title in the front matter only when it is different from the file name.
+
+Obsidian uses file names exclusively and ignores the front matter title;
+for link resolution to use front matter titles also,
+TODO Obsidian plugin needs to be installed.
+
+== Implementation
 
 At exactly the same time I became aware of the ZIO Blocks project,
 which just added support for a few data formats that I need.
 
-== JSON
+=== JSON
 I use ZIO Blocks JSON support to read Obsidian configuration files.
 
+=== Yaml
 
-== Markdown
+=== Markdown
 
 Pipeline:
 
@@ -82,26 +99,26 @@ Pipeline:
 - HTML text
 - HTML AST
 
-I need HTML AST for post-processing like chunking,
+I need HTML AST for post-processing like calculating page structure, resolving links to sections and blocks, transclusion, chunking, adding TOC,
 and prefer to use it for all post-processing
 like HTML layout for the browser and PDF generation.
 
-Since Markdown allows embedding HTML,
+Converting ZIO Blocks Markdown AST to XML AST proved inconvenient
+(e.g., for reasons unknown, there are two flavours of each `Inline` subclass); it also turned out to be impossible, since
+Markdown allows embedding HTML,
 and since opening and closing tags of the same HTML element
 may end up in different Markdown AST nodes,
 I can not go directly from Markdown AST to HTML AST -
 I have to go through HTML text.
 
-Industry-standard FlexMark parser can be configured to
-pair some - but not all - of the tags,
-so direct Markdown AST to HTML AST is not possible with FlexMark either.
+Parsing Markdown with ZIO Blocks parser and writing it to XML text
+turned out to be inconvenient: ZIO Blocks Markdown writer
+produces unclosed tags like `br` and `hr`,
+which are not valid XML and thus can not be parsed into XML AST.
+I had to write my own writer for ZIO Blocks Markdown AST.
 
-Since I insist on the end result being HTML AST,
-invalid XML (e.g., unclosed 'br' elements)
-embedded in the Markdown text is not supported.
-
-WOW! It turns out that ZIO Block Markdown parser
-parses nested lists incorrectly:
+Converting Markdown text to XML AST using ZIO Blocks Markdown parser
+still turned out impossible, since it parses nested lists incorrectly:
 
 [source]
 ----
@@ -117,7 +134,37 @@ parses exactly the same as
 - l2
 ----
 
-So, it seems that I *have* to use FlexMark after all...
+I had to switch to the industry-standard FlexMark parser.
+
+It can be configured to
+pair some - but not all - of the tags,
+so direct Markdown AST to HTML AST is not possible with FlexMark either.
+
+Since I insist on the end result being HTML AST,
+invalid XML (e.g., unclosed 'br' elements)
+embedded in the Markdown text is not supported.
+
+=== XML
+
+As a part of the OpenTorah project, I developed a custom
+XML pretty-printer for the Scala XML AST;
+I need to write one for the ZIO Blocks XML AST,
+since the XML writer provided by ZIO Blocks is broken:
+when used with "pretty", it
+
+- inserts spaces between book titles and quotes around them;
+- destroys the formatting of the code blocks;
+
+when used with "default", it:
+
+- does not insert spaces between text and elements;
+- mangles the formatting of the code blocks if there are spaces at the beginning of the lines after the first one;
+- produces non-pretty results ;)
+
+With my own XML write, I can also ensure that the empty elements
+that cause problems with the browsers when they are self-closed
+(script, data, span) are not -
+without inserting comments into them, which is ugly.
 
 == Farewell, Jekyll
 
@@ -132,31 +179,9 @@ with my own publisher this is not a problem ;)
 - I added directory navigation: up, prev, next; TODO;
 - I added path navigation; TODO;
 - I added title transplantation; TODO;
-- insetton of missing index pages; TODO;
-
-
-== Titles and File Names
-Jekyll relies on page titles being given explicitly in the front matter
-and ignores the file names; I had to use a TODO Obsidian plugin to set the
-titles from the file names to communicate them to Jekyll;
-as a result, pages where the title is different from the file name
-(e.g., `index` pages)
-had to be marked with TODO in their front matter to disable this plugin
-from setting the front matter title.
-
-My plugin uses both the front matter title and the file name for
-link resolution, so I can remove this Obsidian plugin and
-redundant front matter titles which are the same as the file name,
-and set the title in the front matter only when it is different from the file name.
-
-Obsidian uses fle names exclusively and ignores the front matter title;
-for link resolution to use front matter titles also,
-TODO Obsidian plugin needs to be installed.
+- insertion of missing index pages; TODO;
 
 == TODO
-
-- remove spurious vertical space around `code` in the `pre`;
-- WrappingMarkupPage;
 
 Title of an `index.html` page should be the same as the title of the parent page. This one simple consideration pushes me towards the approach
 reminiscent of the one I took with my TEI website:
