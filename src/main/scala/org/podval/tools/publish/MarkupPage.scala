@@ -13,10 +13,11 @@ abstract class MarkupPage(
   final override def title: String = frontMatter.title.getOrElse(titleFromPath)
 
   final override def xmlContent: Xml.Element =
-    addToc()
+    postProcess()
     Minima(this).render
 
-  protected def addToc(): Unit // TODO rename finalizeXml
+  // add TOC, remove title etc.
+  protected def postProcess(): Unit
 
   final def isPost: Boolean = postDate.isDefined || frontMatter.layout.contains("post")
 
@@ -58,7 +59,7 @@ object MarkupPage:
     override def resolveLinks(): Unit =
       xmlVar = markup.resolveLinks(xml, this)
 
-    override protected def addToc(): Unit =
+    override protected def postProcess(): Unit =
       xmlVar = markup.addToc(xml, toc)
 
   abstract class Synthetic(
@@ -72,7 +73,7 @@ object MarkupPage:
     final override def postDate: Option[LocalDate] = None
     final override def toc: Toc = Toc.empty
     final override def resolveLinks(): Unit = ()
-    final override def addToc(): Unit = ()
+    final override def postProcess(): Unit = ()
 
   def apply(
     site: Site,

@@ -9,8 +9,6 @@ import com.vladsch.flexmark.ext.toc.TocExtension
 import com.vladsch.flexmark.html.HtmlRenderer
 import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.data.MutableDataSet
-import XmlUtil.{childWhen, el}
-import scala.annotation.tailrec
 
 // WOW! ZIO Blocks Markdown parser misparses nested lists!
 // This is what gets printed:

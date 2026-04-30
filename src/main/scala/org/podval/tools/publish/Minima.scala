@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.{Xml, XmlBuilder}
-import XmlUtil.{a, apply, childWhen, div, el, setId, stylesheet, withText}
+import XmlUtil.{a, apply, child, div, el, setId, stylesheet, withText}
 
 // Based on https://github.com/jekyll/minima
 // TODO add up/prev/next to navigation!
@@ -30,7 +30,7 @@ final class Minima(page: MarkupPage):
       el("article", "class" -> "post")(
         el("header", "class" -> "post-header")
           .child(el("h1", "class" -> "post-title").withText(page.title))
-          .childWhen(page.frontMatter.tags.nonEmpty, tags)
+          .child(tags)
           .build,
         div("post-content")(
           content
@@ -50,13 +50,13 @@ final class Minima(page: MarkupPage):
           // .childWhen(page.modified_date.isDefined,
           //    el("span", "class" -> "meta-label")("Published:")
           // )
-          .childWhen(page.date.isDefined,
+          .child(page.date.map: date =>
             el("time",
               "class" -> "dt-published",
-              "datetime" -> page.frontMatter.date.get.toString,
+              "datetime" -> date.toString,
               "itemprop" -> "datePublished"
             )
-              .withText(page.date.get.toShortString)
+              .withText(date.toShortString)
           )
           // TODO
           // {%- if page.modified_date -%}
@@ -67,14 +67,13 @@ final class Minima(page: MarkupPage):
           //     {{ mdate | date: date_format }}
           //   </time>
           // {%- endif -%}
-          .childWhen(page.frontMatter.tags.nonEmpty, tags)
-          // TODO!
-          .childWhen(page.author.nonEmpty, XmlBuilder.text("•"))
-          .childWhen(page.author.nonEmpty,
+          .child(tags)
+          .child(page.author.map: author =>
             div("post-authors")( // TODO s"${if page.frontMatter.modified_date then "" else "force-inline "}post-authors"
           //    TODO multiple authors, separated by commas?
+              XmlBuilder.text("•"),
               el("span", "itemprop" -> "author", "itemscope" -> "", "itemtype" -> "http://schema.org/Person")(
-                el("span", "class" -> "p-author h-card", "itemprop" -> "name").withText(page.author.get)
+                el("span", "class" -> "p-author h-card", "itemprop" -> "name").withText(author)
               )
             )
           )
@@ -89,10 +88,11 @@ final class Minima(page: MarkupPage):
   )
 
   // TODO do a div like with author
-  private def tags: Xml.Element = el("span")
-    .child(XmlBuilder.text("|"))
-    .children(page.frontMatter.tags.map(site.tags.tagRef)*)
-    .build
+  private def tags: Option[Xml.Element] = Option.when(page.frontMatter.tags.nonEmpty):
+    el("span")
+      .child(XmlBuilder.text("|"))
+      .children(page.frontMatter.tags.map(site.tags.tagRef)*)
+      .build
 
   private def homeLayout(content: Xml.Element): Xml.Element = baseLayout(
     div("home")(

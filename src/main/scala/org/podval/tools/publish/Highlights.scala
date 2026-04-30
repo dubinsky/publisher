@@ -13,10 +13,12 @@ final class Highlights(
 
   override val body: List[Xml.Element] =
     List(module(s"$cdn/highlight.min.js")) ++
-    languages.map(language => module(s"$cdn/languages/$language.min.js")) ++
-//    List(module("https://cdn.jsdelivr.net/npm/highlightjs-lang.js@latest/dist/highlightjs-lang.min.js")) ++
+    languages.map(language => module(languageModule(language))) ++
     List(script("hljs.highlightAll();"))
-//    List(script("hljs.initLangOnLoad();"))
+
+  private def languageModule(language: String): String =
+// NOT SUPPORTED   if language.toLowerCase == "liquid" then "https://unpkg.com/highlightjs-liquid@0.9.1/dist/liquid.min.js" else
+      s"$cdn/languages/$language.min.js"
 
 object Highlights:
   val version = "11.11.1"

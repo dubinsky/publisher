@@ -143,25 +143,36 @@ blockquote {
 }
 
 
-
 /**
  * Code formatting
  */
 
+pre {
+    /* TODO I do not think I want this: padding: 8px 12px;*/
+    /*background: var(--code-background-color);*/
+    /*background-color: var(--code-background-color);*/
+
+    /*font-family: var(--code-font-family);*/
+    border: 1px solid var(--brand-color-light);
+    border-radius: 3px;
+
+    margin-block: 5px;
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--heading-color);
+    overflow-x: auto;
+}
+
+code {
+    font-family: var(--code-font-family);
+    background-color: var(--code-background-color);
+    /*border: 1px solid var(--brand-color-light);*/
+    /*border-radius: 3px;*/
+}
+
 /* LMD I do not have this; Jekyll's Rouge wrapped ... */
 div.highlight, figure.highlight {
     margin-bottom: calc(var(--spacing-unit) * 0.5);
-}
-
-pre, code {
-    font-family: var(--code-font-family);
-    border: 1px solid var(--brand-color-light);
-    border-radius: 3px;
-    background-color: var(--code-background-color);
-
-    @media screen and (max-width: var(--on-palm)) {
-        font-family: monospace;
-    }
 }
 
 /* from Highlights.js stylesheet: */
@@ -174,36 +185,23 @@ pre, code {
 /*code.hljs {*/
 /*    padding: 3px 5px*/
 /*}*/
+/**/
+/*.hljs {*/
+/*    background: #f3f3f3;*/
+/*    color: #444*/
+/*}*/
 
 .hljs {
     background-color: var(--code-background-color);
 }
 
-pre {
-    /* TODO I do not think I want this: padding: 8px 12px;*/
-    /* THIS has no effect! margin-bottom: calc(var(--spacing-unit) * 0.5);*/
 
-    background: var(--code-background-color);
-
-    margin-block: 0;
-    font-size: 15px;
-    line-height: 1.4;
-    color: var(--heading-color);
-    overflow-x: auto;
-
-    /*> code {*/
-        /*display: inline-block;*/
-        /*width: 100%;*/
-    /*}*/
-
-    /* Counter-act Highlights.js styling ;) */
-    > code.hljs {
-        /* TODO there is some spurious padding/margins around pre > code vertically; display: block; seems to contribute */
-        display: inline;
-    /*    padding: 1em;*/
-    }
+/* Counter-act Highlights.js styling ;) */
+pre code.hljs {
+    /* TODO there is some spurious padding/margins around pre > code vertically; display: block; seems to contribute */
+    /*display: inline flow-root;*/
+    padding: 1em;
 }
-
 
 
 /**

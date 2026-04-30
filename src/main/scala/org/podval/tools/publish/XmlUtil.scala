@@ -17,14 +17,9 @@ object XmlUtil:
       case None => builder
       case Some(id) => builder.setId(id)
 
-    def attrWhen(when: Boolean, name: String, value: => String): XmlBuilder.ElementBuilder =
-      if !when then builder else builder.attr(name, value)
-
-    def childWhen(when: Boolean, child: => Xml): XmlBuilder.ElementBuilder =
-      if !when then builder else builder.child(child)
-
-    def childrenWhen(when: Boolean, children: => Seq[Xml]): XmlBuilder.ElementBuilder =
-      if !when then builder else builder.children(children *)
+    def child(child: Option[Xml]): XmlBuilder.ElementBuilder = child match
+      case None => builder
+      case Some(child) => builder.child(child)
 
   extension (element: Xml.Element)
     def getAttribute(name: XmlName): Option[String] =
@@ -92,8 +87,14 @@ object XmlUtil:
     .replace("\"", "&quot;")
     .replace("'", "&apos;")
 
-  // TODO port my pretty-printer; make sure that elements do not self-close (script, data, span).
-  def write(xml: Xml): String = XmlWriter.write(xml, WriterConfig.pretty)
+  // TODO I need to port my pretty-printer:
+  // when I use ZIO Blocks' one with "pretty",
+  // it inserts spaces between book titles and quotes around them -
+  // and destroys the code blocks;
+  // default one does not, but then the result is not pretty -
+  // and I have to prevent some elements (script, data, span) from self-closing
+  // by inserting comments into them, which is ugly.
+  def write(xml: Xml): String = XmlWriter.write(xml/*, WriterConfig.pretty*/)
 
   abstract class JavascriptLibrary:
     def head: List[Xml.Element]

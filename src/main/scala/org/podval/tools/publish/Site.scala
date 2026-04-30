@@ -247,7 +247,10 @@ final class Site(
             case Some(element) => linkTo.a(element)
 
 object Site:
-  def main(args: Array[String]): Unit = Cli.main(Array("/home/dub/Podval/dub.podval.org"))
+  def main(args: Array[String]): Unit = Cli.main(Array(
+    "--log-level=INFO",
+    "/home/dub/Podval/dub.podval.org"
+  ))
 
   val resourcesBase: String = "/org/podval/tools/publish/site"
 
