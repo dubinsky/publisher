@@ -38,7 +38,7 @@ abstract class MarkupPage(
   final override def title: String = frontMatter.title.getOrElse:
     if !isIndex
     then path.fileName
-    else parent.map(_.title).getOrElse(path.path.init.last)
+    else path.path.init.last
 
   final lazy val parent: Option[Page] =
     // Note: top-level `index` is no-one's parent.
