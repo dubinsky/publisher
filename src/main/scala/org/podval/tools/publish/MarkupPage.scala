@@ -10,8 +10,6 @@ abstract class MarkupPage(
   site,
   path
 ) with Page.WithXmlContent:
-  final override def title: String = frontMatter.title.getOrElse(titleFromPath)
-
   final override def xmlContent: Xml.Element =
     postProcess()
     Minima(this).render
@@ -34,6 +32,39 @@ abstract class MarkupPage(
   def toc: Toc
 
   def resolveLinks(): Unit
+
+  final def isIndex: Boolean = path.fileName == "index" && path.path.length > 1 // TODO "home" is not an index
+
+  final override def title: String = frontMatter.title.getOrElse:
+    if !isIndex
+    then path.fileName
+    else parent.map(_.title).getOrElse(path.path.init.last)
+
+  final lazy val parent: Option[Page] =
+    // Note: top-level `index` is no-one's parent.
+    val parentDirectory: Option[Seq[String]] =
+      if path.fileName == "index" && path.path.length > 2 then Some(path.path.init.init)
+      else if path.fileName != "index" && path.path.length > 1 then Some(path.path.init)
+      else None
+    parentDirectory.map: parentDirectory =>
+      val parentPath: Path = Path(parentDirectory.appended("index") *).withExtension(Html.extension)
+      site.pages.find(_.path == parentPath) match
+        case Some(parent) => parent
+        case None => site.addIndexPage(parentPath)
+
+  final lazy val directories: List[Page] = if !isIndex then List.empty else site
+    .pages
+    .filter(_.path.fileName == "index")
+    .filter(_.path.path.length > 1)
+    .filter(_.path.path.init.init == path.path.init)
+    .sortBy(_.title)
+
+  final lazy val pages: List[Page] = if !isIndex then List.empty else site
+    .pages
+    .filter(_.path.fileName != "index")
+    //    .filter(_.path.path.length > 0)
+    .filter(_.path.path.init == path.path.init)
+    .sortBy(_.title)
 
 object MarkupPage:
   final class WithSource(

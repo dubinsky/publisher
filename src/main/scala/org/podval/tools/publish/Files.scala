@@ -16,12 +16,8 @@ object Files:
   def requireFile(file: File): Unit = require(file.isFile, s"File is a directory: $file")
 
   def list(directory: File): List[File] = Option(directory.listFiles).getOrElse(Array.empty[File]).toList
-
-  def split(what: String, on: Char): (String, Option[String]) = what.lastIndexOf(on) match
-    case -1 => (what, None)
-    case index => (what.substring(0, index), Some(what.substring(index + 1)))
-
-  def nameAndExtension(fullName: String): (String, Option[String]) = split(fullName, '.')
+  
+  def nameAndExtension(fullName: String): (String, Option[String]) = Strings.split(fullName, '.')
 
   def read(file: File): String = new String(NFiles.readAllBytes(file.toPath))
 

@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.Xml
-import XmlUtil.{apply, a, div, el, setId, withText}
+import XmlUtil.{apply, a, div, el, ul, setId, withText}
 
 // TODO include (some of the) SyntheticPages in the link resolution
 // or introduce (non-transcludable) Link.ToAnchor?
@@ -36,9 +36,7 @@ final class Tags(
       el("ul")(tags.map(tag =>
         el("li")(
           el("h3", "class" -> "page-tag").setId(slugify(tag)).withText(tag),
-          el("ul")(withTag(tag).map(page =>
-            el("li")(page.ref("post-link"))
-          )*)
+          ul("tag-pages-list", withTag(tag), _.ref("post-link"))
         )
       )*)
     )

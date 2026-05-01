@@ -7,7 +7,7 @@ abstract class Asset(
   site: Site,
   path: Path
 ):
-  final override def title: String = titleFromPath
+  final override def title: String = path.fileName
 
 object Asset:
   final class WithSource(

@@ -1,5 +1,5 @@
 plugins {
-  id 'com.github.ben-manes.versions' version '0.53.0'
+  id 'com.github.ben-manes.versions' version '0.54.0'
   id 'scala'
   id 'application'
   id 'maven-publish'
@@ -16,12 +16,13 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 scala.scalaVersion = '3.8.3'
 project.gradle.startParameter.excludedTaskNames.add('compileJava')
 
-String zioBlocksVersion = '0.0.34'
+String zioBlocksVersion = '0.0.35'
 String flexMarkVersion = '0.64.8'
 
 dependencies {
   implementation "dev.zio:zio-blocks-schema-xml_3:$zioBlocksVersion"
   implementation "dev.zio:zio-blocks-schema-yaml_3:$zioBlocksVersion"
+  implementation 'org.typelevel:paiges-core_3:0.4.4'
 
   implementation 'org.slf4j:slf4j-api:2.0.17'
   implementation 'ch.qos.logback:logback-classic:1.5.32'

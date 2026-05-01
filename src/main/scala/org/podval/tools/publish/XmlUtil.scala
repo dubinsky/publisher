@@ -1,13 +1,18 @@
 package org.podval.tools.publish
 
 import zio.blocks.chunk.Chunk
-import zio.blocks.schema.xml.{WriterConfig, Xml, XmlBuilder, XmlName, XmlWriter}
+import zio.blocks.schema.xml.{Xml, XmlBuilder, XmlName}
 
 // TODO split between Html and Xml
 // TODO def list()...
 object XmlUtil:
+  abstract class JavascriptLibrary:
+    def head: List[Xml.Element]
+    def body: List[Xml.Element]
+
   extension (builder: XmlBuilder.ElementBuilder)
     def apply(children: Xml*): Xml.Element = builder.children(children *).build
+
     def withText(text: String): Xml.Element = builder.child(XmlBuilder.text(text)).build
 
     def setId(value: String): XmlBuilder.ElementBuilder =
@@ -37,6 +42,11 @@ object XmlUtil:
 
   def div(cls: String): XmlBuilder.ElementBuilder = el("div", "class" -> cls)
   
+  def ul[T](cls: String, values: Seq[T], li: T => Xml.Element): Xml.Element =
+    el("ul", "class" -> cls)(values.map(value =>
+      el("li")(li(value))
+    )*)
+    
   def a(cls: String, href: String): XmlBuilder.ElementBuilder = el("a", "class" -> cls, "href" -> href)
   
   private given CanEqual[XmlName, XmlName] = CanEqual.derived
@@ -76,19 +86,18 @@ object XmlUtil:
 
   def toId(text: String): String = text.trim.replace(' ', '-')
 
-  def escapeText(text: String): String = escape(text)
+  def escapeText(text: String): String = Strings.escape(text)
 
-  def escapeUrl(url: String): String = escape(url) // TODO
+  def escapeUrl(url: String): String = Strings.escape(url) // TODO
 
-  private def escape(s: String): String = s
-    .replace("&", "&amp;")
-    .replace("<", "&lt;")
-    .replace(">", "&gt;")
-    .replace("\"", "&quot;")
-    .replace("'", "&apos;")
+  def write(xml: Xml.Element): String = prettyPrinter.render(xml)
+  private val prettyPrinter = XmlPrettyPrinter(htmlPrettyPrinterConfig)
+  private def htmlPrettyPrinterConfig: XmlPrettyPrinter.Config = new XmlPrettyPrinter.Config:
+    override def selfClose(name: XmlName): Boolean = Set("br", "meta", "link", "img", "data").contains(name.localName)
+    override def stack(name: XmlName): Boolean = Set("nav", "header", "main", "div").contains(name.localName)
+    override def unStack(name: XmlName): Boolean = false
+    override def nest(name: XmlName): Boolean = false
+    override def cling(name: XmlName): Boolean = false // TODO name.localName == "a"?
+    override def break(name: XmlName): Boolean = false // TODO TEI: lb; HTML: br?!
+    override def preformat(name: XmlName): Boolean = name.localName == "pre"
 
-  def write(xml: Xml): String = XmlWriter.write(xml/*, WriterConfig.pretty*/)
-
-  abstract class JavascriptLibrary:
-    def head: List[Xml.Element]
-    def body: List[Xml.Element]

@@ -99,7 +99,7 @@ abstract class Markup derives CanEqual:
       val before: String = text.substring(0, startIndex).trim
       val body: String = text.substring(startIndex + start.length, endIndex).trim
       val after: String = text.substring(endIndex + end.length).trim
-      val (ref: String, textOpt: Option[String]) = Files.split(body, '|')
+      val (ref: String, textOpt: Option[String]) = Strings.split(body, '|')
 
       val result: Xml.Element = page.site.resolveLink(Link.From(
         page = page,

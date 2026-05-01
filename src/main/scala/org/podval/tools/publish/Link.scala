@@ -59,7 +59,7 @@ object Link:
 
   // TODO reportError()
   def resolveRef(ref: String, site: Site): Option[Link.To] =
-    val (toPath: String, fragment: Option[String]) = Files.split(ref, '#')
+    val (toPath: String, fragment: Option[String]) = Strings.split(ref, '#')
 
     site.pages.find(_.is(toPath)).flatMap: toPage =>
       fragment match

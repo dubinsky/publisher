@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.{Xml, XmlBuilder}
-import XmlUtil.{a, apply, child, div, el, setId, stylesheet, withText}
+import XmlUtil.{a, apply, child, div, el, ul, setId, stylesheet, withText}
 
 // Based on https://github.com/jekyll/minima
 // TODO add up/prev/next to navigation!
@@ -43,9 +43,7 @@ final class Minima(page: MarkupPage):
   ): Option[Xml.Element] = Option.when(pages.nonEmpty):
     div(s"page-list $cls")(
       el("h3").withText(title),
-      el("ul")(pages.map(page =>
-        el("li")(page.ref("sub"))
-      )*)
+      ul(s"page-list $cls", pages, _.ref("sub"))
     )
 
   private def postLayout(content: Xml): Xml.Element = baseLayout(
@@ -136,13 +134,11 @@ final class Minima(page: MarkupPage):
         .build
     )
 
-  // TODO do not include in home and index pages
+  // TODO do not include in index pages? or at least home?
   private def backLinks: Xml.Element = div("backlinks")(
     el("hr")(), // TODO do a border
     el("h4").withText("Backlinks"),
-    el("ul")(site.backLinks(page).map(link =>
-      el("li")(link.from.page.ref("backlink"))  // TODO!
-    )*)
+    ul("backlinks-list", site.backLinks(page), link => link.from.page.ref("backlink"))  // TODO!
   )
 
   private def head: Xml.Element = el("head")

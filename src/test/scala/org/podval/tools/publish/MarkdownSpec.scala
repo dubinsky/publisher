@@ -5,7 +5,7 @@ import zio.blocks.schema.xml.Xml
 import zio.test.*
 
 object MarkdownSpec extends ZIOSpecDefault:
-  def parse(input: String, verify: Xml => TestResult): TestResult =
+  def parse(input: String, verify: Xml.Element => TestResult): TestResult =
     val parsed = Markdown.parse(Path.root, input)
     assertTrue(parsed.isRight) && verify(parsed.toOption.get)
 

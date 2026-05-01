@@ -80,6 +80,24 @@ Obsidian uses file names exclusively and ignores the front matter title;
 for link resolution to use front matter titles also,
 TODO Obsidian plugin needs to be installed.
 
+== Farewell, Jekyll
+
+First milestone for this project is to replace Jekyll on my personal website. Some differences between the new publisher and Jekyll:
+
+- no support for paginating the post list, which I did not use with Jekyll anyway;
+- instead of the Ruby code highlighter Rouge, my publisher uses Highlights.js; it loads only the language modules used in the page; TODO unsupported language mapping...
+- while I did manage to list children pages using Jekyll,
+I never figured out how to list subdirectories;
+with my own publisher this is not a problem ;)
+- Jekyll ignores Markdown files without front matter; I do not;
+- wiki links
+- link resolution
+- transclusion
+- directory navigation: up, prev, next; TODO;
+- path navigation; TODO;
+- title transplantation; TODO;
+- insertion of missing index pages; TODO;
+
 == Implementation
 
 At exactly the same time I became aware of the ZIO Blocks project,
@@ -144,6 +162,8 @@ Since I insist on the end result being HTML AST,
 invalid XML (e.g., unclosed 'br' elements)
 embedded in the Markdown text is not supported.
 
+I process wiki links and Kramdown TOC marker in post-processing.
+
 === XML
 
 As a part of the OpenTorah project, I developed a custom
@@ -155,31 +175,16 @@ when used with "pretty", it
 - inserts spaces between book titles and quotes around them;
 - destroys the formatting of the code blocks;
 
-when used with "default", it:
+when used with "default", in addition to producing
+non-human-readable text, it:
 
 - does not insert spaces between text and elements;
-- mangles the formatting of the code blocks if there are spaces at the beginning of the lines after the first one;
-- produces non-pretty results ;)
+- mangles the formatting of the code blocks if there are spaces at the beginning of the lines after the first one.
 
-With my own XML write, I can also ensure that the empty elements
+With my own XML writer, I can also ensure that the empty elements
 that cause problems with the browsers when they are self-closed
 (script, data, span) are not -
 without inserting comments into them, which is ugly.
-
-== Farewell, Jekyll
-
-First milestone for this project is to replace Jekyll on my personal website. Some differences between the new publisher and Jekyll:
-
-- no support for paginating the post list, which I did not use with Jekyll anyway;
-- instead of the Ruby code highlighter Rouge, my publisher uses Highlights.js;
-- while I did manage to list children pages using Jekyll,
-I never figured out how to list subdirectories;
-with my own publisher this is not a problem ;)
-- Jekyll ignores Markdown files without front matter; I do not;
-- I added directory navigation: up, prev, next; TODO;
-- I added path navigation; TODO;
-- I added title transplantation; TODO;
-- insertion of missing index pages; TODO;
 
 == TODO
 
@@ -193,6 +198,7 @@ there are pages that in addition to HTML produce chunked HTML and PDF.
 
 Add post hierarchy browser by year, month, day.
 
+Rewrite the XML leaving code blocks with unsupported languages for Highlights.js to auto-discover.
 
 Wiki links in Obsidian:
 
