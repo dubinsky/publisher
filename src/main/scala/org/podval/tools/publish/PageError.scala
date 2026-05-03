@@ -27,5 +27,6 @@ object PageError:
   case object FileName extends Kind("file name")
   case object FileKind extends Kind("file kind")
   case object Duplicate extends Kind("duplicate")
+  case object Unmakable extends Kind("unmakable")
   case object Unresolved extends Kind("unresolved")
 

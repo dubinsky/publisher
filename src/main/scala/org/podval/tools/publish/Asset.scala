@@ -7,7 +7,11 @@ abstract class Asset(
   site: Site,
   path: Path
 ):
+  final override def sourcePathOpt: Option[Path] = None
+
   final override def title: String = path.fileName
+
+  final override def resolveFragment(fragment: String): Option[Toc.Link] = None
 
 object Asset:
   final class WithSource(
@@ -16,10 +20,8 @@ object Asset:
   ) extends Asset(
     site,
     path
-  ) with Page.WithSource:
-    override def sourcePath: Path = path
-
-    override def write(): Unit = Files.copy(fromFile = sourcePath.file(site.sourceDirectory), toFile = targetFile)
+  ):
+    override def write(): Unit = Files.copy(fromFile = path.file(site.sourceDirectory), toFile = targetFile)
 
   abstract class Synthetic(
     site: Site,
@@ -27,7 +29,7 @@ object Asset:
   ) extends Asset(
     site, 
     path
-  ) with Page.WithoutSource with Page.WithContent
+  ) with Page.WithContent
   
   final class Embedded(
     site: Site,

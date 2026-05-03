@@ -5,6 +5,18 @@ import scala.annotation.tailrec
 import XmlUtil.replaceAttribute
 
 object Markup:
+  final case class SectionElement(
+    level: Option[Int],
+    id: Option[String],
+    text: Option[String]
+  )
+
+  final case class LinkElement(
+    ref: String,
+    text: Option[String],
+    kind: Option[String] // TEI org/person/place, facsimile, etc.
+  )
+  
   val all: List[Markup] = List(
     Markdown,
     Html
@@ -15,24 +27,26 @@ abstract class Markup derives CanEqual:
 
   def additionalExtensions: Set[String]
 
-  override def toString: String = extension
-
-  private lazy val extensions: Set[String] = Set(extension) ++ additionalExtensions
-
-  final def isExtension(extension: String): Boolean = extensions.contains(extension)
-
   def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element]
 
   def resolveLinks(element: Xml.Element): Boolean
 
   def resolveWikiLinks: Boolean
   
-  def sectionElement(element: Xml.Element): Option[Link.SectionElement]
+  def sectionElement(element: Xml.Element): Option[Markup.SectionElement]
 
-  def linkFromElement(element: Xml.Element): Option[Link.FromElement]
+  def linkElement(element: Xml.Element): Option[Markup.LinkElement]
 
-  def sections(xml: Xml.Element): Seq[Section]
-  
+  def sections(xml: Xml.Element): Seq[Toc.Section]
+
+  def blocks(xml: Xml.Element): Seq[Toc.Block]
+
+  override def toString: String = extension
+
+  private lazy val extensions: Set[String] = Set(extension) ++ additionalExtensions
+
+  final def isExtension(extension: String): Boolean = extensions.contains(extension)
+
   final def dropAnchors(element: Xml.Element): Xml.Element =
     if !resolveLinks(element) then element else
       val result: Xml.Element = sectionElement(element) match
@@ -67,13 +81,15 @@ abstract class Markup derives CanEqual:
         case Xml.Text(text) if resolveWikiLinks => resolveWikiLinks(Seq.empty, text, page)
         case xml => Seq(xml)
       })
-      linkFromElement(result) match
+      linkElement(result) match
         case None => result
-        case Some(linkFromElement) => page.site.resolveLink(Link.From(
+        case Some(linkElement) => page.site.resolveLink(Link.From(
           page = page,
-          fromElement = linkFromElement,
+          element = Some(result),
+          ref = linkElement.ref,
+          text = linkElement.text,
+          kind = linkElement.kind,
           context = None,
-          element = Some(element),
           transclude = false
         ))
 
@@ -103,13 +119,11 @@ abstract class Markup derives CanEqual:
 
       val result: Xml.Element = page.site.resolveLink(Link.From(
         page = page,
-        fromElement = Link.FromElement(
-          ref = ref.trim,
-          text = textOpt.map(_.trim),
-          kind = None,
-        ),
-        context = None,
         element = None,
+        ref = ref.trim,
+        text = textOpt.map(_.trim),
+        kind = None,
+        context = None,
         transclude = transclude
       ))
 

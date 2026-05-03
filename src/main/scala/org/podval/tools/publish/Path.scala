@@ -14,20 +14,17 @@ final case class Path(
     
   override def toString: String = path.mkString("/", "/", extensionString)
 
-  def startsWith(names: List[String]): Boolean = path.take(names.length) == names
-
   private def extensionString: String = extension match
     case None => ""
     case Some(extension) => s".$extension"
 
-  def withoutExtension: Path = withExtension(None)
-  def withExtension(extension: String): Path = withExtension(Some(extension))
-
-  private def withExtension(extension: Option[String]): Path =
-    if this.extension == extension
+  def withExtension(extension: String): Path =
+    if this.extension.contains(extension)
     then this
-    else this.copy(extension = extension)
+    else this.copy(extension = Some(extension))
 
+  def html: Path = withExtension(Html.extension)
+  
   def file(directory: File): File = file(directory, path)
   
   @scala.annotation.tailrec
@@ -35,6 +32,12 @@ final case class Path(
     if path.isEmpty then directory
     else if path.length == 1 then File(directory, path.head + extensionString)
     else file(File(directory, path.head), path.tail)
+
+  def startsWith(names: List[String]): Boolean = path.take(names.length) == names
+
+  def is(path: Path, isAbsolute: Boolean): Boolean =
+    path.extension.fold(true)(extension.contains) &&
+    path.path == this.path.takeRight((if isAbsolute then this.path else path.path).length)
 
 object Path:
   val root: Path = new Path(Seq.empty, None)

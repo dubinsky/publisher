@@ -28,7 +28,7 @@ final class XmlPrettyPrinter(
   val config: XmlPrettyPrinter.Config,
   val width: Int = 120,
   val indent: Int = 2,
-  val encodeXmlSpecials: Boolean = true
+  val encodeXmlSpecials: Boolean = false // TODO do not double-encode what you did not decode ;)
 ):
   def render(element: Xml.Element): String =
     fromElement(
@@ -222,7 +222,8 @@ final class XmlPrettyPrinter(
     else preformat(toString(node))
 
   private def preformat(string: String): Seq[String] =
-    encodeXmlSpecials(string).split("\n").toSeq
+    Strings.encodeXmlSpecials(string)
+    /* encodeXmlSpecials(string) */.split("\n").toSeq
   
   private def encodeXmlSpecials(string: String): String =
     if encodeXmlSpecials then Strings.encodeXmlSpecials(string) else string

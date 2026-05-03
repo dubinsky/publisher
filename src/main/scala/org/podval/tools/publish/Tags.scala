@@ -7,16 +7,14 @@ import XmlUtil.{apply, a, div, el, ul, setId, withText}
 // or introduce (non-transcludable) Link.ToAnchor?
 final class Tags(
   site: Site,
-  path: Path
-) extends MarkupPage.Synthetic(
+  path: Path,
+  pageMarkup: Option[PageMarkup],
+  frontMatter: FrontMatter
+) extends MarkupPage(
   site,
-  path = path,
-  frontMatter = FrontMatter(
-    title = Some("Tags"),
-    layout = Some("page"),
-    description = Some("Pages by tags"),
-    //    permalink = Some(path.withoutExtension.toString)
-  )
+  path,
+  frontMatter,
+  pageMarkup
 ):
   private def slugify(text: String): String = text.replace(' ', '-')
 
@@ -25,10 +23,11 @@ final class Tags(
   private def withTag(tag: String): List[Page] = site.markupPages.filter(_.frontMatter.tags.contains(tag)).sortBy(_.title)
 
   def tagRef(tag: String): Xml.Element = a("page-tag", s"$path#${slugify(tag)}").withText(tag)
-  
-  override def xml: Xml.Element =
+
+  override protected def syntheticContent(content: Option[Xml.Element]): Xml.Element =
     val tags: List[String] = this.tags
 
+    // TODO incorporate content
     div("tags")(
       el("h2").withText("All tags"),
       el("p")(tags.map(tagRef)*),
@@ -40,3 +39,16 @@ final class Tags(
         )
       )*)
     )
+
+object Tags:
+  final class Maker(site: Site, path: Path) extends MarkupPage.AutoMaker[Tags](site, path):
+    override def withSource(pageMarkup: PageMarkup, frontMatter: FrontMatter): Tags =
+      Tags(site, path, Some(pageMarkup), frontMatter)
+
+    override def withoutSource: Tags =
+      Tags(site, path, None, FrontMatter(
+        title = Some("Tags"),
+        description = Some("Pages by tags"),
+        //    permalink = Some(path.withoutExtension.toString)
+      ))
+

@@ -1,141 +1,97 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.Xml
+import scala.reflect.TypeTest
 import java.time.LocalDate
 
-abstract class MarkupPage(
+open class MarkupPage(
   site: Site,
-  path: Path
+  path: Path,
+  val frontMatter: FrontMatter,
+  pageMarkup: Option[PageMarkup]
 ) extends Page(
   site,
   path
 ) with Page.WithXmlContent:
+
+  final override def sourcePathOpt: Option[Path] =
+    pageMarkup.map(_.sourcePath)
+
+  final override def resolveFragment(fragment: String): Option[Toc.Link] =
+    pageMarkup.flatMap(_.resolveFragment(fragment))
+
   final override def xmlContent: Xml.Element =
-    postProcess()
-    Minima(this).render
+    Minima(this, syntheticContent(pageMarkup.map(_.xmlContent))).render
 
-  // add TOC, remove title etc.
-  protected def postProcess(): Unit
+  // TODO leave undefined to force subclasses to incorporate content
+  protected def syntheticContent(content: Option[Xml.Element]): Xml.Element =
+    content.getOrElse(XmlUtil.invisible)
 
-  final def isPost: Boolean = postDate.isDefined || frontMatter.layout.contains("post")
+  final override def title: String = frontMatter.title.getOrElse:
+    if Directory.is(path) && path.path.length > 1
+    // TODO look up *that* title  
+    then path.path.init.last
+    // TODO add file extension if it is not .html
+    else path.fileName
+
+  final def resolveLinks(): Unit = pageMarkup.foreach(_.resolveLinks(this))
+
+  private lazy val postDate: Option[LocalDate] = Post.date(path)
+
+  final def isPost: Boolean = postDate.isDefined
 
   final def date: Option[Date] = postDate.map(Date.Local(_)).orElse(frontMatter.date)
 
   final def author: Option[String] = frontMatter.author // TODO default to site.author?
 
-  def postDate: Option[LocalDate]
-
-  def frontMatter: FrontMatter
-
-  def xml: Xml.Element
-
-  def toc: Toc
-
-  def resolveLinks(): Unit
-
-  final def isIndex: Boolean = path.fileName == "index" && path.path.length > 1 // TODO "home" is not an index
-
-  final override def title: String = frontMatter.title.getOrElse:
-    if !isIndex
-    then path.fileName
-    else path.path.init.last
-
-  final lazy val parent: Option[Page] =
-    // Note: top-level `index` is no-one's parent.
-    val parentDirectory: Option[Seq[String]] =
-      if path.fileName == "index" && path.path.length > 2 then Some(path.path.init.init)
-      else if path.fileName != "index" && path.path.length > 1 then Some(path.path.init)
-      else None
-    parentDirectory.map: parentDirectory =>
-      val parentPath: Path = Path(parentDirectory.appended("index") *).withExtension(Html.extension)
-      site.pages.find(_.path == parentPath) match
-        case Some(parent) => parent
-        case None => site.addIndexPage(parentPath)
-
-  final lazy val directories: List[Page] = if !isIndex then List.empty else site
-    .pages
-    .filter(_.path.fileName == "index")
-    .filter(_.path.path.length > 1)
-    .filter(_.path.path.init.init == path.path.init)
-    .sortBy(_.title)
-
-  final lazy val pages: List[Page] = if !isIndex then List.empty else site
-    .pages
-    .filter(_.path.fileName != "index")
-    //    .filter(_.path.path.length > 0)
-    .filter(_.path.path.init == path.path.init)
-    .sortBy(_.title)
+  final lazy val parent: Option[Directory] = Directory.parent(site, path)
 
 object MarkupPage:
-  final class WithSource(
-    site: Site,
-    path: Path,
-    override val sourcePath: Path,
-    markup: Markup,
-    override val postDate: Option[LocalDate],
-    override val frontMatter: FrontMatter,
-    xmlRaw: Xml.Element
-  ) extends MarkupPage(
-    site = site,
-    path = path
-  ) with Page.WithSource:
-    private var xmlVar: Xml.Element = xmlRaw
+  trait BaseLayout extends MarkupPage
 
-    override def xml: Xml.Element = xmlVar
+  abstract class Maker(site: Site):
+    def withSource(
+      // TODO package together?
+      sourcePath: Path,
+      markup: Markup,
+      frontMatter: FrontMatter,
+      xml: Xml.Element
+    ): Option[MarkupPage]
 
-    override lazy val toc: Toc =
-      xmlVar = markup.dropAnchors(xml)
-      Toc(markup.sections(xml))
-
-    override def resolveLinks(): Unit =
-      xmlVar = markup.resolveLinks(xml, this)
-
-    override protected def postProcess(): Unit =
-      xmlVar = markup.addToc(xml, toc)
-
-  abstract class Synthetic(
-    site: Site,
-    path: Path,
-    final override val frontMatter: FrontMatter
-  ) extends MarkupPage(
-    site,
-    path
-  ) with Page.WithoutSource:
-    final override def postDate: Option[LocalDate] = None
-    final override def toc: Toc = Toc.empty
-    final override def resolveLinks(): Unit = ()
-    final override def postProcess(): Unit = ()
-
-  final class Index(
-    site: Site,
-    path: Path
-  ) extends Synthetic(
-    site,
-    path,
-    FrontMatter.absent
-  ):
-    override def xml: Xml.Element = XmlUtil.div("empty-content").build
-
-  def apply(
-    site: Site,
-    path: Path,
-    sourcePath: Path,
-    markup: Markup,
-    postDate: Option[LocalDate] // if the page is a post or a daily note
-  ): WithSource =
-    val (frontMatterOrError: Either[PageError, FrontMatter], markupContent: String) =
-      FrontMatter.parse(sourcePath, Files.read(sourcePath.file(site.sourceDirectory)))
-
-    new WithSource(
+  final class DefaultMaker(site: Site) extends Maker(site):
+    override def withSource(
+      sourcePath: Path,
+      markup: Markup,
+      frontMatter: FrontMatter,
+      xml: Xml.Element
+    ): Option[MarkupPage] = Some(MarkupPage(
       site = site,
-      path = path.withExtension(Html.extension),
-      sourcePath = sourcePath,
-      markup = markup,
-      postDate = postDate,
-      frontMatter = frontMatterOrError match
-        case Right(frontMatter) => frontMatter
-        case Left(error) => site.reportError(error, FrontMatter.absent),
-      xmlRaw = markup.parse(sourcePath, markupContent) match
-        case Right(xml) => xml
-        case Left(error) => site.reportError(error, Xml.Element("div", Xml.Text(s"Malformed XML: $error")))
-    )
+      path = sourcePath.html,
+      frontMatter = frontMatter,
+      pageMarkup = Some(PageMarkup(
+        sourcePath,
+        markup,
+        xml
+      ))
+    ))
+
+  abstract class AutoMaker[P <: MarkupPage](site: Site, path: Path)(using TypeTest[MarkupPage, P]) extends Maker(site):
+    final def get: P = site.getOrElse(path)(withoutSource)
+
+    final override def withSource(
+      sourcePath: Path,
+      markup: Markup,
+      frontMatter: FrontMatter,
+      xml: Xml.Element
+    ): Option[MarkupPage] = Option.when(sourcePath.html == path):
+      withSource(
+        frontMatter = frontMatter,
+        pageMarkup = PageMarkup(sourcePath, markup, xml)
+      )
+
+    def withSource(
+      pageMarkup: PageMarkup,
+      frontMatter: FrontMatter
+    ): P
+
+    def withoutSource: P

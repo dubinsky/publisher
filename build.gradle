@@ -30,9 +30,10 @@ dependencies {
   testImplementation 'dev.zio:zio-test-sbt_3:2.1.25'
 
   implementation "com.vladsch.flexmark:flexmark:$flexMarkVersion"
-  implementation "com.vladsch.flexmark:flexmark-ext-toc:$flexMarkVersion"
   implementation "com.vladsch.flexmark:flexmark-ext-anchorlink:$flexMarkVersion"
   implementation "com.vladsch.flexmark:flexmark-ext-autolink:$flexMarkVersion"
+  implementation "com.vladsch.flexmark:flexmark-ext-tables:$flexMarkVersion"
+//  implementation "com.vladsch.flexmark:flexmark-ext-toc:$flexMarkVersion"
 }
 
 application {

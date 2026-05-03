@@ -82,7 +82,13 @@ TODO Obsidian plugin needs to be installed.
 
 == Farewell, Jekyll
 
-First milestone for this project is to replace Jekyll on my personal website. Some differences between the new publisher and Jekyll:
+My Jekyll setup (wiki-refs plugin) broke down on Mar 17, 2026.
+I created my site publisher repository ion Mar 20, 2026.
+I filed ZIO Blocks pull request on Mar 22, 2026.
+
+First milestone for this project is to replace Jekyll on my personal website.
+In under two month and a little less than 2000 lines of Scala code,
+I have:
 
 - no support for paginating the post list, which I did not use with Jekyll anyway;
 - instead of the Ruby code highlighter Rouge, my publisher uses Highlights.js; it loads only the language modules used in the page; TODO unsupported language mapping...
@@ -195,8 +201,6 @@ path to a page should lead not through names, but trough *pages*!
 Another feature of my TEI approach - "facets" of a page -
 also arises naturally: there are pages that produce XML instead of HTML (feed.xml); there are pages that produce text (robots.txt);
 there are pages that in addition to HTML produce chunked HTML and PDF.
-
-Add post hierarchy browser by year, month, day.
 
 Rewrite the XML leaving code blocks with unsupported languages for Highlights.js to auto-discover.
 

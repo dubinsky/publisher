@@ -6,49 +6,36 @@ import XmlUtil.{a, apply, child, div, el, ul, setId, stylesheet, withText}
 // Based on https://github.com/jekyll/minima
 // TODO add up/prev/next to navigation!
 // TODO unfold?
-final class Minima(page: MarkupPage):
+final class Minima(page: MarkupPage, xml: Xml.Element):
   private def site: Site = page.site
   private val libraries: List[XmlUtil.JavascriptLibrary] = List(
-    Highlights.get(page.xml),
+    Highlights.get(xml),
     Option.when(page.frontMatter.math)(MathJax),
     Some(FontAwesome())
   ).flatten
 
-  def render: Xml.Element = page.frontMatter.layout match
-    case Some("post") => postLayout(page.xml)
-    case Some("page") => pageLayout(page.xml)
-    case Some("home") => homeLayout(page.xml)
-    case _ => pageLayout(page.xml)
-//    case _  => baseLayout(page.xml)
+  def render: Xml.Element =
+    if page.isPost then postLayout(xml)
+    else if page.isInstanceOf[MarkupPage.BaseLayout] then baseLayout(xml)
+    else pageLayout(xml)
 
-  private def pageLayout(content: Xml): Xml.Element =
-    baseLayout(
-      el("article", "class" -> "post")
-        .child(
-          el("header", "class" -> "post-header")
-            .child(el("h1", "class" -> "post-title").withText(page.title))
-            .child(tags)
-            .build
-        )
-        .child(div("post-content")(content))
-        .child(pageList(page.directories, "Directories", "directories-list"))
-        .child(pageList(page.pages, "Pages", "pages-list"))
-        .build
-    )
-
-  private def pageList(
-    pages: List[Page],
-    title: String,
-    cls: String
-  ): Option[Xml.Element] = Option.when(pages.nonEmpty):
-    div(s"page-list $cls")(
-      el("h3").withText(title),
-      ul(s"page-list $cls", pages, _.ref("sub"))
-    )
+  private def pageLayout(content: Xml): Xml.Element = baseLayout(
+    el("article", "class" -> "post")
+      .child(
+        el("header", "class" -> "post-header")
+          .child(el("h1", "class" -> "post-title").withText(page.title))
+          .child(tags)
+          .build
+      )
+      .child(div("post-content")(content))
+      .child(pageList(_.directories, "Directories", "directories-list"))
+      .child(pageList(_.pages, "Pages", "pages-list"))
+      .build
+  )
 
   private def postLayout(content: Xml): Xml.Element = baseLayout(
-    el("article", "class" -> "post h-entry", "itemscope" -> "", "itemtype" -> "http://schema.org/BlogPosting")(
-      el("header", "class" -> "post-header")(
+    el("article", "class" -> "post h-entry", "itemscope" -> "", "itemtype" -> "http://schema.org/BlogPosting")
+      .child(el("header", "class" -> "post-header")(
         el("h1", "class" -> "post-title p-name", "itemprop" -> "name headline").withText(page.title),
         div("post-meta")
           // TODO
@@ -83,14 +70,31 @@ final class Minima(page: MarkupPage):
             )
           )
           .build
-      ),
-      div("post-content e-content").attr("itemprop", "articleBody")(
+      ))
+      .child(div("post-content e-content").attr("itemprop", "articleBody")(
         content
-      ),
+      ))
+      .child(pageList(_.directories, "Directories", "directories-list"))
+      .child(pageList(_.pages, "Pages", "pages-list"))
       // Note: skipped Disqus comments
-      a("u-url", page.path.toString).attr("hidden", "")()
-    )
+      .child(a("u-url", page.path.toString).attr("hidden", "")())
+      .build
   )
+
+  private def pageList(
+    getter: Directory => List[Page],
+    title: String,
+    cls: String
+  ): Option[Xml.Element] =
+    val pages: List[Page] = page match
+      case directory: Directory => getter(directory)
+      case _ => List.empty
+
+    Option.when(pages.nonEmpty):
+      div(s"page-list $cls")(
+        el("h3").withText(title),
+        ul(s"page-list $cls", pages, _.ref("sub"))
+      )
 
   // TODO do a div like with author
   private def tags: Option[Xml.Element] = Option.when(page.frontMatter.tags.nonEmpty):
@@ -98,25 +102,6 @@ final class Minima(page: MarkupPage):
       .child(XmlBuilder.text("|"))
       .children(page.frontMatter.tags.map(site.tags.tagRef)*)
       .build
-
-  private def homeLayout(content: Xml.Element): Xml.Element = baseLayout(
-    div("home")(
-      //      el("h1", "class" -> "page-heading").withText(page.title)
-      content,
-      el("h2", "class" -> "post-list-heading").withText("Posts"),
-      el("ul", "class" -> "post-list")(site.posts.map(post =>
-        el("li")(
-          el("span", "class" -> "post-meta").withText(post.date.map(_.toShortString).getOrElse("")),
-          el("h3")(post.ref("post-link"))
-          // {%- if site.minima.show_excerpts -%} {{ post.excerpt }} {%- endif -%}
-        )
-      )*),
-      el("p", "class" -> "rss-subscribe")(
-        XmlBuilder.text("subscribe"),
-        el("a", "href" -> "/feed.xml").withText("via RSS")
-      )
-    )
-  )
 
   private def baseLayout(content: Xml): Xml.Element =
     el("html", "lang" -> page.frontMatter.lang.getOrElse(site.lang))(

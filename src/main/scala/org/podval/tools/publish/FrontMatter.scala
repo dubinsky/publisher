@@ -7,7 +7,6 @@ import zio.blocks.typeid.TypeId
 import scala.util.control.NonFatal
 
 final class FrontMatter(
-  val layout: Option[String] = None,
   val title: Option[String] = None,
   val description: Option[String] = None,
   val permalink: Option[String] = None,
@@ -22,10 +21,8 @@ final class FrontMatter(
   private var extraKeys: Chunk[(Yaml, Yaml)] = Chunk.empty
 
   private var absent: Boolean = false
-  def setAbsent(): Unit = absent = true
-  def isAbsent: Boolean = absent
 
-  def write: String = if isAbsent then "" else
+  def write: String = if absent then "" else
     val mapping: String = YamlWriter.write(Yaml.Mapping(
       FrontMatter.codec.encodeValue(this).asInstanceOf[Yaml.Mapping].entries ++ extraKeys
     ))
@@ -37,7 +34,7 @@ object FrontMatter:
 
   val absent: FrontMatter =
     val result = FrontMatter()
-    result.setAbsent()
+    result.absent = true
     result
 
   private val schema: Schema[FrontMatter] = Schema.derived

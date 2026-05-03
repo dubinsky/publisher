@@ -90,6 +90,8 @@ object XmlUtil:
 
   def escapeUrl(url: String): String = Strings.escape(url) // TODO
 
+  def invisible: Xml.Element = div("invisible").attr("hidden", "")()
+  
   def write(xml: Xml.Element): String = prettyPrinter.render(xml)
   private val prettyPrinter = XmlPrettyPrinter(htmlPrettyPrinterConfig)
   private def htmlPrettyPrinterConfig: XmlPrettyPrinter.Config = new XmlPrettyPrinter.Config:
