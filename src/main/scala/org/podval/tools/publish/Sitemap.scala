@@ -3,13 +3,15 @@ package org.podval.tools.publish
 import zio.blocks.schema.xml.{Xml, XmlName}
 import XmlUtil.{apply, el}
 
+object Sitemap:
+  val path: Path = Path("sitemap").withExtension("xml")
+  
 // TODO site first
 final class Sitemap(
-  site: Site,
-  path: Path
+  site: Site
 ) extends Asset.SyntheticXml(
   site,
-  path
+  Sitemap.path
 ):
   override def xmlContent: Xml.Element = el("urlset")
     .attr(XmlName("xsi", Some("xmlns"), None), "http://www.w3.org/2001/XMLSchema-instance")

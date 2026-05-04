@@ -8,6 +8,7 @@ import java.io.File
 import java.net.{URI, URISyntaxException}
 import XmlUtil.{a, div, withText}
 
+// TODO file named after directory is its index!
 final class Site(
   sourceDirectoryPath: String,
   production: Boolean,
@@ -20,7 +21,6 @@ final class Site(
   private given CanEqual[XmlName, XmlName] = CanEqual.derived
 
   Logging.configureLogBack(level = logLevel, useLogStash = false)
-
   private val log: Logger = LoggerFactory.getLogger(this.getClass)
 
   private val config: Config = Config(
@@ -38,22 +38,7 @@ final class Site(
   def email: String = config.email
   def lang: String = config.lang.getOrElse("en")
 
-  val socialLinks: Seq[SocialLink] = Seq(
-    config.social.github.map(SocialLink.GitHub(_)),
-    config.social.twitter.map(SocialLink.Twitter(_)),
-    config.social.linkedin.map(SocialLink.LinkedIn(_))
-  ).flatten
-
-  private var links: List[Link] = List.empty
-
   private var pagesVar: List[Page] = List.empty
-  private def addPages(pages: List[Page]): Unit = pagesVar = pagesVar.appendedAll(pages)
-
-  private def addPage[P <: Page](page: P): P =
-    log.warn(s"Added $page")
-    pagesVar = pagesVar.appended(page)
-    page
-
   def pages: List[Page] = pagesVar
   def markupPages: List[MarkupPage] = pages.collect { case page: MarkupPage => page }
 
@@ -63,38 +48,25 @@ final class Site(
       case page: P => page
       case _ => throw IllegalArgumentException(s"Not a ???") // TODO use some tag to print the class name
     }
-    .getOrElse(addPage(make))
+    .getOrElse:
+      val page = make
+      log.warn(s"Added $page")
+      pagesVar = pagesVar.appended(page)
+      page
 
-  private val tagsMaker: Tags.Maker = Tags.Maker(this, Path("tags").html)
-  private val pageMakers: Seq[MarkupPage.Maker] = Seq(
+  private val pageMakers: Seq[MarkupPage.Maker[?]] = Seq(
     Post.Maker(
       site = this,
       postsDirectoryName = config.postsDirectoryName,
       draftsDirectoryName = config.draftsDirectoryName,
       dailyNotesDirectoryName = config.dailyNotesDirectoryName
     ),
-    Directory.Maker(this),
-    tagsMaker,
-    Errors.Maker(this, Path("errors").html),
-    Posts.Maker(this, Path("posts").html),
-    MarkupPage.DefaultMaker(site = this)
+    Directory.Maker,
+    Tags.Maker,
+    Errors.Maker,
+    Posts.Maker,
+    MarkupPage.DefaultMaker
   )
-
-  private val sitemap: Sitemap = addPage(Sitemap(this, Path("sitemap").withExtension("xml")))
-  addPage(Robots(this, Path("robots").withExtension("txt"), sitemap))
-  addPage(Feed(this, Path("feed").withExtension("xml")))
-
-  // Embedded resources
-  addPages(Site.resourcesList.map(Asset.Embedded(this, _)))
-
-  lazy val tags: Tags = tagsMaker.get
-
-  lazy val headerPages: List[Page.Link] = config.headerPages.flatMap(resolveHeaderPage)
-  private def resolveHeaderPage(ref: String): Option[Page.Link] =
-    val result: Option[Page.Link] = resolveRef(ref)
-    if result.isDefined
-    then result
-    else reportError(PageError.Unresolved(Path.root, s"header link ref='$ref'"), result)
 
   private var errorsVar: List[PageError] = List.empty
   def errors: List[PageError] = errorsVar
@@ -105,16 +77,6 @@ final class Site(
       errorsVar = errorsVar.appended(error)
       log.warn(error.getMessage)
       result
-
-  def backLinks(page: Page): List[Link] = links
-    .filter(_.to.page == page)
-    .filterNot(_.from.page == page)
-    .distinctBy(_.from.page.path) // TODO once we have context, each link should be listed (grouped by page)
-
-  def posts: List[MarkupPage] = markupPages
-    .filter(_.isPost)
-    .sortBy(_.date)
-    .reverse
 
   def generateAndReport(): Unit =
     try
@@ -127,11 +89,17 @@ final class Site(
     // Wipe out output directory
     Files.deleteDirectory(config.targetDirectory)
 
-    // Read pages
-    pagesVar = pagesVar ++ directoryPages(Seq.empty, config.sourceDirectory)
+    // Write embedded resources
+    writePages(Site.resourcesList.map(Asset.Embedded(this, _)))
+
+    // Write synthetic assets
+    writePages(List(Sitemap(this), Robots(this), Feed(this)))
+
+    // Read and add pages
+    pagesVar = pagesVar.appendedAll(directoryPages(Seq.empty, config.sourceDirectory))
 
     // Add automatic pages
-    pageMakers.collect { case autoMaker: MarkupPage.AutoMaker[?] => autoMaker }.foreach(_.get)
+    pageMakers.collect { case autoMaker: MarkupPage.AutoMaker[?] => autoMaker }.foreach(_.get(this))
 
     // Report conflicting pages
     pages
@@ -145,6 +113,7 @@ final class Site(
         ), ())
       )
 
+    // Add directory pages
     Directory.addParentDirectories(this)
 
     // Resolve links
@@ -153,9 +122,7 @@ final class Site(
     // TODO sort the pages in transclusion order and transclude
 
     // Write pages
-    pages.foreach: page =>
-      page.write()
-      log.debug(s"Wrote: $page")
+    writePages(pages)
 
   private def directoryPages(directoryPath: Seq[String], directory: File): List[Page] =
     Files.requireExists(directory)
@@ -165,8 +132,6 @@ final class Site(
       .list(directory)
       .filterNot(config.exclude)
       .partition(_.isFile)
-
-    // TODO file named after directory is its index!
 
     files.map(filePage(directoryPath, _)) ++
     directories.flatMap(directory => directoryPages(directoryPath :+ directory.getName, directory))
@@ -178,11 +143,7 @@ final class Site(
     val sourcePath: Path = Path(directoryPath :+ name, extension)
 
     val page: Page = sourcePath.extension.flatMap(extension => Markup.all.find(_.isExtension(extension))) match
-      case None =>
-        Asset.WithSource(
-          site = this,
-          path = sourcePath
-        )
+      case None => Asset.WithSource(site = this, path = sourcePath)
 
       case Some(markup) =>
         val (frontMatterOrError: Either[PageError, FrontMatter], markupContent: String) =
@@ -196,13 +157,40 @@ final class Site(
           case Right(xml) => xml
           case Left(error) => reportError(error, div("malformed-xml").withText(s"Malformed XML: $error"))
 
+        val pageMarkup: PageMarkup = PageMarkup(sourcePath, markup, xml)
+
         pageMakers
-          .flatMap(_.withSource(sourcePath, markup, frontMatter, xml))
+          .flatMap(_.withSource(this, frontMatter, pageMarkup))
           .headOption
           .getOrElse(throw PageError.Unmakable(sourcePath, s"Can't make the page!"))
 
     log.debug(s"Read: $page")
     page
+
+  private def writePages(pages: List[Page]): Unit = pages.foreach: page =>
+    page.write()
+    log.debug(s"Wrote: $page")
+
+  lazy val tags: Tags = Tags.Maker.get(this)
+
+  private var links: List[Link] = List.empty
+
+  def backLinks(page: Page): List[Link] = links
+    .filter(_.to.page == page)
+    .filterNot(_.from.page == page)
+    .distinctBy(_.from.page.path) // TODO once we have context, each link should be listed (grouped by page)
+
+  val socialLinks: Seq[SocialLink] = Seq(
+    config.social.github.map(SocialLink.GitHub(_)),
+    config.social.twitter.map(SocialLink.Twitter(_)),
+    config.social.linkedin.map(SocialLink.LinkedIn(_))
+  ).flatten
+
+  lazy val headerPages: List[Page.Link] = config.headerPages.flatMap: ref =>
+    val result: Option[Page.Link] = resolveRef(ref)
+    if result.isDefined
+    then result
+    else reportError(PageError.Unresolved(Path.root, s"header link ref='$ref'"), result)
 
   // TODO mark errors with class attribute
   def resolveLink(from: Link.From): Xml.Element =
@@ -250,9 +238,8 @@ object Site:
     "/home/dub/Podval/dub.podval.org"
   ))
 
-  val resourcesBase: String = "/org/podval/tools/publish/site"
-
   // TODO list using Files.listResources
+  val resourcesBase: String = "/org/podval/tools/publish/site"
   private val resourcesList: List[Path] = List(
     Path("assets", "css", "base").withExtension("css"),
     Path("assets", "css",  "initialize").withExtension("css"),

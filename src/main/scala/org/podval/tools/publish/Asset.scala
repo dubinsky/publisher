@@ -9,7 +9,7 @@ abstract class Asset(
 ):
   final override def sourcePathOpt: Option[Path] = None
 
-  final override def title: String = path.fileName
+  final override def title: String = path.fileNameWithNonHtmlExtension
 
   final override def resolveFragment(fragment: String): Option[Toc.Link] = None
 

@@ -10,7 +10,7 @@ final class Minima(page: MarkupPage, xml: Xml.Element):
   private def site: Site = page.site
   private val libraries: List[XmlUtil.JavascriptLibrary] = List(
     Highlights.get(xml),
-    Option.when(page.frontMatter.math)(MathJax),
+    Option.when(page.math)(MathJax),
     Some(FontAwesome())
   ).flatten
 
@@ -60,12 +60,12 @@ final class Minima(page: MarkupPage, xml: Xml.Element):
           //   </time>
           // {%- endif -%}
           .child(tags)
-          .child(page.author.map: author =>
+          .child(
             div("post-authors")( // TODO s"${if page.frontMatter.modified_date then "" else "force-inline "}post-authors"
           //    TODO multiple authors, separated by commas?
               XmlBuilder.text("•"),
               el("span", "itemprop" -> "author", "itemscope" -> "", "itemtype" -> "http://schema.org/Person")(
-                el("span", "class" -> "p-author h-card", "itemprop" -> "name").withText(author)
+                el("span", "class" -> "p-author h-card", "itemprop" -> "name").withText(page.author)
               )
             )
           )
@@ -97,14 +97,14 @@ final class Minima(page: MarkupPage, xml: Xml.Element):
       )
 
   // TODO do a div like with author
-  private def tags: Option[Xml.Element] = Option.when(page.frontMatter.tags.nonEmpty):
+  private def tags: Option[Xml.Element] = Option.when(page.tags.nonEmpty):
     el("span")
       .child(XmlBuilder.text("|"))
-      .children(page.frontMatter.tags.map(site.tags.tagRef)*)
+      .children(page.tags.map(site.tags.tagRef)*)
       .build
 
   private def baseLayout(content: Xml): Xml.Element =
-    el("html", "lang" -> page.frontMatter.lang.getOrElse(site.lang))(
+    el("html", "lang" -> page.lang)(
       head,
       el("body")
         .child(header)

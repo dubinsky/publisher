@@ -30,6 +30,8 @@ abstract class Page(
   final def is(path: Path, isAbsolute: Boolean): Boolean =
     this.path.is(path, isAbsolute) || sourcePathOpt.exists(_.is(path, isAbsolute))
 
+  final lazy val parent: Option[Directory] = Directory.parent(site, path)
+
   final def ref(cls: String): Xml.Element = Page.Link(this, part = None).a(cls)
 
   final def targetFile: File = path.file(site.targetDirectory)

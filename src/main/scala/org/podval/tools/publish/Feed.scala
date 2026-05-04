@@ -3,12 +3,14 @@ package org.podval.tools.publish
 import zio.blocks.schema.xml.Xml
 import XmlUtil.{apply, el}
 
+object Feed:
+  val path: Path = Path("feed").withExtension("xml")
+  
 final class Feed(
-  site: Site,
-  path: Path
+  site: Site
 ) extends Asset.SyntheticXml(
   site,
-  path
+  Feed.path
 ):
   // TODO
   override def xmlContent: Xml.Element =

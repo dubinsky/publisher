@@ -7,6 +7,10 @@ final case class Path(
   extension: Option[String] = None
 ) derives CanEqual:
   def fileName: String = path.last
+  def fileNameWithNonHtmlExtension: String =
+    if extension.contains(Html.extension)
+    then fileName
+    else fileName + extensionString
   
   override def equals(obj: Any): Boolean = obj match
     case that: Path => this.path == that.path && this.extension == that.extension
@@ -24,7 +28,7 @@ final case class Path(
     else this.copy(extension = Some(extension))
 
   def html: Path = withExtension(Html.extension)
-  
+
   def file(directory: File): File = file(directory, path)
   
   @scala.annotation.tailrec

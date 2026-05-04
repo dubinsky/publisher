@@ -7,12 +7,24 @@ import java.time.LocalDate
 open class MarkupPage(
   site: Site,
   path: Path,
-  val frontMatter: FrontMatter,
+  frontMatter: FrontMatter,
   pageMarkup: Option[PageMarkup]
 ) extends Page(
   site,
   path
 ) with Page.WithXmlContent:
+
+  final def tags: List[String] = frontMatter.tags
+  final def author: String = frontMatter.author.getOrElse(site.author)
+  final def lang: String = frontMatter.lang.getOrElse(site.lang)
+  final def math: Boolean = frontMatter.math
+
+  private lazy val postDate: Option[LocalDate] = Post.date(path)
+  final def isPost: Boolean = postDate.isDefined
+  final def date: Option[Date] = postDate.map(Date.Local(_)).orElse(frontMatter.date)
+
+  final def resolveLinks(): Unit =
+    pageMarkup.foreach(_.resolveLinks(this))
 
   final override def sourcePathOpt: Option[Path] =
     pageMarkup.map(_.sourcePath)
@@ -28,70 +40,46 @@ open class MarkupPage(
     content.getOrElse(XmlUtil.invisible)
 
   final override def title: String = frontMatter.title.getOrElse:
-    if Directory.is(path) && path.path.length > 1
-    // TODO look up *that* title  
-    then path.path.init.last
-    // TODO add file extension if it is not .html
-    else path.fileName
-
-  final def resolveLinks(): Unit = pageMarkup.foreach(_.resolveLinks(this))
-
-  private lazy val postDate: Option[LocalDate] = Post.date(path)
-
-  final def isPost: Boolean = postDate.isDefined
-
-  final def date: Option[Date] = postDate.map(Date.Local(_)).orElse(frontMatter.date)
-
-  final def author: Option[String] = frontMatter.author // TODO default to site.author?
-
-  final lazy val parent: Option[Directory] = Directory.parent(site, path)
+    if !Directory.is(path) then path.fileNameWithNonHtmlExtension else postDate match
+      case Some(postDate) => postDate.toString // daily note
+      case None if path.path.length > 1 => path.path.init.last // directory name
+      case None => path.fileName // "index"
 
 object MarkupPage:
   trait BaseLayout extends MarkupPage
 
-  abstract class Maker(site: Site):
-    def withSource(
-      // TODO package together?
-      sourcePath: Path,
-      markup: Markup,
-      frontMatter: FrontMatter,
-      xml: Xml.Element
-    ): Option[MarkupPage]
+  abstract class Maker[P <: MarkupPage](
+    make: (site: Site, path: Path, frontMatter: FrontMatter, pageMarkup: Option[PageMarkup]) => P
+  ):
+    def path(sourcePath: Path): Option[Path]
 
-  final class DefaultMaker(site: Site) extends Maker(site):
-    override def withSource(
-      sourcePath: Path,
-      markup: Markup,
+    final def withSource(
+      site: Site,
       frontMatter: FrontMatter,
-      xml: Xml.Element
-    ): Option[MarkupPage] = Some(MarkupPage(
-      site = site,
-      path = sourcePath.html,
-      frontMatter = frontMatter,
-      pageMarkup = Some(PageMarkup(
-        sourcePath,
-        markup,
-        xml
-      ))
+      pageMarkup: PageMarkup
+    ): Option[P] = path(pageMarkup.sourcePath).map(path => make(
+      site,
+      path.html,
+      frontMatter,
+      pageMarkup = Some(pageMarkup)
     ))
 
-  abstract class AutoMaker[P <: MarkupPage](site: Site, path: Path)(using TypeTest[MarkupPage, P]) extends Maker(site):
-    final def get: P = site.getOrElse(path)(withoutSource)
+  object DefaultMaker extends Maker[MarkupPage](MarkupPage.apply):
+    override def path(sourcePath: Path): Some[Path] = Some(sourcePath)
 
-    final override def withSource(
-      sourcePath: Path,
-      markup: Markup,
-      frontMatter: FrontMatter,
-      xml: Xml.Element
-    ): Option[MarkupPage] = Option.when(sourcePath.html == path):
-      withSource(
-        frontMatter = frontMatter,
-        pageMarkup = PageMarkup(sourcePath, markup, xml)
+  abstract class AutoMaker[P <: MarkupPage](
+    path: Path,
+    make: (site: Site, path: Path, frontMatter: FrontMatter, pageMarkup: Option[PageMarkup]) => P,
+    frontMatterWithoutSource: FrontMatter
+  )(using TypeTest[MarkupPage, P]) extends Maker[P](make):
+    final override def path(sourcePath: Path): Option[Path] = Option.when(sourcePath.html == path)(sourcePath)
+
+    final def get(site: Site): P = site.getOrElse(path):
+      make(
+        site,
+        path,
+        frontMatter = frontMatterWithoutSource,
+        pageMarkup = None
       )
 
-    def withSource(
-      pageMarkup: PageMarkup,
-      frontMatter: FrontMatter
-    ): P
 
-    def withoutSource: P

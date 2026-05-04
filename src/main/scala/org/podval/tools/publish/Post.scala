@@ -1,6 +1,5 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.Xml
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 
@@ -23,20 +22,13 @@ object Post:
     postsDirectoryName: String,
     draftsDirectoryName: Option[String],
     dailyNotesDirectoryName: Option[String]
-  ) extends MarkupPage.Maker(site):
-
+  ) extends MarkupPage.Maker[MarkupPage](MarkupPage.apply):
     private val dailiesMixedWithPosts: Boolean = dailyNotesDirectoryName.contains(postsDirectoryName)
 
-    override def withSource(
-      sourcePath: Path,
-      markup: Markup,
-      frontMatter: FrontMatter,
-      xml: Xml.Element
-    ): Option[MarkupPage] =
-
+    override def path(sourcePath: Path): Option[Path] =
       val isPost: Boolean =
         sourcePath.startsWith(List(postsDirectoryName)) ||
-        draftsDirectoryName.exists(draftsDirectoryName => sourcePath.startsWith(List(draftsDirectoryName)))
+          draftsDirectoryName.exists(draftsDirectoryName => sourcePath.startsWith(List(draftsDirectoryName)))
 
       val isDaily: Boolean =
         dailyNotesDirectoryName.exists(dailyNotesDirectoryName => sourcePath.startsWith(List(dailyNotesDirectoryName)))
@@ -64,19 +56,9 @@ object Post:
             then site.reportError(PageError.FileName(sourcePath, s"Daily note can not have title: $fileName"), None)
             else Some(title)
         yield
-          val path: Path = Path(
+          Path(
             f"${date.getYear}%04d",
             f"${date.getMonthValue}%02d",
             f"${date.getDayOfMonth}%02d",
             title
-          )
-          MarkupPage(
-            site = site,
-            path = path.html,
-            frontMatter = frontMatter,
-            pageMarkup = Some(PageMarkup(
-              sourcePath = sourcePath,
-              markup = markup,
-              xml = xml
-            ))
           )

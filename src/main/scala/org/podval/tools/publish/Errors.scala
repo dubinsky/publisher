@@ -6,8 +6,8 @@ import zio.blocks.schema.xml.Xml
 final class Errors(
   site: Site,
   path: Path,
-  pageMarkup: Option[PageMarkup],
-  frontMatter: FrontMatter
+  frontMatter: FrontMatter,
+  pageMarkup: Option[PageMarkup]
 ) extends MarkupPage(
   site,
   path,
@@ -24,13 +24,12 @@ final class Errors(
     div("site-errors").setId("site-errors").child(content)()
 
 object Errors:
-  final class Maker(site: Site, path: Path) extends MarkupPage.AutoMaker[Errors](site, path):
-    override def withSource(pageMarkup: PageMarkup, frontMatter: FrontMatter): Errors =
-      Errors(site, path, Some(pageMarkup), frontMatter)
-
-    override def withoutSource: Errors =
-      Errors(site, path, None, FrontMatter(
-        title = Some("Site Errors"),
-        description = Some("Site errors by kind"),
-        //    permalink = Some(path.withoutExtension.toString)
-      ))
+  object Maker extends MarkupPage.AutoMaker[Errors](
+    path = Path("errors").html,
+    make = Errors.apply,
+    frontMatterWithoutSource = FrontMatter(
+      title = Some("Errors"),
+      description = Some("Site errors by kind"),
+      //    permalink = Some(path.withoutExtension.toString)
+    )
+  )

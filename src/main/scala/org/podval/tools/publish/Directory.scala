@@ -1,12 +1,10 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.Xml
-
 final class Directory(
   site: Site,
   path: Path,
-  pageMarkup: Option[PageMarkup],
-  frontMatter: FrontMatter
+  frontMatter: FrontMatter,
+  pageMarkup: Option[PageMarkup]
 ) extends MarkupPage(
   site,
   path,
@@ -35,7 +33,7 @@ object Directory:
 
   // Implicitly force insertion of the missing `index` pages.
   def addParentDirectories(site: Site): Unit =
-    site.markupPages.foreach(_.parent)
+    site.pages.foreach(_.parent)
 
   def parent(site: Site, path: Path): Option[Directory] =
     val parentDirectory: Option[Seq[String]] =
@@ -55,24 +53,5 @@ object Directory:
         parent.parent
         parent
 
-  final class Maker(
-    site: Site
-  ) extends MarkupPage.Maker(site):
-
-    override def withSource(
-      sourcePath: Path,
-      markup: Markup,
-      frontMatter: FrontMatter,
-      xml: Xml.Element
-    ): Option[MarkupPage] = Option.when(Directory.is(sourcePath)):
-      Directory(
-        site = site,
-        path = sourcePath.html,
-        pageMarkup = Some(PageMarkup(
-          sourcePath,
-          markup,
-          xml
-        )),
-        frontMatter = frontMatter
-      )
-
+  object Maker extends MarkupPage.Maker[Directory](Directory.apply):
+    override def path(sourcePath: Path): Option[Path] = Option.when(Directory.is(sourcePath))(sourcePath)

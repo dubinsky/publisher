@@ -6,8 +6,8 @@ import zio.blocks.schema.xml.{Xml, XmlBuilder}
 final class Posts(
   site: Site,
   path: Path,
-  pageMarkup: Option[PageMarkup],
-  frontMatter: FrontMatter
+  frontMatter: FrontMatter,
+  pageMarkup: Option[PageMarkup]
 ) extends MarkupPage(
   site,
   path,
@@ -18,7 +18,7 @@ final class Posts(
     div("home").child(content)(
       //      el("h1", "class" -> "page-heading").withText(page.title)
       el("h2", "class" -> "post-list-heading").withText("Posts"),
-      el("ul", "class" -> "post-list")(site.posts.map(post =>
+      el("ul", "class" -> "post-list")(site.markupPages.filter(_.isPost).sortBy(_.date).reverse.map(post =>
         el("li")(
           el("span", "class" -> "post-meta").withText(post.date.map(_.toShortString).getOrElse("")),
           el("h3")(post.ref("post-link"))
@@ -32,12 +32,12 @@ final class Posts(
     )
 
 object Posts:
-  final class Maker(site: Site, path: Path) extends MarkupPage.AutoMaker[Posts](site, path):
-    override def withSource(pageMarkup: PageMarkup, frontMatter: FrontMatter): Posts =
-      Posts(site, path, Some(pageMarkup), frontMatter)
-
-    override def withoutSource: Posts =
-      Posts(site, path, None, FrontMatter(
-        title = Some("Posts")
-        //    permalink = Some(path.withoutExtension.toString)
-      ))
+  object Maker extends MarkupPage.AutoMaker[Posts](
+    path = Path("posts").html,
+    make = Posts.apply,
+    frontMatterWithoutSource = FrontMatter(
+      title = Some("Posts"),
+      description = Some("All posts"),
+      //    permalink = Some(path.withoutExtension.toString)
+    )
+  )

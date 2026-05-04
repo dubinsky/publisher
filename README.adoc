@@ -104,6 +104,15 @@ with my own publisher this is not a problem ;)
 - title transplantation; TODO;
 - insertion of missing index pages; TODO;
 
+Write about all the plugins I used:
+
+- jekyll-optional-front-matter
+- jekyll-sitemap
+- jekyll-feed
+- jekyll-mentions
+- jekyll-avatar
+- jekyll-wikirefs
+
 == Implementation
 
 At exactly the same time I became aware of the ZIO Blocks project,
