@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
-import org.podval.tools.publish.XmlUtil.{apply, child, div, el, setId, withText}
-import zio.blocks.schema.xml.{Xml, XmlBuilder}
+import org.podval.tools.publish.XmlUtil.{apply, div, el, withText}
+import zio.blocks.schema.xml.Xml
 
 final class Posts(
   site: Site,
@@ -14,8 +14,8 @@ final class Posts(
   frontMatter,
   pageMarkup
 ) with MarkupPage.BaseLayout:
-  override protected def syntheticContent(content: Option[Xml.Element]): Xml.Element =
-    div("home").child(content)(
+  override protected def syntheticContent: Option[Xml.Element] = Some:
+    div("home")(
       //      el("h1", "class" -> "page-heading").withText(page.title)
       el("h2", "class" -> "post-list-heading").withText("Posts"),
       el("ul", "class" -> "post-list")(site.markupPages.filter(_.isPost).sortBy(_.date).reverse.map(post =>
@@ -24,11 +24,7 @@ final class Posts(
           el("h3")(post.ref("post-link"))
           // {%- if site.minima.show_excerpts -%} {{ post.excerpt }} {%- endif -%}
         )
-      )*),
-      el("p", "class" -> "rss-subscribe")(
-        XmlBuilder.text("subscribe"),
-        el("a", "href" -> "/feed.xml").withText("via RSS")
-      )
+      )*)
     )
 
 object Posts:

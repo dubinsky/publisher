@@ -16,12 +16,11 @@ final class Errors(
 ):
   private def slugify(text: String): String = text.replace(' ', '-')
 
-  override protected def syntheticContent(content: Option[Xml.Element]): Xml.Element =
-    // TODO incorporate content
+  override protected def syntheticContent: Option[Xml.Element] = Some:
     // TODO generate report page(s):
     //- broken links
     //- inconsistent titles
-    div("site-errors").setId("site-errors").child(content)()
+    div("site-errors").setId("site-errors")()
 
 object Errors:
   object Maker extends MarkupPage.AutoMaker[Errors](

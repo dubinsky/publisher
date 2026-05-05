@@ -24,10 +24,7 @@ final class Tags(
 
   def tagRef(tag: String): Xml.Element = a("page-tag", s"$path#${slugify(tag)}").withText(tag)
 
-  override protected def syntheticContent(content: Option[Xml.Element]): Xml.Element =
-    val tags: List[String] = this.tags
-
-    // TODO incorporate content
+  override protected def syntheticContent: Option[Xml.Element] = Some:
     div("tags")(
       el("h2").withText("All tags"),
       el("p")(tagsAll.map(tagRef)*),
@@ -50,4 +47,3 @@ object Tags:
       //    permalink = Some(path.withoutExtension.toString)
     )
   )
-  

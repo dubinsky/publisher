@@ -1,5 +1,8 @@
 package org.podval.tools.publish
 
+import zio.blocks.schema.xml.Xml
+import XmlUtil.{apply, child, div, el, ul, withText}
+
 final class Directory(
   site: Site,
   path: Path,
@@ -11,15 +14,31 @@ final class Directory(
   frontMatter,
   pageMarkup
 ):
+  override protected def syntheticContent: Option[Xml.Element] = Some:
+    div("directory")
+      .child(pageList(directories, "Directories", "directories-list"))
+      .child(pageList(pages, "Pages", "pages-list"))
+      .build
+
+  private def pageList(
+    pages: List[Page],
+    title: String,
+    cls: String
+  ): Option[Xml.Element] = Option.when(pages.nonEmpty):
+    div(s"page-list $cls")(
+      el("h3").withText(title),
+      ul(s"page-list $cls", pages, _.ref("sub"))
+    )
+      
   // TODO verify that it is a Directory!
-  lazy val directories: List[Page] = site
+  private lazy val directories: List[Page] = site
     .pages
     .filter(page => Directory.is(page.path))
     .filter(_.path.path.length > 1)
     .filter(_.path.path.init.init == path.path.init)
     .sortBy(_.title)
 
-  lazy val pages: List[Page] = site
+  private lazy val pages: List[Page] = site
     .pages
     .filterNot(page => Directory.is(page.path))
     //    .filter(_.path.path.length > 0)

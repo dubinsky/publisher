@@ -1,19 +1,12 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.{Xml, XmlBuilder}
-import XmlUtil.{apply, el, withText}
-
 sealed abstract class SocialLink(
-  title: String,
-  site: String,
-  icon: String,
-  userName: String
+  val title: String,
+  val site: String,
+  val icon: String,
+  val userName: String
 ):
-  final def xml: Xml.Element =
-    el("a", "rel" -> "me", "href" -> s"https://$site/$userName", "target" -> "_blank", "title" -> title)(
-      el("span", "class" -> s"grey fa-brands fa-$icon fa-lg")(XmlBuilder.comment("do not self-close")),
-      el("span", "class" -> "username").withText(userName)
-    )
+  def href: String = s"https://$site/$userName"
 
 object SocialLink:
   final class GitHub(userName: String) extends SocialLink(

@@ -1,146 +1,60 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.{Xml, XmlBuilder}
-import XmlUtil.{a, apply, child, div, el, ul, setId, stylesheet, withText}
+import XmlUtil.{a, apply, div, el, ul, setId, stylesheet, withText}
 
 // Based on https://github.com/jekyll/minima
 // TODO add up/prev/next to navigation!
 // TODO unfold?
-final class Minima(page: MarkupPage, xml: Xml.Element):
-  private def site: Site = page.site
-  private val libraries: List[XmlUtil.JavascriptLibrary] = List(
-    Highlights.get(xml),
-    Option.when(page.math)(MathJax),
-    Some(FontAwesome())
-  ).flatten
+object Minima:
+  def render(page: MarkupPage, content: Xml): Xml.Element =
+    val libraries: List[XmlUtil.JavascriptLibrary] = List(
+      Highlights.get(content),
+      Option.when(page.math)(MathJax),
+      Some(FontAwesome())
+    ).flatten
 
-  def render: Xml.Element =
-    if page.isPost then postLayout(xml)
-    else if page.isInstanceOf[MarkupPage.BaseLayout] then baseLayout(xml)
-    else pageLayout(xml)
-
-  private def pageLayout(content: Xml): Xml.Element = baseLayout(
-    el("article", "class" -> "post")
-      .child(
-        el("header", "class" -> "post-header")
-          .child(el("h1", "class" -> "post-title").withText(page.title))
-          .child(tags)
-          .build
-      )
-      .child(div("post-content")(content))
-      .child(pageList(_.directories, "Directories", "directories-list"))
-      .child(pageList(_.pages, "Pages", "pages-list"))
-      .build
-  )
-
-  private def postLayout(content: Xml): Xml.Element = baseLayout(
-    el("article", "class" -> "post h-entry", "itemscope" -> "", "itemtype" -> "http://schema.org/BlogPosting")
-      .child(el("header", "class" -> "post-header")(
-        el("h1", "class" -> "post-title p-name", "itemprop" -> "name headline").withText(page.title),
-        div("post-meta")
-          // TODO
-          // .childWhen(page.modified_date.isDefined,
-          //    el("span", "class" -> "meta-label")("Published:")
-          // )
-          .child(page.date.map: date =>
-            el("time",
-              "class" -> "dt-published",
-              "datetime" -> date.toString,
-              "itemprop" -> "datePublished"
-            )
-              .withText(date.toShortString)
-          )
-          // TODO
-          // {%- if page.modified_date -%}
-          //   <span class="bullet-divider">•</span>
-          //   <span class="meta-label">Updated:</span>
-          //   {%- assign mdate = page.modified_date | date_to_xmlschema %}
-          //   <time class="dt-modified" datetime="{{ mdate }}" itemprop="dateModified">
-          //     {{ mdate | date: date_format }}
-          //   </time>
-          // {%- endif -%}
-          .child(tags)
-          .child(
-            div("post-authors")( // TODO s"${if page.frontMatter.modified_date then "" else "force-inline "}post-authors"
-          //    TODO multiple authors, separated by commas?
-              XmlBuilder.text("•"),
-              el("span", "itemprop" -> "author", "itemscope" -> "", "itemtype" -> "http://schema.org/Person")(
-                el("span", "class" -> "p-author h-card", "itemprop" -> "name").withText(page.author)
-              )
-            )
-          )
-          .build
-      ))
-      .child(div("post-content e-content").attr("itemprop", "articleBody")(
-        content
-      ))
-      .child(pageList(_.directories, "Directories", "directories-list"))
-      .child(pageList(_.pages, "Pages", "pages-list"))
-      // Note: skipped Disqus comments
-      .child(a("u-url", page.path.toString).attr("hidden", "")())
-      .build
-  )
-
-  private def pageList(
-    getter: Directory => List[Page],
-    title: String,
-    cls: String
-  ): Option[Xml.Element] =
-    val pages: List[Page] = page match
-      case directory: Directory => getter(directory)
-      case _ => List.empty
-
-    Option.when(pages.nonEmpty):
-      div(s"page-list $cls")(
-        el("h3").withText(title),
-        ul(s"page-list $cls", pages, _.ref("sub"))
-      )
-
-  // TODO do a div like with author
-  private def tags: Option[Xml.Element] = Option.when(page.tags.nonEmpty):
-    el("span")
-      .child(XmlBuilder.text("|"))
-      .children(page.tags.map(site.tags.tagRef)*)
-      .build
-
-  private def baseLayout(content: Xml): Xml.Element =
     el("html", "lang" -> page.lang)(
-      head,
+      head(page, libraries),
       el("body")
-        .child(header)
+        .child(header(page.site))
         .child(el("main", "class" -> "page-content", "aria-label" -> "Content")(
           div("wrapper")(
             content,
-            backLinks
+            backLinks(page)
           ),
         ))
-        .child(footer)
+        .child(footer(page.site))
         .children(libraries.flatMap(_.body) *)
         .build
     )
 
   // TODO do not include in index pages? or at least home?
-  private def backLinks: Xml.Element = div("backlinks")(
+  private def backLinks(page: MarkupPage): Xml.Element = div("backlinks")(
     el("hr")(), // TODO do a border
     el("h4").withText("Backlinks"),
-    ul("backlinks-list", site.backLinks(page), link => link.from.page.ref("backlink"))  // TODO!
+    ul("backlinks-list", page.site.backLinks(page), link => link.from.page.ref("backlink"))  // TODO!
   )
 
-  private def head: Xml.Element = el("head")
-    .child(el("meta", "charset" -> "utf-8")())
-    .child(el("meta", "http-equiv" -> "X-UA-Compatible", "content" -> "IE=edge")())
-    .child(el("meta", "name" -> "viewport", "content" -> "width=device-width, initial-scale=1")())
-    // TODO {%- seo -%}: https://github.com/jekyll/jekyll-seo-tag
-    .child(el("title").withText(page.title)) // TODO this is here until seo is implemented - it covers the title...
-    .children(libraries.flatMap(_.head) *)
-    .child(stylesheet("/assets/css/style.css", id = Some("main-stylesheet")))
-    // TODO {%- feed_meta -%}: https://github.com/jekyll/jekyll-feed
-    // TODO
-    // {%- if jekyll.environment == 'production' and site.google_analytics -%}
-    //   .children(googleAnalytics*)
-    // {%- endif -%}
-    // Skipped: {%- include custom-head.html -%}
-    .build
+  private def head(
+    page: MarkupPage,
+    libraries: List[XmlUtil.JavascriptLibrary]
+  ): Xml.Element =
+    el("head")
+      .child(el("meta", "charset" -> "utf-8")())
+      .child(el("meta", "http-equiv" -> "X-UA-Compatible", "content" -> "IE=edge")())
+      .child(el("meta", "name" -> "viewport", "content" -> "width=device-width, initial-scale=1")())
+      // TODO {%- seo -%}: https://github.com/jekyll/jekyll-seo-tag
+      .child(el("title").withText(page.title)) // TODO this is here until seo is implemented - it covers the title...
+      .children(libraries.flatMap(_.head) *)
+      .child(stylesheet("/assets/css/style.css", id = Some("main-stylesheet")))
+      // TODO {%- feed_meta -%}: https://github.com/jekyll/jekyll-feed
+      // TODO
+      // {%- if jekyll.environment == 'production' and site.google_analytics -%}
+      //   .children(googleAnalytics*)
+      // {%- endif -%}
+      // Skipped: {%- include custom-head.html -%}
+      .build
 
   private def googleAnalytics: Seq[Xml.Element] = Seq.empty
     // TODO
@@ -153,7 +67,7 @@ final class Minima(page: MarkupPage, xml: Xml.Element):
     //  gtag('config', '{{ site.google_analytics }}');
     //</script>
 
-  private def header: Xml.Element =
+  private def header(site: Site): Xml.Element =
     el("header", "class" -> "site-header")(
       div("wrapper")(
         a("site-title", "/").attr("rel", "author").withText(site.title),
@@ -171,7 +85,7 @@ final class Minima(page: MarkupPage, xml: Xml.Element):
       )
     )
 
-  private def footer: Xml.Element =
+  private def footer(site: Site): Xml.Element =
     el("footer", "class" -> "site-footer h-card")(
       el("data", "class" -> "u-url", "href" -> "/")(XmlBuilder.comment("do not self-close")), // TODO base url?
       div("wrapper")(
@@ -181,11 +95,17 @@ final class Minima(page: MarkupPage, xml: Xml.Element):
             el("ul", "class" -> "contact-list")(
               el("li", "class" -> "p-name").withText(site.author), // TODO escape
               el("li")(a("u-email", s"mailto:${site.email}").withText(site.email))
+            ),
+            el("p", "class" -> "rss-subscribe")(
+              el("a", "href" -> Feed.path.toString)(
+                XmlUtil.faIcon("rss"), // TODO does not show!
+                el("span", "class" -> "username").withText("RSS feed")
+              )
             )
           ),
           div("footer-col footer-col-2")(
             // Note: moved back here, where it was before, from after the footer-col-wrapper
-            div("social-links")(social)
+            div("social-links")(social(site))
           ),
           div("footer-col footer-col-3")(
             el("p").withText(site.description) // TODO escape!
@@ -194,10 +114,15 @@ final class Minima(page: MarkupPage, xml: Xml.Element):
       )
     )
 
-  private def social: Xml.Element =
+  private def social(site: Site): Xml.Element =
     el("ul", "class" -> "social-media-list")
       .children(site.socialLinks.map(social =>
-        el("li")(social.xml)
+        el("li")(
+          el("a", "rel" -> "me", "href" -> social.href, "target" -> "_blank", "title" -> social.title)(
+            XmlUtil.faIcon(social.icon),
+            el("span", "class" -> "username").withText(social.userName)
+          )
+        )
       )*)
 
       // TODO move RSS feed link here from home

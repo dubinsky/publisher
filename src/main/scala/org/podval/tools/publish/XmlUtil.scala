@@ -22,6 +22,10 @@ object XmlUtil:
       case None => builder
       case Some(id) => builder.setId(id)
 
+    def attr(attr: Option[(String, String)]): XmlBuilder.ElementBuilder = attr match
+      case None => builder
+      case Some((name, value)) => builder.attr(name, value)
+
     def child(child: Option[Xml]): XmlBuilder.ElementBuilder = child match
       case None => builder
       case Some(child) => builder.child(child)
@@ -64,9 +68,12 @@ object XmlUtil:
 
   def module(src: String): Xml.Element = el("script")
     .attr("src", src)
-    .child(XmlBuilder.comment("self-closing script elements do not work"))
+    .child(XmlBuilder.comment("do not self-close"))
     .build
 
+  def faIcon(name: String): Xml.Element =
+    el("span", "class" -> s"grey fa-brands fa-$name fa-lg")(XmlBuilder.comment("do not self-close"))
+    
   private def localName(name: String): XmlName = XmlName(name, None, None)
 
   val id: XmlName = localName("id")
