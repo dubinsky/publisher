@@ -1,6 +1,6 @@
 package org.podval.tools.publish
 
-import org.podval.tools.publish.XmlUtil.{apply, child, div, setId}
+import org.podval.tools.publish.XmlUtil.{apply, div, setId}
 import zio.blocks.schema.xml.Xml
 
 final class Errors(

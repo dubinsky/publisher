@@ -44,7 +44,7 @@ object XmlUtil:
   def el(name: String, attrs: (String, String)*): XmlBuilder.ElementBuilder =
     attrs.foldLeft(XmlBuilder.element(name))((result, attr) => result.attr(attr._1, attr._2))
 
-  def div(cls: String): XmlBuilder.ElementBuilder = el("div", "class" -> cls)
+  def div(cls: String, attrs: (String, String)*): XmlBuilder.ElementBuilder = el("div", ("class" -> cls) +: attrs *)
   
   def ul[T](cls: String, values: Seq[T], li: T => Xml.Element): Xml.Element =
     el("ul", "class" -> cls)(values.map(value =>
@@ -66,14 +66,10 @@ object XmlUtil:
 
   def script(text: String): Xml.Element = el("script").withText(text)
 
-  def module(src: String): Xml.Element = el("script")
-    .attr("src", src)
-    .child(XmlBuilder.comment("do not self-close"))
-    .build
+  def module(src: String): Xml.Element = el("script", "src" -> src)()
 
-  def faIcon(name: String): Xml.Element =
-    el("span", "class" -> s"grey fa-brands fa-$name fa-lg")(XmlBuilder.comment("do not self-close"))
-    
+  def faIcon(name: String): Xml.Element = el("span", "class" -> s"grey fa-brands fa-$name fa-lg")()
+
   private def localName(name: String): XmlName = XmlName(name, None, None)
 
   val id: XmlName = localName("id")
@@ -97,12 +93,10 @@ object XmlUtil:
 
   def escapeUrl(url: String): String = Strings.escape(url) // TODO
 
-  def invisible: Xml.Element = div("invisible").attr("hidden", "")()
-  
   def write(xml: Xml.Element): String = prettyPrinter.render(xml)
   private val prettyPrinter = XmlPrettyPrinter(htmlPrettyPrinterConfig)
   private def htmlPrettyPrinterConfig: XmlPrettyPrinter.Config = new XmlPrettyPrinter.Config:
-    override def selfClose(name: XmlName): Boolean = Set("br", "meta", "link", "img", "data").contains(name.localName)
+    override def selfClose(name: XmlName): Boolean = Set("br", "hr", "meta", "link", "img" /* TODO: "data", "span" */).contains(name.localName)
     override def stack(name: XmlName): Boolean = Set("nav", "header", "main", "div").contains(name.localName)
     override def unStack(name: XmlName): Boolean = false
     override def nest(name: XmlName): Boolean = false

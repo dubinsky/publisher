@@ -36,7 +36,10 @@ final class Toc(
       names = names
     )
     
-  def toXml: Xml.Element = div("toc")(toXml(sections))
+  def toXml: Xml.Element = div("toc")(
+    el("h3").withText("Table of Contents"),
+    toXml(sections)
+  )
 
   private def toXml(sections: Seq[Section]): Xml.Element =
     el("ul")(sections.map(section =>

@@ -13,7 +13,7 @@ final class Directory(
   path,
   frontMatter,
   pageMarkup
-):
+) with MarkupPage.BaseLayout:
   override protected def syntheticContent: Option[Xml.Element] = Some:
     div("directory")
       .child(pageList(directories, "Directories", "directories-list"))
@@ -29,7 +29,7 @@ final class Directory(
       el("h3").withText(title),
       ul(s"page-list $cls", pages, _.ref("sub"))
     )
-      
+
   // TODO verify that it is a Directory!
   private lazy val directories: List[Page] = site
     .pages

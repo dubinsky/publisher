@@ -15,7 +15,7 @@ final class Tags(
   path,
   frontMatter,
   pageMarkup
-):
+) with MarkupPage.BaseLayout:
   private def slugify(text: String): String = text.replace(' ', '-')
 
   private def tagsAll: List[String] = site.markupPages.flatMap(_.tags).distinct.sorted

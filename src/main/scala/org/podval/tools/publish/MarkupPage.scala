@@ -1,9 +1,9 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.{Xml, XmlBuilder}
+import zio.blocks.schema.xml.Xml
 import scala.reflect.TypeTest
 import java.time.LocalDate
-import XmlUtil.{a, apply, attr, child, div, el, withText}
+import XmlUtil.{a, apply, child, div, el, withText}
 
 open class MarkupPage(
   site: Site,
@@ -20,9 +20,11 @@ open class MarkupPage(
   final def lang: String = frontMatter.lang.getOrElse(site.lang)
   final def math: Boolean = frontMatter.math
 
+  // TODO get dates from GIT too
   private lazy val postDate: Option[LocalDate] = Post.date(path)
   final def isPost: Boolean = postDate.isDefined
   final def date: Option[Date] = postDate.map(Date.Local(_)).orElse(frontMatter.date)
+  final def dateModified: Option[Date] = None // TODO
 
   final override def title: String = frontMatter.title.getOrElse:
     if !Directory.is(path) then path.fileNameWithNonHtmlExtension else postDate match
@@ -41,84 +43,73 @@ open class MarkupPage(
 
   protected def syntheticContent: Option[Xml.Element] = None
 
-  final override def xmlContent: Xml.Element =
-    // TODO bring page and post metadata closer to one another
-    // Note: I need a 'div' to combine page content with synthesized one:
-    val articleContent: Xml.Element =
-      div(if isPost then "post-content e-content" else "post-content")
-        .attr(Option.when(isPost)("itemprop" -> "articleBody"))
-        .children(Seq(pageMarkup.map(_.xmlContent), syntheticContent).flatten*)
-        .build
+  final override def xmlContent: Xml.Element = Minima.render(
+    page = this,
+    content = article(Seq(pageMarkup.map(_.xmlContent), syntheticContent).flatten)
+  )
 
-    Minima.render(this, content =
-      if this.isInstanceOf[MarkupPage.BaseLayout]
-      then articleContent
-      else article(articleContent)
+  // TODO I may have to rip out the titles at layout...
+  private def article(content: Seq[Xml.Element]): Xml.Element =
+    el("article", "class" -> "post h-entry", "itemscope" -> "", "itemtype" -> "http://schema.org/BlogPosting")(
+      el("header", "class" -> "post-header")
+        .child(el("h1", "class" -> "post-title p-name", "itemprop" -> "name headline").withText(title))
+        .child(Option.when(!this.isInstanceOf[MarkupPage.BaseLayout])(articleMeta))
+        .build,
+      div("post-content e-content", "itemprop" -> "articleBody")(content*),
+      // Note: skipped Disqus comments for posts
+      a("u-url", path.toString).attr("hidden", "")()
     )
 
-  private def article(content: Xml): Xml.Element =
-    el("article", "class" -> (if !isPost then "post" else "post h-entry"))
-      .attr(Option.when(isPost)("itemscope", ""))
-      .attr(Option.when(isPost)("itemtype", "http://schema.org/BlogPosting"))
+  // Note: in Minima, pages do not get any metadata; I added tags - but why not have all of it?
+  private def articleMeta: Xml.Element =
+    div("post-meta")
+      .child(Option.when(dateModified.isDefined)(
+        el("span", "class" -> "meta-label").withText("Published:")
+      ))
       .child(
-        el("header", "class" -> "post-header")
-          .child(
-            el("h1", "class" -> (if !isPost then "post-title" else "post-title p-name"))
-              .attr(Option.when(isPost)("itemprop", "name headline"))
-              .withText(title)
-          )
-          .child(articleMeta)
-          .build
+        time(date, "dt-published", "datePublished")
       )
-      .child(content)
-      // Note: skipped Disqus comments for posts
-      .child(Option.when(isPost)(a("u-url", path.toString).attr("hidden", "")()))
-      .build
-
-  private def articleMeta: Option[Xml.Element] =
-    if !isPost then
-      tagsSpan
-    else Some:
-      div("post-meta")
-        // TODO
-        // .childWhen(page.modified_date.isDefined,
-        //    el("span", "class" -> "meta-label")("Published:")
-        // )
-        .child(date.map: date =>
-          el("time",
-            "class" -> "dt-published",
-            "datetime" -> date.toString,
-            "itemprop" -> "datePublished"
-          )
-            .withText(date.toShortString)
+      .child(Option.when(dateModified.isDefined)(
+        el("span")(
+          el("span", "class" -> "bullet-divider").withText("•"),
+          el("span", "class" -> "meta-label").withText("Updated:")
         )
-        // TODO
-        // {%- if page.modified_date -%}
-        //   <span class="bullet-divider">•</span>
-        //   <span class="meta-label">Updated:</span>
-        //   {%- assign mdate = page.modified_date | date_to_xmlschema %}
-        //   <time class="dt-modified" datetime="{{ mdate }}" itemprop="dateModified">
-        //     {{ mdate | date: date_format }}
-        //   </time>
-        // {%- endif -%}
-        .child(tagsSpan)
-        .child(
-          div("post-authors")( // TODO s"${if page.frontMatter.modified_date then "" else "force-inline "}post-authors"
-        //    TODO multiple authors, separated by commas?
-            XmlBuilder.text("•"),
-            el("span", "itemprop" -> "author", "itemscope" -> "", "itemtype" -> "http://schema.org/Person")(
-              el("span", "class" -> "p-author h-card", "itemprop" -> "name").withText(author)
-            )
+      ))
+      .child(
+        time(dateModified, "dt-modified", "dateModified")
+      )
+      .child(
+        // TODO do a div like with author - or rather, use span for both and remove display: inline from CSS
+        Option.when(tags.nonEmpty):
+          el("span")
+            .child(el("span", "class" -> "pipe-divider").withText("|"))
+            .children(tags.map(site.tags.tagRef)*)
+            .build
+      )
+      .child(
+        // TODO change into a span and get rid of all this force-inline business
+        // TODO s"${if page.frontMatter.modified_date then "" else "force-inline "}post-authors"
+        div("post-authors")(
+          // Note: only one author is supported: me :)
+          el("span", "class" -> "bullet-divider").withText("•"),
+          el("span", "itemprop" -> "author", "itemscope" -> "", "itemtype" -> "http://schema.org/Person")(
+            el("span", "class" -> "p-author h-card", "itemprop" -> "name").withText(author)
           )
         )
-        .build
-
-  // TODO do a div like with author
-  private def tagsSpan: Option[Xml.Element] = Option.when(tags.nonEmpty):
-    el("span")
-      .child(XmlBuilder.text("|"))
-      .children(tags.map(site.tags.tagRef)*)
+      )
       .build
+
+  private def time(
+    date: Option[Date],
+    cls: String,
+    itemprop: String
+  ): Option[Xml.Element] = date.map: date =>
+    el("time",
+      "class" -> cls,
+      "datetime" -> date.toString,
+      "itemprop" -> itemprop
+    )
+      .withText(date.toShortString)
 
 object MarkupPage:
   trait BaseLayout extends MarkupPage
