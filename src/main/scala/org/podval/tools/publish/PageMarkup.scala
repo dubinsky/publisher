@@ -7,18 +7,20 @@ final class PageMarkup(
   markup: Markup,
   private var xml: Xml.Element
 ):
-  private lazy val toc: Toc =
-    xml = markup.dropAnchors(xml)
-    Toc(
-      sections = markup.sections(xml),
-      blocks = markup.blocks(xml)
-    )
+  xml = markup.dropAnchors(xml)
+
+  private lazy val toc: Toc = Toc(
+    sections = markup.sections(xml),
+    blocks = markup.blocks(xml)
+  )
 
   def resolveLinks(page: MarkupPage): Unit =
     xml = markup.resolveLinks(xml, page)
 
+  def resolveFragment(fragment: String): Option[Toc.Link] =
+    toc.resolveFragment(fragment)
+
   def xmlContent: Xml.Element =
-    xml = markup.addToc(xml, toc)
+    xml = markup.addToc(xml, toc) // TODO I can theoretically thunk the toc parameter...
     xml
 
-  def resolveFragment(fragment: String): Option[Toc.Link] = toc.resolveFragment(fragment)

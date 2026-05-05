@@ -43,12 +43,11 @@ final class Toc(
 
   private def toXml(sections: Seq[Section]): Xml.Element =
     el("ul")(sections.map(section =>
-      el("li")(toXml(section) *)
-    ) *)
-
-  private def toXml(section: Section): Seq[Xml.Element] =
-    Seq(a("web-link", s"#${section.id}").withText(section.title)) ++
-    Option.when(section.sections.nonEmpty)(toXml(section.sections)).toSeq
+      el("li")(
+        Seq(a("web-link", s"#${section.id}").withText(section.title)) ++
+        Option.when(section.sections.nonEmpty)(toXml(section.sections)).toSeq
+      *)
+    )*)
 
 object Toc:
   sealed abstract class PagePart(val id: String)
