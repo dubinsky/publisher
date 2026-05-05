@@ -1,27 +1,43 @@
 package org.podval.tools.publish
 
 import zio.blocks.schema.xml.Xml
-import XmlUtil.{a, apply, div, el, ul, setId, stylesheet, withText}
+import XmlUtil.{a, apply, child, div, el, span, ul, setId, stylesheet, withText}
 
 // Based on https://github.com/jekyll/minima
 // TODO add up/prev/next to navigation!
 // TODO unfold?
 object Minima:
-  def render(page: MarkupPage, content: Xml): Xml.Element =
+  def render(page: MarkupPage, content: Seq[Xml.Element]): Xml.Element =
+    val isBaseLayout = page.isInstanceOf[MarkupPage.BaseLayout]
+
     val libraries: List[XmlUtil.JavascriptLibrary] = List(
       Highlights.get(content),
       Option.when(page.math)(MathJax),
       Some(FontAwesome())
     ).flatten
 
+    // TODO I may have to rip out the titles at layout...
     el("html", "lang" -> page.lang)(
       head(page, libraries),
       el("body")
         .child(header(page.site))
         .child(el("main", "class" -> "page-content", "aria-label" -> "Content")(
           div("wrapper")(
-            content,
-            backLinks(page)
+            el("article", "class" -> "post h-entry", "itemscope" -> "", "itemtype" -> "http://schema.org/BlogPosting")(
+              el("header", "class" -> "post-header")
+                .child(el("h1", "class" -> "post-title p-name", "itemprop" -> "name headline").withText(page.title))
+                .child(Option.when(!isBaseLayout)(articleMeta(page)))
+                .build,
+              div("post-content e-content", "itemprop" -> "articleBody")(content*),
+              // Note: skipped Disqus comments for posts
+              a("u-url", page.path.toString).attr("hidden", "")()
+            ),
+            // TODO do not include when isBaseLayout?
+            div("backlinks")(
+              el("hr")(), // TODO do a border
+              el("h3").withText("Backlinks"),
+              ul("backlinks-list", page.site.backLinks(page), link => link.from.page.ref("backlink"))  // TODO!
+            )
           ),
         ))
         .child(footer(page.site))
@@ -29,12 +45,36 @@ object Minima:
         .build
     )
 
-  // TODO do not include in index pages? or at least home?
-  private def backLinks(page: MarkupPage): Xml.Element = div("backlinks")(
-    el("hr")(), // TODO do a border
-    el("h3").withText("Backlinks"),
-    ul("backlinks-list", page.site.backLinks(page), link => link.from.page.ref("backlink"))  // TODO!
-  )
+  private def articleMeta(page: MarkupPage): Xml.Element =
+    div("post-meta")(
+      join(
+        join(
+          join(
+            time(Option.when(page.dateModified.nonEmpty)("Published:"), page.date, "dt-published", "datePublished"),
+            "•",
+            time(Some("Updated:"), page.dateModified, "dt-modified", "dateModified")
+          ),
+          "•",
+          Seq(
+            span("post-authors"):
+              span("post-author", "itemprop" -> "author", "itemscope" -> "", "itemtype" -> "http://schema.org/Person"):
+                span("p-author h-card", "itemprop" -> "name").withText(page.author)
+          )
+        ),
+        "|",
+        page.tags.map(page.site.tags.tagRef)
+      )
+    *)
+
+  private def join(left: Seq[Xml.Element], text: String, right: Seq[Xml.Element]): Seq[Xml.Element] =
+    if left.nonEmpty && right.nonEmpty
+    then left ++ Seq(span("bullet-divider").withText(text)) ++ right
+    else left ++ right
+
+  private def time(label: Option[String], date: Option[Date], cls: String, itemprop: String): Seq[Xml.Element] =
+    date.fold(Seq.empty): date =>
+      label.fold(Seq.empty)(label => Seq(span("meta-label").withText(label))) ++
+      Seq(el("time", "class" -> cls, "datetime" -> date.toString, "itemprop" -> itemprop).withText(date.toShortString))
 
   private def head(
     page: MarkupPage,
@@ -74,7 +114,7 @@ object Minima:
         el("nav", "class" -> "site-nav")(
           el("input", "type" -> "checkbox").setId("nav-trigger")(),
           el("label", "for" -> "nav-trigger")(
-            el("span", "class" -> "menu-icon")(
+            span("menu-icon")(
 //                el("svg", "viewBox" -> "0 0 18 15", "width" -> "18px", "height" -> "15px")(
 //                  el("path", "d" -> "M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z")()
 //                )
@@ -95,49 +135,29 @@ object Minima:
             el("ul", "class" -> "contact-list")(
               el("li", "class" -> "p-name").withText(site.author), // TODO escape
               el("li")(a("u-email", s"mailto:${site.email}").withText(site.email))
-            ),
-            el("p", "class" -> "rss-subscribe")(
-              el("a", "href" -> Feed.path.toString)(
-                XmlUtil.faIcon("rss"), // TODO does not show!
-                el("span", "class" -> "username").withText("RSS feed")
-              )
             )
           ),
           div("footer-col footer-col-2")(
-            // Note: moved back here, where it was before, from after the footer-col-wrapper
-            div("social-links")(social(site))
+            div("social-links")(
+              ul("social-media-list", site.socialLinks, social =>
+                el("li")(
+                  el("a", "rel" -> "me", "href" -> social.href, "target" -> "_blank", "title" -> social.title)(
+                    XmlUtil.faBrand(social.icon),
+                    span("username").withText(social.userName)
+                  )
+                )
+              )
+            )
           ),
           div("footer-col footer-col-3")(
-            el("p").withText(site.description) // TODO escape!
+            el("p").withText(site.description), // TODO escape!
+            el("p")(
+              el("a", "href" -> Feed.path.toString)(
+                XmlUtil.faIcon("rss"),
+                span("rss-feed").withText("RSS feed")
+              )
+            )
           )
         )
       )
     )
-
-  private def social(site: Site): Xml.Element =
-    el("ul", "class" -> "social-media-list")
-      .children(site.socialLinks.map(social =>
-        el("li")(
-          el("a", "rel" -> "me", "href" -> social.href, "target" -> "_blank", "title" -> social.title)(
-            XmlUtil.faIcon(social.icon),
-            el("span", "class" -> "username").withText(social.userName)
-          )
-        )
-      )*)
-
-      // TODO move RSS feed link here from home
-      //{% unless site.minima.hide_site_feed_link %}
-      //  <li>
-      //    <a href="{{ site.feed.path | default: 'feed.xml' | absolute_url }}" target="_blank" title="Subscribe to syndication feed">
-      //      <svg class="svg-icon grey" viewbox="0 0 16 16">
-      //        <path d="M12.8 16C12.8 8.978 7.022 3.2 0 3.2V0c8.777 0 16 7.223 16 16h-3.2zM2.194
-      //          11.61c1.21 0 2.195.985 2.195 2.196 0 1.21-.99 2.194-2.2 2.194C.98 16 0 15.017 0
-      //          13.806c0-1.21.983-2.195 2.194-2.195zM10.606
-      //          16h-3.11c0-4.113-3.383-7.497-7.496-7.497v-3.11c5.818 0 10.606 4.79 10.606 10.607z"
-      //        />
-      //      </svg>
-      //    </a>
-      //  </li>
-      //{%- endunless %}
-    .build
-

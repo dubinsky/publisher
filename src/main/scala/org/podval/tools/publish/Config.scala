@@ -18,7 +18,7 @@ final class Config(
   val exclude: List[String] = List.empty,
   val headerPages: List[String], // TODO freaking kebab case!
 
-  val analytics: Config.Analytics = Config.Analytics(),
+  val googleAnalytics: Option[String] = None,  // TODO freaking kebab case!
   val social: Config.Social = Config.Social()
 ):
   // Set via method to avoid confusing the codec.
@@ -52,10 +52,6 @@ final class Config(
       Config.specialStartsWith.exists(name.startsWith)
 
 object Config:
-  final class Analytics(
-    val google: Option[String] = None
-  )
-
   final class Social(
     val github: Option[String] = None,
     val twitter: Option[String] = None,

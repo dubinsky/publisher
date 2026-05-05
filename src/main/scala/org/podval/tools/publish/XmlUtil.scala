@@ -45,7 +45,9 @@ object XmlUtil:
     attrs.foldLeft(XmlBuilder.element(name))((result, attr) => result.attr(attr._1, attr._2))
 
   def div(cls: String, attrs: (String, String)*): XmlBuilder.ElementBuilder = el("div", ("class" -> cls) +: attrs *)
-  
+
+  def span(cls: String, attrs: (String, String)*): XmlBuilder.ElementBuilder = el("span", ("class" -> cls) +: attrs *)
+
   def ul[T](cls: String, values: Seq[T], li: T => Xml.Element): Xml.Element =
     el("ul", "class" -> cls)(values.map(value =>
       el("li")(li(value))
@@ -68,7 +70,8 @@ object XmlUtil:
 
   def module(src: String): Xml.Element = el("script", "src" -> src)()
 
-  def faIcon(name: String): Xml.Element = el("span", "class" -> s"grey fa-brands fa-$name fa-lg")()
+  def faBrand(name: String): Xml.Element = span(s"grey fa-brands fa-$name fa-lg")()
+  def faIcon(name: String): Xml.Element = span(s"grey fa-classic fa-solid fa-$name")()
 
   private def localName(name: String): XmlName = XmlName(name, None, None)
 

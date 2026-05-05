@@ -15,7 +15,8 @@ final class FrontMatter(
   val math: Boolean = false,
   val tags: List[String] = List.empty,
   val categories: List[String] = List.empty,
-  val date: Option[Date] = None
+  val date: Option[Date] = None,
+  val modified_time: Option[Date] = None // TODO kebab breaks this!
 ):
   // TODO this with not survive round trip once FrontMatter becomes a case class and `.copy()` is used!
   private var extraKeys: Chunk[(Yaml, Yaml)] = Chunk.empty

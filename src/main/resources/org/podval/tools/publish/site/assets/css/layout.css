@@ -261,17 +261,17 @@
     .bullet-divider { padding-inline: 15px }
     .meta-label { font-weight: 600 }
 
-    .force-inline {
-        display: inline;
-        &::before {
-            content: "•";
-            padding-inline: 5px;
-        }
-    }
-    .post-authors {
+    /*.force-inline {*/
+    /*    display: inline;*/
+    /*    &::before {*/
+    /*        content: "•";*/
+    /*        padding-inline: 5px;*/
+    /*    }*/
+    /*}*/
+    /*.post-authors {*/
         /*margin-top: 3px;*/
-        display: inline;
-    }
+        /*display: inline;*/
+    /*}*/
 }
 
 .post-title,
@@ -291,6 +291,10 @@
     margin-bottom: var(--spacing-unit);
 
     h1, h2, h3, h4, h5, h6 { margin-top: var(--spacing-unit) }
+
+    h3.post-link {
+        margin-top: 0; /* TODO LMD */
+    }
 
     h2 {
         font-size: 1.75rem;

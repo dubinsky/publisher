@@ -3,7 +3,6 @@ package org.podval.tools.publish
 import zio.blocks.schema.xml.Xml
 import scala.reflect.TypeTest
 import java.time.LocalDate
-import XmlUtil.{a, apply, child, div, el, withText}
 
 open class MarkupPage(
   site: Site,
@@ -14,17 +13,16 @@ open class MarkupPage(
   site,
   path
 ) with Page.WithXmlContent:
-
   final def tags: List[String] = frontMatter.tags
   final def author: String = frontMatter.author.getOrElse(site.author)
   final def lang: String = frontMatter.lang.getOrElse(site.lang)
   final def math: Boolean = frontMatter.math
 
-  // TODO get dates from GIT too
   private lazy val postDate: Option[LocalDate] = Post.date(path)
   final def isPost: Boolean = postDate.isDefined
+  // TODO get dates from GIT too
   final def date: Option[Date] = postDate.map(Date.Local(_)).orElse(frontMatter.date)
-  final def dateModified: Option[Date] = None // TODO
+  final def dateModified: Option[Date] = frontMatter.modified_time
 
   final override def title: String = frontMatter.title.getOrElse:
     if !Directory.is(path) then path.fileNameWithNonHtmlExtension else postDate match
@@ -41,75 +39,12 @@ open class MarkupPage(
   final override def resolveFragment(fragment: String): Option[Toc.Link] =
     pageMarkup.flatMap(_.resolveFragment(fragment))
 
-  protected def syntheticContent: Option[Xml.Element] = None
-
   final override def xmlContent: Xml.Element = Minima.render(
     page = this,
-    content = article(Seq(pageMarkup.map(_.xmlContent), syntheticContent).flatten)
+    content = Seq(pageMarkup.map(_.xmlContent), syntheticContent).flatten
   )
 
-  // TODO I may have to rip out the titles at layout...
-  private def article(content: Seq[Xml.Element]): Xml.Element =
-    el("article", "class" -> "post h-entry", "itemscope" -> "", "itemtype" -> "http://schema.org/BlogPosting")(
-      el("header", "class" -> "post-header")
-        .child(el("h1", "class" -> "post-title p-name", "itemprop" -> "name headline").withText(title))
-        .child(Option.when(!this.isInstanceOf[MarkupPage.BaseLayout])(articleMeta))
-        .build,
-      div("post-content e-content", "itemprop" -> "articleBody")(content*),
-      // Note: skipped Disqus comments for posts
-      a("u-url", path.toString).attr("hidden", "")()
-    )
-
-  // Note: in Minima, pages do not get any metadata; I added tags - but why not have all of it?
-  private def articleMeta: Xml.Element =
-    div("post-meta")
-      .child(Option.when(dateModified.isDefined)(
-        el("span", "class" -> "meta-label").withText("Published:")
-      ))
-      .child(
-        time(date, "dt-published", "datePublished")
-      )
-      .child(Option.when(dateModified.isDefined)(
-        el("span")(
-          el("span", "class" -> "bullet-divider").withText("•"),
-          el("span", "class" -> "meta-label").withText("Updated:")
-        )
-      ))
-      .child(
-        time(dateModified, "dt-modified", "dateModified")
-      )
-      .child(
-        // TODO do a div like with author - or rather, use span for both and remove display: inline from CSS
-        Option.when(tags.nonEmpty):
-          el("span")
-            .child(el("span", "class" -> "pipe-divider").withText("|"))
-            .children(tags.map(site.tags.tagRef)*)
-            .build
-      )
-      .child(
-        // TODO change into a span and get rid of all this force-inline business
-        // TODO s"${if page.frontMatter.modified_date then "" else "force-inline "}post-authors"
-        div("post-authors")(
-          // Note: only one author is supported: me :)
-          el("span", "class" -> "bullet-divider").withText("•"),
-          el("span", "itemprop" -> "author", "itemscope" -> "", "itemtype" -> "http://schema.org/Person")(
-            el("span", "class" -> "p-author h-card", "itemprop" -> "name").withText(author)
-          )
-        )
-      )
-      .build
-
-  private def time(
-    date: Option[Date],
-    cls: String,
-    itemprop: String
-  ): Option[Xml.Element] = date.map: date =>
-    el("time",
-      "class" -> cls,
-      "datetime" -> date.toString,
-      "itemprop" -> itemprop
-    )
-      .withText(date.toShortString)
+  protected def syntheticContent: Option[Xml.Element] = None
 
 object MarkupPage:
   trait BaseLayout extends MarkupPage

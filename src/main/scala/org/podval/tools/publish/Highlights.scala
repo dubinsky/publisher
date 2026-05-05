@@ -23,8 +23,8 @@ final class Highlights(
 object Highlights:
   val version = "11.11.1"
 
-  def get(xml: Xml): Option[Highlights] =
-    val languages = getLanguages(xml)
+  def get(xml: Seq[Xml]): Option[Highlights] =
+    val languages = xml.flatMap(getLanguages).toSet
     if languages.isEmpty
     then None
     else Some(Highlights(version, languages))

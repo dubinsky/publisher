@@ -1,6 +1,6 @@
 package org.podval.tools.publish
 
-import org.podval.tools.publish.XmlUtil.{apply, div, el, withText}
+import org.podval.tools.publish.XmlUtil.{apply, div, el, span, ul, withText}
 import zio.blocks.schema.xml.Xml
 
 final class Posts(
@@ -20,8 +20,8 @@ final class Posts(
       el("h2", "class" -> "post-list-heading").withText("Posts"),
       el("ul", "class" -> "post-list")(site.markupPages.filter(_.isPost).sortBy(_.date).reverse.map(post =>
         el("li")(
-          el("span", "class" -> "post-meta").withText(post.date.map(_.toShortString).getOrElse("")),
-          el("h3")(post.ref("post-link"))
+          span("post-meta").withText(post.date.map(_.toShortString).getOrElse("")),
+          el("h3", "class" -> "post-link")(post.ref("post-link"))
           // {%- if site.minima.show_excerpts -%} {{ post.excerpt }} {%- endif -%}
         )
       )*)
