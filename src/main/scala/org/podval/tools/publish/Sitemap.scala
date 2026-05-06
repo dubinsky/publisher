@@ -1,6 +1,6 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.{Xml, XmlName}
+import zio.blocks.schema.xml.XmlName
 import XmlUtil.{apply, el}
 
 object Sitemap:
@@ -13,7 +13,7 @@ final class Sitemap(
   site,
   Sitemap.path
 ):
-  override def xmlContent: Xml.Element = el("urlset")
+  override def xmlContent: BlocksXml.Element = el("urlset")
     .attr(XmlName("xsi", Some("xmlns"), None), "http://www.w3.org/2001/XMLSchema-instance")
     .attr(XmlName("schemaLocation", Some("xsi")), "http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd")
     (

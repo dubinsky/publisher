@@ -19,7 +19,7 @@ object Markup:
   
   val all: List[Markup] = List(
     Markdown,
-    Html
+    HtmlLike.Html
   )
 
 abstract class Markup derives CanEqual:
@@ -53,7 +53,7 @@ abstract class Markup derives CanEqual:
         case None => element
         case Some(sectionElement) =>
           if sectionElement.id.isDefined then element else element.replaceAttribute(
-            XmlUtil.id,
+            XmlUtil.idAttr,
             sectionElement
               .text
               .map(XmlUtil.toId)

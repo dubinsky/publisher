@@ -3,12 +3,10 @@ package org.podval.tools.publish
 import zio.blocks.chunk.Chunk
 import zio.blocks.schema.xml.{Xml, XmlBuilder, XmlName}
 
-// TODO split between Html and Xml
-// TODO def list()...
 object XmlUtil:
   abstract class JavascriptLibrary:
-    def head: List[Xml.Element]
-    def body: List[Xml.Element]
+    def head: List[BlocksHtml.Element]
+    def body: List[BlocksHtml.Element]
 
   extension (builder: XmlBuilder.ElementBuilder)
     def apply(children: Xml*): Xml.Element = builder.children(children *).build
@@ -16,7 +14,7 @@ object XmlUtil:
     def withText(text: String): Xml.Element = builder.child(XmlBuilder.text(text)).build
 
     def setId(value: String): XmlBuilder.ElementBuilder =
-      builder.attr(id, value)
+      builder.attr(idAttr, value)
 
     def setId(value: Option[String]): XmlBuilder.ElementBuilder = value match
       case None => builder
@@ -46,7 +44,7 @@ object XmlUtil:
 
   def div(cls: String, attrs: (String, String)*): XmlBuilder.ElementBuilder = el("div", ("class" -> cls) +: attrs *)
 
-  def span(cls: String, attrs: (String, String)*): XmlBuilder.ElementBuilder = el("span", ("class" -> cls) +: attrs *)
+  def spanXml(cls: String, attrs: (String, String)*): XmlBuilder.ElementBuilder = el("span", ("class" -> cls) +: attrs *)
 
   def ul[T](cls: String, values: Seq[T], li: T => Xml.Element): Xml.Element =
     el("ul", "class" -> cls)(values.map(value =>
@@ -59,51 +57,30 @@ object XmlUtil:
 
   private def isAttribute(name: XmlName)(attribute: (XmlName, String)): Boolean =
     attribute._1 == name
-  
-  def stylesheet(href: String, id: Option[String] = None): Xml.Element = el("link")
-    .setId(id)
-    .attr("rel", "stylesheet")
-    .attr(hrefAttribute, href)
-    .build
 
-  def script(text: String): Xml.Element = el("script").withText(text)
+  def stylesheet(hrefString: String, idOpt: Option[String] = None): BlocksHtml.Element =
+    import zio.blocks.html.*
+    link(rel := "stylesheet", href := hrefString).whenSome(idOpt)(idd => Seq(id := idOpt.get)) // TODO optional attributes??
 
-  def module(src: String): Xml.Element = el("script", "src" -> src)()
+  def faBrand(nameString: String): BlocksHtml.Element =
+    import zio.blocks.html.*
+    span(className := s"grey fa-brands fa-$nameString fa-lg")
 
-  def faBrand(name: String): Xml.Element = span(s"grey fa-brands fa-$name fa-lg")()
-  def faIcon(name: String): Xml.Element = span(s"grey fa-classic fa-solid fa-$name")()
+  def faIcon(nameString: String): BlocksHtml.Element =
+    import zio.blocks.html.*
+    span(className := s"grey fa-classic fa-solid fa-$nameString")
 
   private def localName(name: String): XmlName = XmlName(name, None, None)
 
-  val id: XmlName = localName("id")
-  val a: XmlName = localName("a")
+  val idAttr: XmlName = localName("id")
+  val a: String = "a"
   val hrefAttribute: XmlName = localName("href")
   val `class`: XmlName = localName("class")
-  val code: XmlName = localName("code")
-
-  // Remove markup
-  def toStringOpt(element: Xml.Element): Option[String] =
-    Option.when(element.children.nonEmpty)(XmlUtil.toString(element))
-    
-  def toString(xml: Xml): String = xml match
-    case Xml.Text(value) => value
-    case Xml.Element(_, _, children) => children.map(toString).mkString(" ")
-    case xml => ""
-
+  val code: String = "code"
+  
   def toId(text: String): String = text.trim.replace(' ', '-')
 
   def escapeText(text: String): String = Strings.escape(text)
 
   def escapeUrl(url: String): String = Strings.escape(url) // TODO
-
-  def write(xml: Xml.Element): String = prettyPrinter.render(xml)
-  private val prettyPrinter = XmlPrettyPrinter(htmlPrettyPrinterConfig)
-  private def htmlPrettyPrinterConfig: XmlPrettyPrinter.Config = new XmlPrettyPrinter.Config:
-    override def selfClose(name: XmlName): Boolean = Set("br", "hr", "meta", "link", "img", "input").contains(name.localName)
-    override def stack(name: XmlName): Boolean = Set("nav", "header", "main", "div").contains(name.localName)
-    override def unStack(name: XmlName): Boolean = false
-    override def nest(name: XmlName): Boolean = false
-    override def cling(name: XmlName): Boolean = false // TODO name.localName == "a"?
-    override def break(name: XmlName): Boolean = false // TODO TEI: lb; HTML: br?!
-    override def preformat(name: XmlName): Boolean = name.localName == "pre"
 

@@ -82,9 +82,16 @@ TODO Obsidian plugin needs to be installed.
 
 == Farewell, Jekyll
 
-My Jekyll setup (wiki-refs plugin) broke down on Mar 17, 2026.
-I created my site publisher repository ion Mar 20, 2026.
-I filed ZIO Blocks pull request on Mar 22, 2026.
+Events of 2026:
+
+- Mar 17: My Jekyll setup (wiki-refs plugin) broke down
+- Mar 20: I created my site publisher repository
+- I became aware of ZIO Blocks Yaml released on Mar 11 and ZIO Blocks Markdown released on Jan 30
+- Mar 22: I filed ZIO Blocks pull request
+- Apr 30: I switched my personal website to use my site publisher vis GitHub Actions Workflow
+- May 04: I removed all traces of Jekyll from my personal website
+- May 06: I became aware of the ZIO Blocks HTML that was added on Apr 25-May 01, and started switching to it from my home-grown HTML DSL
+
 
 First milestone for this project is to replace Jekyll on my personal website.
 In under two month and a little less than 2000 lines of Scala code,
@@ -92,6 +99,13 @@ I have:
 
 - no support for paginating the post list, which I did not use with Jekyll anyway;
 - instead of the Ruby code highlighter Rouge, my publisher uses Highlights.js; it loads only the language modules used in the page; TODO unsupported language mapping...
+
+TODO 
+
+- Add Mermaid diagrams and make sure that Highlights.js does not interfere
+- Alias languages unknown to Highlights.js to known ones - or to autodetect
+- Look into server-side highlighting
+
 - while I did manage to list children pages using Jekyll,
 I never figured out how to list subdirectories;
 with my own publisher this is not a problem ;)
@@ -222,6 +236,9 @@ val escaped = userInput.replace("<", "&lt;").replace(">", "&gt;")
 Parse notes (:::note...:::)
 
 == TODO
+
+ZIO Blocks HTML does not allow prefixed element names;
+deal with it for TEI - or ask for lenience ;)
 
 Add FrontMatter "post: true" to control publishing arbitrary notes as posts.
 

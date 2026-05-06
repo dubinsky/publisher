@@ -8,7 +8,7 @@ final case class Path(
 ) derives CanEqual:
   def fileName: String = path.last
   def fileNameWithNonHtmlExtension: String =
-    if extension.contains(Html.extension)
+    if extension.contains(HtmlLike.Html.extension)
     then fileName
     else fileName + extensionString
   
@@ -27,7 +27,7 @@ final case class Path(
     then this
     else this.copy(extension = Some(extension))
 
-  def html: Path = withExtension(Html.extension)
+  def html: Path = withExtension(HtmlLike.Html.extension)
 
   def file(directory: File): File = file(directory, path)
   

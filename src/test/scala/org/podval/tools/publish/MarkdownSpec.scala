@@ -17,7 +17,7 @@ object MarkdownSpec extends ZIOSpecDefault:
           |""".stripMargin,
         xml =>
 
-          println(XmlUtil.write(xml))
+          println(XmlWriter.xmlWriter.render(xml))
           // TODO verify
           assertTrue(
             true

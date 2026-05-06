@@ -207,9 +207,9 @@ final class Site(
           // Register resolved link
           linksResolved = linksResolved.appended(Link.Resolved(link, linkTo))
 
-          if link.transclude then linkTo.a("transclude") else link.element match
-            case None => linkTo.a("wiki-link")
-            case Some(element) => linkTo.a(element)
+          if link.transclude then linkTo.aXml("transclude") else link.element match
+            case None => linkTo.aXml("wiki-link")
+            case Some(element) => linkTo.aXml(element)
 
   private def resolveRef(refString: String): Option[Page.Link] =
     val ref: Page.Ref = Page.Ref(refString)

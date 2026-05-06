@@ -15,6 +15,8 @@ object Markdown extends HtmlLike:
   override val extension: String = "md"
   override val additionalExtensions: Set[String] = Set.empty
 
+  // TODO add missing extensions:
+  // - admonitions
   private val flexMarkExtensions: List[Parser.ParserExtension & HtmlRenderer.HtmlRendererExtension] = List(
     //      AnchorLinkExtension.create,
     //      AutolinkExtension.create,
@@ -45,5 +47,5 @@ object Markdown extends HtmlLike:
     // TODO catch errors!
     val doc = parser.parse(content)
     // Wrap Markdown rendered as HTML in a 'div' and parse.
-    Html.parse(sourcePath, s"<div>${renderer.render(doc)}</div>")
+    HtmlLike.Html.parse(sourcePath, s"<div>${renderer.render(doc)}</div>")
 

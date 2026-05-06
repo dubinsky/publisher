@@ -1,8 +1,8 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.Xml
 import java.io.File
 import XmlUtil.{childrenWhenEmpty, replaceAttribute, withText}
+import zio.blocks.schema.xml.XmlName
 
 abstract class Page(
   val site: Site,
@@ -32,7 +32,7 @@ abstract class Page(
 
   final lazy val parent: Option[Directory] = Directory.parent(site, path)
 
-  final def ref(cls: String): Xml.Element = Page.Link(this, part = None).a(cls)
+  final def ref(cls: String): BlocksXml.Element = Page.Link(this, part = None).aXml(cls)
 
   final def targetFile: File = path.file(site.targetDirectory)
 
@@ -64,10 +64,10 @@ object Page:
 
     def title: String = page.title + part.fold("")(part => s"#${part.title}")
 
-    def a(cls: String): Xml.Element = XmlUtil.a(cls, url).withText(title)
+    def aXml(cls: String): BlocksXml.Element = XmlUtil.a(cls, url).withText(title)
 
-    def a(element: Xml.Element): Xml.Element = element
-      .copy(name = XmlUtil.a)
+    def aXml(element: BlocksXml.Element): BlocksXml.Element = element
+      .copy(name = XmlName(XmlUtil.a))
       .replaceAttribute(XmlUtil.hrefAttribute, XmlUtil.escapeUrl(url))
       .childrenWhenEmpty(Some(title))
 
@@ -76,5 +76,10 @@ object Page:
     def content: String
 
   trait WithXmlContent extends WithContent:
-    final override def content: String = XmlUtil.write(xmlContent)
-    def xmlContent: Xml.Element
+    final override def content: String = XmlWriter.xmlWriter.render(xmlContent)
+    def xmlContent: BlocksXml.Element
+
+  trait WithHtmlContent extends WithContent:
+    final override def content: String = XmlWriter.htmlWriter.render(htmlContent)
+    def htmlContent: BlocksHtml.Element
+

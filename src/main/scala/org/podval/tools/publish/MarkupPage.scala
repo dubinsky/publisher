@@ -1,6 +1,5 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.Xml
 import scala.reflect.TypeTest
 import java.time.LocalDate
 
@@ -12,7 +11,7 @@ open class MarkupPage(
 ) extends Page(
   site,
   path
-) with Page.WithXmlContent:
+) with Page.WithHtmlContent:
   final def tags: List[String] = frontMatter.tags
   final def author: String = frontMatter.author.getOrElse(site.author)
   final def lang: String = frontMatter.lang.getOrElse(site.lang)
@@ -39,12 +38,12 @@ open class MarkupPage(
   final override def resolveFragment(fragment: String): Option[Toc.Link] =
     pageMarkup.flatMap(_.resolveFragment(fragment))
 
-  final override def xmlContent: Xml.Element = Minima.render(
+  final override def htmlContent: BlocksHtml.Element = Minima.render(
     page = this,
-    content = Seq(pageMarkup.map(_.xmlContent), syntheticContent).flatten
+    content = Seq(pageMarkup.map(_.xmlContent), syntheticContent).flatten.map(XmlToHtml.convertElement)
   )
 
-  protected def syntheticContent: Option[Xml.Element] = None
+  protected def syntheticContent: Option[BlocksXml.Element] = None
 
 object MarkupPage:
   trait BaseLayout extends MarkupPage

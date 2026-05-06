@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.{Xml, XmlName}
-import XmlUtil.{getAttribute, module, script, stylesheet}
+import zio.blocks.html.*
+import zio.blocks.chunk.Chunk
 
 final class Highlights(
   version: String,
@@ -9,12 +9,13 @@ final class Highlights(
 ) extends XmlUtil.JavascriptLibrary:
   private val cdn: String = s"https://cdnjs.cloudflare.com/ajax/libs/highlight.js/$version"
 
-  override val head: List[Xml.Element] = List(stylesheet(s"$cdn/styles/default.min.css"))
+  override val head: List[BlocksHtml.Element] =
+    List(XmlUtil.stylesheet(s"$cdn/styles/default.min.css"))
 
-  override val body: List[Xml.Element] =
-    List(module(s"$cdn/highlight.min.js")) ++
-    languages.map(language => module(languageModule(language))) ++
-    List(script("hljs.highlightAll();"))
+  override val body: List[BlocksHtml.Element] =
+    List(script().externalJs(s"$cdn/highlight.min.js")) ++
+    languages.map(language => script().externalJs(languageModule(language))) ++
+    List(script().inlineJs(js"hljs.highlightAll();"))
 
   private def languageModule(language: String): String =
 // NOT SUPPORTED   if language.toLowerCase == "liquid" then "https://unpkg.com/highlightjs-liquid@0.9.1/dist/liquid.min.js" else
@@ -23,27 +24,24 @@ final class Highlights(
 object Highlights:
   val version = "11.11.1"
 
-  def get(xml: Seq[Xml]): Option[Highlights] =
+  def get(xml: Seq[BlocksHtml.Xml]): Option[Highlights] =
     val languages = xml.flatMap(getLanguages).toSet
     if languages.isEmpty
     then None
     else Some(Highlights(version, languages))
 
-  private given CanEqual[XmlName, XmlName] = CanEqual.derived
-
   private val languagePrefix: String = "language-"
   
-  private def getLanguages(xml: Xml): Set[String] = xml match
-    case element: Xml.Element =>
-      if element.name != XmlUtil.code then element.children.flatMap(getLanguages).toSet else
-        val result = for
-          classes <- element.getAttribute(XmlUtil.`class`)
-          language <- classes
-            .split(" ")
-            .map(_.trim)
-            .find(_.startsWith(languagePrefix))
-            .map(_.substring(languagePrefix.length))
-        yield
-          Set(language)
-        result.getOrElse(Set.empty)
-    case xml => Set.empty    
+  // Note: using ZIO Blocks HTML's CSS-based query to get
+  // a list of languages used instead of recursing through the document :)
+  private def getLanguages(xml: BlocksHtml.Xml): Set[String] = xml
+    .select(CssSelector.Element("code"))
+    .attrs("class")
+    .flatMap(_
+      .split(" ")
+      .map(_.trim)
+      .find(_.startsWith(languagePrefix))
+      .map(_.substring(languagePrefix.length))
+    )
+    .toSet
+
