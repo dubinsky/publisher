@@ -8,7 +8,6 @@ import java.io.File
 import java.net.{URI, URISyntaxException}
 import XmlUtil.{a, div, withText}
 
-// TODO file named after directory is its index!
 final class Site(
   sourceDirectoryPath: String,
   production: Boolean,
@@ -119,8 +118,6 @@ final class Site(
     // Resolve links
     markupPages.foreach(_.resolveLinks())
 
-    // TODO sort the pages in transclusion order and transclude
-
     // Write pages
     writePages(pages)
 
@@ -173,9 +170,9 @@ final class Site(
 
   lazy val tags: Tags = Tags.Maker.get(this)
 
-  private var links: List[Link] = List.empty
+  private var linksResolved: List[Link.Resolved] = List.empty
 
-  def backLinks(page: Page): List[Link] = links
+  def backLinks(page: Page): List[Link.Resolved] = linksResolved
     .filter(_.to.page == page)
     .filterNot(_.from.page == page)
     .distinctBy(_.from.page.path) // TODO once we have context, each link should be listed (grouped by page)
@@ -193,24 +190,24 @@ final class Site(
     else reportError(PageError.Unresolved(Path.root, s"header link ref='$ref'"), result)
 
   // TODO mark errors with class attribute
-  def resolveLink(from: Link.From): Xml.Element =
-    def unresolved = from.element match
+  def resolveLink(link: Link): Xml.Element =
+    def unresolved = link.element match
       case Some(element) => element
-      case None => a("wiki-link", from.ref).withText(from.text.getOrElse(from.ref))
+      case None => a("wiki-link", link.ref).withText(link.text.getOrElse(link.ref))
     // TODO can not transclude external links
-    (if !from.transclude then None else Site.embedLink(from.ref, from.text)).getOrElse:
-      if externalRef(from.ref).isDefined then unresolved
-      else resolveRef(from.ref) match
+    (if !link.transclude then None else Site.embedLink(link.ref, link.text)).getOrElse:
+      if externalRef(link.ref).isDefined then unresolved
+      else resolveRef(link.ref) match
         case None =>
           reportError(
-            PageError.Unresolved(from.page.path, s"internal link ref='${from.ref}' text='${from.text.getOrElse("")}'"),
+            PageError.Unresolved(link.page.path, s"internal link ref='${link.ref}' text='${link.text.getOrElse("")}'"),
             unresolved
           )
         case Some(linkTo) =>
           // Register resolved link
-          links = links.appended(Link(from, linkTo))
+          linksResolved = linksResolved.appended(Link.Resolved(link, linkTo))
 
-          if from.transclude then linkTo.a("transclude") else from.element match
+          if link.transclude then linkTo.a("transclude") else link.element match
             case None => linkTo.a("wiki-link")
             case Some(element) => linkTo.a(element)
 

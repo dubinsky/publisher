@@ -4,6 +4,7 @@ import org.typelevel.paiges.Doc
 import zio.blocks.chunk.Chunk
 import zio.blocks.schema.xml.{Xml, XmlName}
 
+// TODO rename XmlWriter
 object XmlPrettyPrinter:
   abstract class Config:
     //  if allowEmptyElements || keepEmptyElements.contains(name.localName)

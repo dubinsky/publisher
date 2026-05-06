@@ -83,7 +83,7 @@ abstract class Markup derives CanEqual:
       })
       linkElement(result) match
         case None => result
-        case Some(linkElement) => page.site.resolveLink(Link.From(
+        case Some(linkElement) => page.site.resolveLink(Link(
           page = page,
           element = Some(result),
           ref = linkElement.ref,
@@ -117,7 +117,7 @@ abstract class Markup derives CanEqual:
       val after: String = text.substring(endIndex + end.length).trim
       val (ref: String, textOpt: Option[String]) = Strings.split(body, '|')
 
-      val result: Xml.Element = page.site.resolveLink(Link.From(
+      val result: Xml.Element = page.site.resolveLink(Link(
         page = page,
         element = None,
         ref = ref.trim,

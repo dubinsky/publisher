@@ -9,7 +9,7 @@ final class PageMarkup(
 ):
   xml = markup.dropAnchors(xml)
 
-  private lazy val toc: Toc = Toc(
+  private val toc: Toc = Toc(
     sections = markup.sections(xml),
     blocks = markup.blocks(xml)
   )
@@ -21,6 +21,6 @@ final class PageMarkup(
     toc.resolveFragment(fragment)
 
   def xmlContent: Xml.Element =
-    xml = markup.addToc(xml, toc) // TODO I can theoretically thunk the toc parameter...
+    xml = markup.addToc(xml, toc)
     xml
 

@@ -11,58 +11,6 @@ import com.vladsch.flexmark.html.HtmlRenderer
 import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.data.MutableDataSet
 
-// WOW! ZIO Blocks Markdown parser misparses nested lists!
-// This is what gets printed:
-//<div>
-//  <h1>Nested Lists</h1>
-//  <ul>
-//    <li>
-//      <p>First item</p>
-//    </li>
-//    <li>
-//      <p>Second item</p>
-//    </li>
-//    <li>
-//      <p>Third item</p>
-//    </li>
-//    <li>
-//      <p>Indented item</p>
-//    </li>
-//    <li>
-//      <p>Indented item</p>
-//    </li>
-//    <li>
-//      <p>Fourth item</p>
-//    </li>
-//  </ul>
-//</div>
-//
-//  And this is what gets printed when using FlexMark:
-//<div>
-//  <h1>Nested Lists</h1>
-//  <ul>
-//    <li>First item</li>
-//    <li>Second item</li>
-//    <li>
-//      Third item
-//      <ul>
-//        <li>Indented item</li>
-//        <li>Indented item</li>
-//      </ul>
-//    </li>
-//    <li>Fourth item</li>
-//  </ul>
-//</div>
-//
-// FlexMark WikiLink extension is useless to me:
-// - it sets the content of the rendered HTML 'a' element when there is no | in the link;
-// - it prefixes the href with the dashes corresponding in number to the spaces after the |...
-//
-// Unlike ZIO Blocks Markdown HTML renderer,
-// which I had to fork to ensure that resulting HTML is valid XML
-// (no unclosed tags like 'br', 'hr', 'input' and 'img'; attributes have values etc.),
-// FlexMark renders valid XML out of the box.
-// I may need to add some extensions to handle GitHub task lists and such...
 object Markdown extends HtmlLike:
   override val extension: String = "md"
   override val additionalExtensions: Set[String] = Set.empty

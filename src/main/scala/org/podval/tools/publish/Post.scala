@@ -4,13 +4,6 @@ import java.time.LocalDate
 import java.time.format.DateTimeParseException
 
 object Post:
-  // TODO
-  // - turn dailies into Directories with a title override
-  // - relax name restrictions
-  // - detect posts and dailies by path everywhere
-  // - calculate postDate from the path
-  // - add FrontMatter taf "post: true" to control publishing arbitrary notes
-
   def date(path: Path): Option[LocalDate] =
     if path.path.length != 4 then None else
       val dateString = s"${path.path(0)}-${path.path(1)}-${path.path(2)}"

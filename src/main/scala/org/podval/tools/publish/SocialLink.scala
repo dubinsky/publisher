@@ -6,7 +6,7 @@ sealed abstract class SocialLink(
   val icon: String,
   val userName: String
 ):
-  def href: String = s"https://$site/$userName"
+  final def href: String = s"https://$site/$userName"
 
 object SocialLink:
   final class GitHub(userName: String) extends SocialLink(

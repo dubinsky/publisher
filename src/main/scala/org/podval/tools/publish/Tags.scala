@@ -3,8 +3,6 @@ package org.podval.tools.publish
 import zio.blocks.schema.xml.Xml
 import XmlUtil.{apply, a, div, el, ul, setId, withText}
 
-// TODO include (some of the) SyntheticPages in the link resolution
-// or introduce (non-transcludable) Link.ToAnchor?
 final class Tags(
   site: Site,
   path: Path,

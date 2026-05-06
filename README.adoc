@@ -167,6 +167,17 @@ parses exactly the same as
 - l2
 ----
 
+// ZIO Blocks Markdown parse parses nested lists incorrectly; see https://github.com/zio/zio-blocks/issues/1377
+// FlexMark WikiLink extension is useless to me:
+// - it sets the content of the rendered HTML 'a' element when there is no | in the link;
+// - it prefixes the href with the dashes corresponding in number to the spaces after the |...
+//
+// Unlike ZIO Blocks Markdown HTML renderer,
+// which I had to fork to ensure that resulting HTML is valid XML
+// (no unclosed tags like 'br', 'hr', 'input' and 'img'; attributes have values etc.),
+// FlexMark renders valid XML out of the box.
+// I may need to add some extensions to handle GitHub task lists and such...
+
 I had to switch to the industry-standard FlexMark parser.
 
 It can be configured to
@@ -201,7 +212,27 @@ that cause problems with the browsers when they are self-closed
 (script, data, span) are not -
 without inserting comments into them, which is ugly.
 
+See that the following renders as is:
+
+[source,markdown]
+----
+val escaped = userInput.replace("<", "&lt;").replace(">", "&gt;")
+----
+
+Parse notes (:::note...:::)
+
 == TODO
+
+Add FrontMatter "post: true" to control publishing arbitrary notes as posts.
+
+// TODO file named after directory is its index!
+
+// TODO sort the pages in transclusion order and transclude
+
+Finish feed and sitemap.
+
+// TODO include (some of the) SyntheticPages in the link resolution
+// or introduce (non-transcludable) Link.ToAnchor?
 
 Title of an `index.html` page should be the same as the title of the parent page. This one simple consideration pushes me towards the approach
 reminiscent of the one I took with my TEI website:

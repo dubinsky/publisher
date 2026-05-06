@@ -89,17 +89,3 @@ object FrontMatter:
       Right(result)
     catch
       case error: Throwable if NonFatal(error) => new Left(SchemaError(error.getMessage))
-
-//  private def stringsCodec: YamlCodec[List[String]] = new YamlCodec[List[String]]:
-//    override def decodeValue(value: Yaml): List[String] = value match
-//      case Yaml.Sequence(elements) => elements
-//        .collect { case Yaml.Scalar(value, _) => value }
-//        .toList
-//      case Yaml.Scalar(value, _) =>
-//        List(value)
-//      case _ =>
-//        List.empty
-//
-//
-//    override def encodeValue(strings: List[String]): Yaml = ???
-//

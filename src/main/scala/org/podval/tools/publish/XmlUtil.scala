@@ -99,7 +99,7 @@ object XmlUtil:
   def write(xml: Xml.Element): String = prettyPrinter.render(xml)
   private val prettyPrinter = XmlPrettyPrinter(htmlPrettyPrinterConfig)
   private def htmlPrettyPrinterConfig: XmlPrettyPrinter.Config = new XmlPrettyPrinter.Config:
-    override def selfClose(name: XmlName): Boolean = Set("br", "hr", "meta", "link", "img" /* TODO: "data", "span" */).contains(name.localName)
+    override def selfClose(name: XmlName): Boolean = Set("br", "hr", "meta", "link", "img", "input").contains(name.localName)
     override def stack(name: XmlName): Boolean = Set("nav", "header", "main", "div").contains(name.localName)
     override def unStack(name: XmlName): Boolean = false
     override def nest(name: XmlName): Boolean = false

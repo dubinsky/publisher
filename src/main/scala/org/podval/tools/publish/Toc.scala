@@ -74,12 +74,7 @@ object Toc:
     final class ToSection(sections: Seq[Section]) extends Link:
       override def id: String = sections.last.id
       override def title: String = sections.map(_.title).mkString("#")
-  
-  def empty: Toc = Toc(
-    sections = Seq.empty,
-    blocks = Seq.empty
-  )
-  
+
   def isKramdownTocMarker(element: Xml.Element): Boolean =
     element.name.localName == "ul" &&
     element.children.length == 1 &&
