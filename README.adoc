@@ -91,6 +91,7 @@ Events of 2026:
 - Apr 30: I switched my personal website to use my site publisher vis GitHub Actions Workflow
 - May 04: I removed all traces of Jekyll from my personal website
 - May 06: I became aware of the ZIO Blocks HTML that was added on Apr 25-May 01, and started switching to it from my home-grown HTML DSL
+- May 07: switched
 
 
 First milestone for this project is to replace Jekyll on my personal website.
@@ -100,7 +101,7 @@ I have:
 - no support for paginating the post list, which I did not use with Jekyll anyway;
 - instead of the Ruby code highlighter Rouge, my publisher uses Highlights.js; it loads only the language modules used in the page; TODO unsupported language mapping...
 
-TODO 
+TODO
 
 - Add Mermaid diagrams and make sure that Highlights.js does not interfere
 - Alias languages unknown to Highlights.js to known ones - or to autodetect

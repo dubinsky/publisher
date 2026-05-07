@@ -1,7 +1,6 @@
 package org.podval.tools.publish
 
 import zio.Scope
-import zio.blocks.schema.xml.Xml
 import zio.test.*
 
 object MarkdownSpec extends ZIOSpecDefault:

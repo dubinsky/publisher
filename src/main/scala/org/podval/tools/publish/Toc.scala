@@ -1,7 +1,5 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.Xml
-import XmlUtil.{a, apply, div, el, withText}
 import Toc.{Block, Section}
 
 final class Toc(
@@ -36,18 +34,22 @@ final class Toc(
       names = names
     )
     
-  def toXml: Xml.Element = div("toc")(
-    el("h3").withText("Table of Contents"),
-    toXml(sections)
-  )
+  def toXml: Xml.Element = Xml
+    .element("div")
+    .attr("class", "toc")
+    .child(Xml.element("h3").child(Xml.mkText("Table of Contents")).build)
+    .children(toXml(sections))
+    .build
 
-  private def toXml(sections: Seq[Section]): Xml.Element =
-    el("ul")(sections.map(section =>
-      el("li")(
-        Seq(a("web-link", s"#${section.id}").withText(section.title)) ++
-        Option.when(section.sections.nonEmpty)(toXml(section.sections)).toSeq
-      *)
+  private def toXml(sections: Seq[Section]): Xml.Element = Xml
+    .element("ul")
+    .children(sections.map(section => Xml
+      .element("li")
+      .child(Xml.a("web-link", s"#${section.id}", section.title))
+      .children(Option.when(section.sections.nonEmpty)(toXml(section.sections)).toSeq *)
+      .build
     )*)
+    .build
 
 object Toc:
   sealed abstract class PagePart(val id: String)
@@ -78,8 +80,10 @@ object Toc:
   def isKramdownTocMarker(element: Xml.Element): Boolean =
     element.name.localName == "ul" &&
     element.children.length == 1 &&
-    element.children.head.isInstanceOf[Xml.Element] &&
-    element.children.head.asInstanceOf[Xml.Element].name.localName == "li" &&
-    element.children.head.asInstanceOf[Xml.Element].children.length == 1 &&
-    element.children.head.asInstanceOf[Xml.Element].children.head.isInstanceOf[Xml.Text] &&
-    element.children.head.asInstanceOf[Xml.Element].children.head.asInstanceOf[Xml.Text].value.endsWith("{:toc}")
+    Xml.isElement(element.children.head) && {
+      val child = Xml.asElement(element.children.head)
+      child.name.localName == "li" &&
+      child.children.length == 1 &&
+      Xml.isText(child.children.head) &&
+      Xml.atomText(child.children.head).endsWith("{:toc}")
+    }

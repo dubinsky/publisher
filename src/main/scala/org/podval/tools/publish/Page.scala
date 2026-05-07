@@ -1,8 +1,8 @@
 package org.podval.tools.publish
 
 import java.io.File
-import XmlUtil.{childrenWhenEmpty, replaceAttribute, withText}
-import zio.blocks.schema.xml.XmlName
+import zio.blocks.chunk.Chunk
+import Xml.replaceAttribute
 
 abstract class Page(
   val site: Site,
@@ -32,7 +32,7 @@ abstract class Page(
 
   final lazy val parent: Option[Directory] = Directory.parent(site, path)
 
-  final def ref(cls: String): BlocksXml.Element = Page.Link(this, part = None).aXml(cls)
+  final def ref(cls: String): Html.Element = Page.Link(this, part = None).aHtml(cls)
 
   final def targetFile: File = path.file(site.targetDirectory)
 
@@ -63,13 +63,22 @@ object Page:
     def url: String = page.path.toString + part.fold("")(part => s"#${part.id}")
 
     def title: String = page.title + part.fold("")(part => s"#${part.title}")
+    
+    def aHtml(cls: String): Html.Element =
+      import zio.blocks.html.*
+      a(className := cls, href := url, this.title)
 
-    def aXml(cls: String): BlocksXml.Element = XmlUtil.a(cls, url).withText(title)
+    def aXml(cls: String): Xml.Element = Xml.a(cls, url, title)
 
-    def aXml(element: BlocksXml.Element): BlocksXml.Element = element
-      .copy(name = XmlName(XmlUtil.a))
-      .replaceAttribute(XmlUtil.hrefAttribute, XmlUtil.escapeUrl(url))
-      .childrenWhenEmpty(Some(title))
+    // TODO rework!
+    def aXml(element: Xml.Element): Xml.Element =
+      val result: Xml.Element = element 
+        .copy(name = zio.blocks.schema.xml.XmlName(Html.a))
+        .replaceAttribute(Html.hrefAttr, url) // TODO escape URL?
+
+      if result.children.nonEmpty
+      then result
+      else result.copy(children = Chunk(Xml.mkText(title)))
 
   trait WithContent extends Page:
     final override def write(): Unit = Files.write(targetFile, content)
@@ -77,9 +86,9 @@ object Page:
 
   trait WithXmlContent extends WithContent:
     final override def content: String = XmlWriter.xmlWriter.render(xmlContent)
-    def xmlContent: BlocksXml.Element
+    def xmlContent: Xml.Element
 
   trait WithHtmlContent extends WithContent:
     final override def content: String = XmlWriter.htmlWriter.render(htmlContent)
-    def htmlContent: BlocksHtml.Element
+    def htmlContent: Html.Element
 

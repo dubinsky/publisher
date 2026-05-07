@@ -1,8 +1,7 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.Xml
 import scala.annotation.tailrec
-import XmlUtil.replaceAttribute
+import Xml.replaceAttribute
 
 object Markup:
   final case class SectionElement(
@@ -52,11 +51,13 @@ abstract class Markup derives CanEqual:
       val result: Xml.Element = sectionElement(element) match
         case None => element
         case Some(sectionElement) =>
-          if sectionElement.id.isDefined then element else element.replaceAttribute(
-            XmlUtil.idAttr,
+          if sectionElement.id.isDefined
+          then element
+          else element.replaceAttribute(
+            Xml.idAttr,
             sectionElement
               .text
-              .map(XmlUtil.toId)
+              .map(Xml.toId)
               .getOrElse(throw IllegalArgumentException(s"Defect: No id or title on $element"))
           )
   
@@ -66,6 +67,7 @@ abstract class Markup derives CanEqual:
       })
 
 
+  // TODO transform
   final def addToc(element: Xml.Element, toc: Toc): Xml.Element =
     if !resolveLinks(element) then element else
       element.copy(children = element.children.map {
@@ -76,11 +78,11 @@ abstract class Markup derives CanEqual:
 
   final def resolveLinks(element: Xml.Element, page: MarkupPage): Xml.Element =
     if !resolveLinks(element) then element else
-      val result: Xml.Element = element.copy(children = element.children.flatMap {
-        case element: Xml.Element => Seq(resolveLinks(element, page))
-        case Xml.Text(text) if resolveWikiLinks => resolveWikiLinks(Seq.empty, text, page)
-        case xml => Seq(xml)
-      })
+      val result: Xml.Element = element.copy(children = element.children.flatMap: xml =>
+        if Xml.isElement(xml) then Seq(resolveLinks(Xml.asElement(xml), page))
+        else if Xml.isAtom(xml) && resolveWikiLinks then resolveWikiLinks(Seq.empty, Xml.atomText(xml), page)
+        else Seq(xml)
+      )
       linkElement(result) match
         case None => result
         case Some(linkElement) => page.site.resolveLink(Link(
@@ -95,12 +97,12 @@ abstract class Markup derives CanEqual:
 
   // see https://obsidian.md/help/links
   @tailrec
-  private def resolveWikiLinks(result: Seq[Xml], text: String, page: MarkupPage): Seq[Xml] =
+  private def resolveWikiLinks(result: Seq[Xml.Xml], text: String, page: MarkupPage): Seq[Xml.Xml] =
     if text.isEmpty then result else
       resolveWikiLink(text, "![[", "]]", transclude = true, page)
         .orElse(resolveWikiLink(text, "[[", "]]", transclude = false, page)) match
-        case None => result ++ Seq(Xml.Text(text))
-        case Some(xml: Seq[Xml], after: String) => resolveWikiLinks(result ++ xml, after, page)
+        case None => result ++ Seq(Xml.mkText(text))
+        case Some(xml: Seq[Xml.Xml], after: String) => resolveWikiLinks(result ++ xml, after, page)
 
   private def resolveWikiLink(
     text: String,
@@ -108,7 +110,7 @@ abstract class Markup derives CanEqual:
     end: String,
     transclude: Boolean,
     page: MarkupPage
-  ): Option[(Seq[Xml], String)] =
+  ): Option[(Seq[Xml.Xml], String)] =
     val startIndex: Int = text.indexOf(start)
     val endIndex: Int = if startIndex == -1 then -1 else text.indexOf(end, startIndex + start.length)
     if endIndex == -1 then None else
@@ -128,7 +130,7 @@ abstract class Markup derives CanEqual:
       ))
 
       Some(
-        Option.when(before.nonEmpty)(Xml.Text(before)).toSeq ++ Seq(result),
+        Option.when(before.nonEmpty)(Xml.mkText(before)).toSeq ++ Seq(result),
         after
       )
     

@@ -1,7 +1,6 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.Xml
-import XmlUtil.{apply, a, div, el, ul, setId, withText}
+import zio.blocks.html.*
 
 final class Tags(
   site: Site,
@@ -14,25 +13,23 @@ final class Tags(
   frontMatter,
   pageMarkup
 ) with MarkupPage.BaseLayout:
-  private def slugify(text: String): String = text.replace(' ', '-')
-
   private def tagsAll: List[String] = site.markupPages.flatMap(_.tags).distinct.sorted
 
   private def withTag(tag: String): List[Page] = site.markupPages.filter(_.tags.contains(tag)).sortBy(_.title)
 
-  def tagRef(tag: String): Xml.Element = a("page-tag", s"$path#${slugify(tag)}").withText(tag)
+  def tagRef(tag: String): Html.Element = a(className := "page-tag", href := s"$path#${Xml.toId(tag)}", tag)
 
-  override protected def syntheticContent: Option[Xml.Element] = Some:
-    div("tags")(
-      el("h2").withText("All tags"),
-      el("p")(tagsAll.map(tagRef)*),
-      el("h2").withText("Pages by tags"),
-      el("ul")(tagsAll.map(tag =>
-        el("li")(
-          el("h3", "class" -> "page-tag").setId(slugify(tag)).withText(tag),
-          ul("tag-pages-list", withTag(tag), _.ref("post-link"))
+  override protected def syntheticContent: Option[Html.Element] = Some:
+    div(className := "tags",
+      h2("All tags"),
+      p(tagsAll.map(tagRef)),
+      h2("Pages by tags"),
+      ul(tagsAll.map(tag =>
+        li(
+          h3(className := "page-tag", id := Xml.toId(tag), tag),
+          ul(className := "tag-pages-list", withTag(tag).map(page => li(page.ref("post-link"))))
         )
-      )*)
+      ))
     )
 
 object Tags:

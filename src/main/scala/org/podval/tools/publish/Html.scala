@@ -1,11 +1,10 @@
 package org.podval.tools.publish
 
 import zio.blocks.chunk.Chunk
+import zio.blocks.html.Dom as XML
+import zio.blocks.schema.xml.Xml as From
 
-// TODO rename Html
-object BlocksHtml extends XmlAst:
-  import zio.blocks.html.Dom as XML
-
+object Html extends XmlAst:
   override type Xml = XML
   override type Element = XML.Element
 
@@ -35,6 +34,8 @@ object BlocksHtml extends XmlAst:
 
   override def mkText(text: String): Xml = XML.text(text)
 
+  override def isText(xml: Xml): Boolean = isAtom(xml)
+
   override def isAtom(xml: Xml): Boolean = xml match
     case _: XML.Text => true
     case _ => false
@@ -42,3 +43,37 @@ object BlocksHtml extends XmlAst:
   override def atomText(xml: Xml): String = xml match
     case XML.Text(content) => content
     case xml => throw new IllegalArgumentException(s"Not an XML atom: $xml")
+
+  abstract class JSLibrary:
+    def head: List[Html.Element]
+    def body: List[Html.Element]
+
+  // Note: I do not see any reason to recognize elements (like 'script') or attributes (like 'hidden')...
+  def fromXml(element: From.Element): XML.Element = XML.Element.Generic(
+    tag = element.name.qualifiedName,
+    attributes = element.attributes.map((name, value) => XML.Attribute.KeyValue(
+      name.qualifiedName,
+      XML.AttributeValue.StringValue(value)
+    )),
+    children = element.children.flatMap {
+      case From.Comment(value) => None
+      case From.ProcessingInstruction(target, data) => None
+      case From.Text(value) => Some(mkText(value))
+      case From.CData(value) => Some(mkText(value))
+      case element: From.Element => Some(fromXml(element))
+    }
+  )
+
+  // for convenience
+
+  val a: String = "a"
+  val code: String = "code"
+  val hrefAttr: String = "href"
+
+  def stylesheet(
+    hrefString: String,
+    idOpt: Option[String] = None
+  ): Html.Element =
+    import zio.blocks.html.*
+
+    link(rel := "stylesheet", href := hrefString).whenSome(idOpt)(idd => Seq(id := idOpt.get)) // TODO optional attributes??

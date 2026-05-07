@@ -1,7 +1,5 @@
 package org.podval.tools.publish
 
-import XmlUtil.{apply, el}
-
 object Feed:
   val path: Path = Path("feed").withExtension("xml")
   
@@ -12,8 +10,10 @@ final class Feed(
   Feed.path
 ):
   // TODO
-  override def xmlContent: BlocksXml.Element =
-    el("feed", "xmlns" -> "http://www.w3.org/2005/Atom")(
+  override def xmlContent: Xml.Element = Xml
+    .element("feed")
+    .attr("xmlns", "http://www.w3.org/2005/Atom")
+    .children(
       //<generator uri="https://jekyllrb.com/" version="4.4.1">Jekyll</generator>
       //<link href="http://dub.podval.org/feed.xml" rel="self" type="application/atom+xml"/>
       //<link href="http://dub.podval.org/" rel="alternate" type="text/html"/>
@@ -25,6 +25,7 @@ final class Feed(
       //<name>Leonid Dubinsky</name>
       //</author>
     )
+    .build
 
 // TODO 10 latest entries:
 //<entry>

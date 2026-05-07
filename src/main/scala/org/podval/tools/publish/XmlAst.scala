@@ -28,4 +28,5 @@ abstract class XmlAst:
 
   def mkText(text: String): Xml
   def isAtom(xml: Xml): Boolean
+  def isText(xml: Xml): Boolean
   def atomText(xml: Xml): String

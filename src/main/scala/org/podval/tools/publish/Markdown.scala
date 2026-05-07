@@ -1,7 +1,6 @@
 package org.podval.tools.publish
 
 import org.podval.tools.publish.PageError
-import zio.blocks.schema.xml.{Xml, XmlName}
 import scala.jdk.CollectionConverters.SeqHasAsJava
 import com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension
 import com.vladsch.flexmark.ext.autolink.AutolinkExtension

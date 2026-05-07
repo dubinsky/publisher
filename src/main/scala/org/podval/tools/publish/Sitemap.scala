@@ -1,8 +1,5 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.XmlName
-import XmlUtil.{apply, el}
-
 object Sitemap:
   val path: Path = Path("sitemap").withExtension("xml")
   
@@ -13,10 +10,11 @@ final class Sitemap(
   site,
   Sitemap.path
 ):
-  override def xmlContent: BlocksXml.Element = el("urlset")
-    .attr(XmlName("xsi", Some("xmlns"), None), "http://www.w3.org/2001/XMLSchema-instance")
-    .attr(XmlName("schemaLocation", Some("xsi")), "http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd")
-    (
+  override def xmlContent: Xml.Element = Xml
+    .element("urlset")
+    .attr(zio.blocks.schema.xml.XmlName("xsi", Some("xmlns"), None), "http://www.w3.org/2001/XMLSchema-instance")
+    .attr(zio.blocks.schema.xml.XmlName("schemaLocation", Some("xsi")), "http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd")
+    .children(
       // TODO unordered, for each file; lastmod only if date (lastModified?) is present;
       // directories are included, even the top level;
       // only HTML files are included, not the CSS
@@ -25,3 +23,4 @@ final class Sitemap(
       //<lastmod>2009-08-07T14:30:00-04:00</lastmod>
       //</url>
     )
+    .build

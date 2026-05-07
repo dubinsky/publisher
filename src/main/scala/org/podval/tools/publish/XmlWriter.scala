@@ -215,8 +215,8 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
   private def isWhitespace(node: xml.Xml): Boolean = xml.isAtom(node) && xml.atomText(node).trim.isEmpty
 
 object XmlWriter:
-  val xmlWriter: XmlWriter[BlocksXml.type] = XmlWriter(BlocksXml)(htmlWriterConfig)
-  val htmlWriter: XmlWriter[BlocksHtml.type] = XmlWriter(BlocksHtml)(htmlWriterConfig)
+  val xmlWriter: XmlWriter[Xml.type] = XmlWriter(Xml)(htmlWriterConfig)
+  val htmlWriter: XmlWriter[Html.type] = XmlWriter(Html)(htmlWriterConfig)
 
   // The only way I found to not let Paiges screw up indentation in the <pre><code>..</code></pre> blocks
   // is to give it the whole block as one unbreakable text, and for that I need to hide newlines from it -

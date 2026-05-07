@@ -1,7 +1,6 @@
 package org.podval.tools.publish
 
-import org.podval.tools.publish.XmlUtil.{apply, div, setId}
-import zio.blocks.schema.xml.Xml
+import zio.blocks.html.*
 
 final class Errors(
   site: Site,
@@ -16,11 +15,11 @@ final class Errors(
 ):
   private def slugify(text: String): String = text.replace(' ', '-')
 
-  override protected def syntheticContent: Option[Xml.Element] = Some:
+  override protected def syntheticContent: Option[Html.Element] = Some:
     // TODO generate report page(s):
     //- broken links
     //- inconsistent titles
-    div("site-errors").setId("site-errors")()
+    div(className := "site-errors", id := "site-errors")
 
 object Errors:
   object Maker extends MarkupPage.AutoMaker[Errors](

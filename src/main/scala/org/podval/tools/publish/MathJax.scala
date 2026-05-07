@@ -2,10 +2,10 @@ package org.podval.tools.publish
 
 import zio.blocks.html.*
 
-object MathJax extends XmlUtil.JavascriptLibrary:
-  override def body: List[BlocksHtml.Element] = List.empty
+object MathJax extends Html.JSLibrary:
+  override def body: List[Html.Element] = List.empty
 
-  override val head: List[BlocksHtml.Element] = List(
+  override val head: List[Html.Element] = List(
     // TODO they recommend "defer" (or "async"?) attribute on the "script" tag
     // TODO they recommend sticking this in the "head", not body; maybe Highlights.js works that way too?
     // TODO use the same CDN for Highlights.js

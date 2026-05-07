@@ -1,7 +1,6 @@
 package org.podval.tools.publish
 
-import org.podval.tools.publish.XmlUtil.{apply, div, el, spanXml, withText}
-import zio.blocks.schema.xml.Xml
+import zio.blocks.html.*
 
 final class Posts(
   site: Site,
@@ -14,17 +13,17 @@ final class Posts(
   frontMatter,
   pageMarkup
 ) with MarkupPage.BaseLayout:
-  override protected def syntheticContent: Option[Xml.Element] = Some:
-    div("home")(
-      //      el("h1", "class" -> "page-heading").withText(page.title)
-      el("h2", "class" -> "post-list-heading").withText("Posts"),
-      el("ul", "class" -> "post-list")(site.markupPages.filter(_.isPost).sortBy(_.date).reverse.map(post =>
-        el("li")(
-          spanXml("post-meta").withText(post.date.map(_.toShortString).getOrElse("")),
-          el("h3", "class" -> "post-link")(post.ref("post-link"))
-          // {%- if site.minima.show_excerpts -%} {{ post.excerpt }} {%- endif -%}
+  override protected def syntheticContent: Option[Html.Element] = Some:
+    div(className := "home",
+      //      h1(className := "page-heading", page.title)
+      h2(className := "post-list-heading", "Posts"),
+      ul(className := "post-list", site.markupPages.filter(_.isPost).sortBy(_.date).reverse.map(post =>
+        li(
+          span(className := "post-meta", post.date.map(_.toShortString).getOrElse("")),
+          h3(className := "post-link", post.ref("post-link"))
+          // {%- if site.minima.show_excerpts -%} {{ post.excerpt }} {%- endif -%} // TODO unify with feed.xml
         )
-      )*)
+      ))
     )
 
 object Posts:

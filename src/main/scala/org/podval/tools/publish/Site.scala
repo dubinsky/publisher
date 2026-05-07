@@ -1,12 +1,10 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.{Xml, XmlName}
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
 import scala.reflect.{ClassTag, TypeTest}
 import java.io.File
 import java.net.{URI, URISyntaxException}
-import XmlUtil.{a, div, withText}
 
 final class Site(
   sourceDirectoryPath: String,
@@ -17,7 +15,6 @@ final class Site(
   logLevel: Level = Level.INFO
 ):
   private given CanEqual[File, File] = CanEqual.derived
-  private given CanEqual[XmlName, XmlName] = CanEqual.derived
 
   Logging.configureLogBack(level = logLevel, useLogStash = false)
   private val log: Logger = LoggerFactory.getLogger(this.getClass)
@@ -152,7 +149,9 @@ final class Site(
 
         val xml: Xml.Element = markup.parse(sourcePath, markupContent) match
           case Right(xml) => xml
-          case Left(error) => reportError(error, div("malformed-xml").withText(s"Malformed XML: $error"))
+          case Left(error) => reportError(error,
+            Xml.element("div").attr("class", "malformed-xml").child(Xml.mkText(s"Malformed XML: $error")).build
+          )
 
         val pageMarkup: PageMarkup = PageMarkup(sourcePath, markup, xml)
 
@@ -193,7 +192,7 @@ final class Site(
   def resolveLink(link: Link): Xml.Element =
     def unresolved = link.element match
       case Some(element) => element
-      case None => a("wiki-link", link.ref).withText(link.text.getOrElse(link.ref))
+      case None => Xml.a("wiki-link", link.ref, link.text.getOrElse(link.ref))
     // TODO can not transclude external links
     (if !link.transclude then None else Site.embedLink(link.ref, link.text)).getOrElse:
       if externalRef(link.ref).isDefined then unresolved
@@ -207,7 +206,9 @@ final class Site(
           // Register resolved link
           linksResolved = linksResolved.appended(Link.Resolved(link, linkTo))
 
-          if link.transclude then linkTo.aXml("transclude") else link.element match
+          if link.transclude then
+            linkTo.aXml("transclude") 
+          else link.element match
             case None => linkTo.aXml("wiki-link")
             case Some(element) => linkTo.aXml(element)
 

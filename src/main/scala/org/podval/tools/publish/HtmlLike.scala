@@ -1,20 +1,19 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.{XmlCodecError, XmlReader} // TODO move into BlocksXml
 import scala.annotation.tailrec
 import Toc.Section
-import XmlUtil.getAttribute
+import Xml.getAttribute
 
 // Common for markup formats whose XML representation is actually HTML:
 // HTML itself, Markdown, and likely Re-Structured text and AsciiDoc;
 // pure XML markup formats like TEI and DocBook are different.
 abstract class HtmlLike extends Markup:
-  final override def resolveLinks(element: BlocksXml.Element): Boolean =
-    BlocksXml.qName(element) != XmlUtil.code
+  final override def resolveLinks(element: Xml.Element): Boolean =
+    Xml.qName(element) != Html.code
 
   final override def resolveWikiLinks: Boolean = true
 
-  final override def sectionElement(element: BlocksXml.Element): Option[Markup.SectionElement] =
+  final override def sectionElement(element: Xml.Element): Option[Markup.SectionElement] =
     // Extract level of the HTML '<h>' element.
     val headerLevel: Option[Int] =
       if element.name.prefix.isDefined || !element.name.localName.startsWith("h") then None else
@@ -23,23 +22,23 @@ abstract class HtmlLike extends Markup:
         
     headerLevel.map(level => Markup.SectionElement(
       level = Some(level),
-      id = element.getAttribute(XmlUtil.idAttr),
-      text = BlocksXml.toStringOpt(element)
+      id = element.getAttribute(Xml.idAttr),
+      text = Xml.toStringOpt(element)
     ))
   
   // TODO do 'img' too?
-  final override def linkElement(element: BlocksXml.Element): Option[Markup.LinkElement] =
-    if BlocksXml.qName(element) != XmlUtil.a then None else element
-      .getAttribute(XmlUtil.hrefAttribute)
+  final override def linkElement(element: Xml.Element): Option[Markup.LinkElement] =
+    if Xml.qName(element) != Html.a then None else element
+      .getAttribute(Html.hrefAttr)
       .map(ref => Markup.LinkElement(
         ref = ref,
-        text = BlocksXml.toStringOpt(element),
+        text = Xml.toStringOpt(element),
         kind = None
       ))
 
-  final override def sections(xml: BlocksXml.Element): Seq[Section] = nest(getSections(xml))
+  final override def sections(xml: Xml.Element): Seq[Section] = nest(getSections(xml))
 
-  final override def blocks(xml: BlocksXml.Element): Seq[Toc.Block] = Seq.empty // TODO
+  final override def blocks(xml: Xml.Element): Seq[Toc.Block] = Seq.empty // TODO
 
   private def nest(sections: Seq[Section]): Seq[Section] =
     @tailrec
@@ -51,7 +50,7 @@ abstract class HtmlLike extends Markup:
 
     loop(Seq.empty, sections)
 
-  private def getSections(element: BlocksXml.Element): Seq[Section] =
+  private def getSections(element: Xml.Element): Seq[Section] =
     if !resolveLinks(element) then Seq.empty else
       val section: Option[Section] = for
         sectionElement <- HtmlLike.Html.sectionElement(element)
@@ -65,7 +64,7 @@ abstract class HtmlLike extends Markup:
       )
 
       section.toSeq ++ element.children.flatMap {
-        case element: BlocksXml.Element => getSections(element)
+        case element: Xml.Element => getSections(element)
         case xml => Seq.empty
       }
 
@@ -74,6 +73,7 @@ object HtmlLike:
     override val extension: String = "html"
     override val additionalExtensions: Set[String] = Set.empty
 
-    override def parse(sourcePath: Path, content: String): Either[PageError, BlocksXml.Element] =
-      try Right(XmlReader.read(content).asInstanceOf[BlocksXml.Element])
-      catch case e: XmlCodecError => Left(PageError.Parsing(sourcePath, "", Some(e)))
+    override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] =
+      // TODO move into Xml
+      try Right(Xml.asElement(zio.blocks.schema.xml.XmlReader.read(content)))
+      catch case e: zio.blocks.schema.xml.XmlCodecError => Left(PageError.Parsing(sourcePath, "", Some(e)))

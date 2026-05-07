@@ -38,12 +38,15 @@ open class MarkupPage(
   final override def resolveFragment(fragment: String): Option[Toc.Link] =
     pageMarkup.flatMap(_.resolveFragment(fragment))
 
-  final override def htmlContent: BlocksHtml.Element = Minima.render(
+  final override def htmlContent: Html.Element = Minima.render(
     page = this,
-    content = Seq(pageMarkup.map(_.xmlContent), syntheticContent).flatten.map(XmlToHtml.convertElement)
+    content = Seq(
+      pageMarkup.map(_.xmlContent).map(Html.fromXml),
+      syntheticContent
+    ).flatten
   )
 
-  protected def syntheticContent: Option[BlocksXml.Element] = None
+  protected def syntheticContent: Option[Html.Element] = None
 
 object MarkupPage:
   trait BaseLayout extends MarkupPage

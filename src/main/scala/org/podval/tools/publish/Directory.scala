@@ -1,7 +1,6 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.Xml
-import XmlUtil.{apply, child, div, el, ul, withText}
+import zio.blocks.html.*
 
 final class Directory(
   site: Site,
@@ -14,20 +13,20 @@ final class Directory(
   frontMatter,
   pageMarkup
 ) with MarkupPage.BaseLayout:
-  override protected def syntheticContent: Option[Xml.Element] = Some:
-    div("directory")
-      .child(pageList(directories, "Directories", "directories-list"))
-      .child(pageList(pages, "Pages", "pages-list"))
-      .build
+  override protected def syntheticContent: Option[Html.Element] = Some:
+    div(className := "directory",
+      pageList(directories, "Directories", "directories-list"),
+      pageList(pages, "Pages", "pages-list")
+    )
 
   private def pageList(
     pages: List[Page],
     title: String,
     cls: String
-  ): Option[Xml.Element] = Option.when(pages.nonEmpty):
-    div(s"page-list $cls")(
-      el("h3").withText(title),
-      ul(s"page-list $cls", pages, _.ref("sub"))
+  ): Option[Html.Element] = Option.when(pages.nonEmpty):
+    div(className := s"page-list $cls",
+      h3(title),
+      ul(className := s"page-list $cls", pages.map(page => li(page.ref("sub"))))
     )
 
   // TODO verify that it is a Directory!

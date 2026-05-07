@@ -1,7 +1,5 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.Xml
-
 final case class Link(
   page: MarkupPage,
   element: Option[Xml.Element], // None for wiki link

@@ -1,7 +1,5 @@
 package org.podval.tools.publish
 
-import zio.blocks.schema.xml.Xml
-
 final class PageMarkup(
   val sourcePath: Path,
   markup: Markup,

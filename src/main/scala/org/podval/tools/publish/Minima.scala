@@ -6,10 +6,10 @@ import zio.blocks.html.*
 // TODO add up/prev/next to navigation!
 // TODO unfold?
 object Minima:
-  def render(page: MarkupPage, content: Seq[BlocksHtml.Element]): BlocksHtml.Element =
+  def render(page: MarkupPage, content: Seq[Html.Element]): Html.Element =
     val isBaseLayout: Boolean = page.isInstanceOf[MarkupPage.BaseLayout]
 
-    val libraries: List[XmlUtil.JavascriptLibrary] = List(
+    val libraries: List[Html.JSLibrary] = List(
       Highlights.get(content),
       Option.when(page.math)(MathJax),
       Some(FontAwesome())
@@ -36,7 +36,7 @@ object Minima:
               hr, // TODO do a border
               h3("Backlinks"),
               ul(className := "backlinks-list", page.site.backLinks(page).map(link =>
-                li(XmlToHtml.convertElement(link.from.page.ref("backlink"))) // TODO!
+                li(link.from.page.ref("backlink")) // TODO!
               ))
             )
           ),
@@ -46,7 +46,7 @@ object Minima:
       )
     )
   
-  private def articleMeta(page: MarkupPage): BlocksHtml.Element =
+  private def articleMeta(page: MarkupPage): Html.Element =
     div(className := "post-meta",
       join(
         join(
@@ -65,24 +65,24 @@ object Minima:
           )
         ),
         "|",
-        page.tags.map(page.site.tags.tagRef).map(XmlToHtml.convertElement)
+        page.tags.map(page.site.tags.tagRef)
       )
     )
 
-  private def join(left: Seq[BlocksHtml.Element], text: String, right: Seq[BlocksHtml.Element]): Seq[BlocksHtml.Element] =
+  private def join(left: Seq[Html.Element], text: String, right: Seq[Html.Element]): Seq[Html.Element] =
     if left.nonEmpty && right.nonEmpty
     then left ++ Seq(span(className := "bullet-divider", text)) ++ right
     else left ++ right
 
-  private def timeHtml(label: Option[String], date: Option[Date], cls: String, itemprop: String): Seq[BlocksHtml.Element] =
+  private def timeHtml(label: Option[String], date: Option[Date], cls: String, itemprop: String): Seq[Html.Element] =
     date.fold(Seq.empty): date =>
       label.fold(Seq.empty)(label => Seq(span(className := "meta-label", label))) ++
       Seq(time(className := cls, datetime := date.toString, itemProp := itemprop, date.toShortString))
 
   private def headHtml(
     page: MarkupPage,
-    libraries: List[XmlUtil.JavascriptLibrary]
-  ): BlocksHtml.Element =
+    libraries: List[Html.JSLibrary]
+  ): Html.Element =
     head(
       meta(charset := "utf-8"),
       meta(httpEquiv := "X-UA-Compatible", content := "IE=edge"),
@@ -90,7 +90,7 @@ object Minima:
       // TODO {%- seo -%}: https://github.com/jekyll/jekyll-seo-tag
       title(page.title), // TODO this is here until seo is implemented - it covers the title...
       libraries.flatMap(_.head),
-      XmlUtil.stylesheet("/assets/css/style.css", idOpt = Some("main-stylesheet"))
+      Html.stylesheet("/assets/css/style.css", idOpt = Some("main-stylesheet"))
       // TODO {%- feed_meta -%}: https://github.com/jekyll/jekyll-feed
       // TODO
       // {%- if jekyll.environment == 'production' and site.google_analytics -%}
@@ -99,7 +99,7 @@ object Minima:
       // Skipped: {%- include custom-head.html -%}
     )
 
-  private def googleAnalytics: Seq[BlocksHtml.Element] = Seq.empty
+  private def googleAnalytics: Seq[Html.Element] = Seq.empty
     // TODO
     //<script async src="https://www.googletagmanager.com/gtag/js?id={{ site.google_analytics }}"></script>
     //<script>
@@ -110,7 +110,7 @@ object Minima:
     //  gtag('config', '{{ site.google_analytics }}');
     //</script>
 
-  private def headerHtml(site: Site): BlocksHtml.Element =
+  private def headerHtml(site: Site): Html.Element =
     header(className := "site-header",
       div(className := "wrapper",
         a(className := "site-title", href := "/", rel := "author", site.title),
@@ -123,12 +123,12 @@ object Minima:
 //                )
             )
           ),
-          div(className := "nav-items", site.headerPages.map(_.aXml("nav-item")).map(XmlToHtml.convertElement))
+          div(className := "nav-items", site.headerPages.map(_.aHtml("nav-item")))
         )
       )
     )
 
-  private def footerHtml(site: Site): BlocksHtml.Element =
+  private def footerHtml(site: Site): Html.Element =
     footer(className  := "site-footer h-card",
       data(className := "u-url", href := "/"), // TODO base url?
       div(className := "wrapper",
@@ -145,7 +145,7 @@ object Minima:
               ul(className := "social-media-list", site.socialLinks.map(social =>
                 li(
                   a(rel := "me", href := social.href, target := "_blank", titleAttr := social.title,
-                    XmlUtil.faBrand(social.icon),
+                    FontAwesome.brand(social.icon),
                     span(className := "username", social.userName)
                   )
                 )
@@ -156,7 +156,7 @@ object Minima:
             p(site.description), // TODO escape!
             p(
               a(href := Feed.path.toString,
-                XmlUtil.faIcon("rss"),
+                FontAwesome.icon("rss"),
                 span(className := "rss-feed", "RSS feed")
               )
             )
