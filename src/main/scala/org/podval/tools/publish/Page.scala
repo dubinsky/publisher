@@ -2,7 +2,6 @@ package org.podval.tools.publish
 
 import java.io.File
 import zio.blocks.chunk.Chunk
-import Xml.replaceAttribute
 
 abstract class Page(
   val site: Site,
@@ -70,15 +69,11 @@ object Page:
 
     def aXml(cls: String): Xml.Element = Xml.a(cls, url, title)
 
-    // TODO rework!
     def aXml(element: Xml.Element): Xml.Element =
-      val result: Xml.Element = element 
-        .copy(name = zio.blocks.schema.xml.XmlName(Html.a))
-        .replaceAttribute(Html.hrefAttr, url) // TODO escape URL?
-
+      val result: Xml.Element = Xml.setAttribute(Xml.rename(element, Html.a), Html.hrefAttr, url)
       if result.children.nonEmpty
       then result
-      else result.copy(children = Chunk(Xml.mkText(title)))
+      else Xml.setChildren(result, Chunk(Xml.mkText(title)))
 
   trait WithContent extends Page:
     final override def write(): Unit = Files.write(targetFile, content)

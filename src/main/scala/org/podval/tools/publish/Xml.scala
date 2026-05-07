@@ -11,11 +11,26 @@ object Xml extends XmlAst:
 
   override def qName(element: Element): String = element.name.qualifiedName
 
-  override def children(element: Element): Chunk[Xml] = element.children
+  override def rename(element: Element, name: String): Element =
+    element.copy(name = XmlName(name))
 
   override def attributes(element: Element, parent: Option[Element]): Chunk[(String, String)] =
+    attributes(element)
+    
+  override def attributes(element: Element): Chunk[(String, String)] =
     element.attributes.map((xmlName, value) => (xmlName.qualifiedName, value))
+  
+  override def setAttribute(element: Element, name: String, value: String): Element =
+    element.copy(attributes = element.attributes
+      .filterNot(_._1.qualifiedName == name)
+      .appended(XmlName(name) -> value)
+    )
+  
+  override def children(element: Element): Chunk[Xml] = element.children
 
+  override def setChildren(element: Element, children: Chunk[Xml]): Element =
+    element.copy(children = children)
+  
   override def mkText(text: String): Xml = XML.Text(text)
 
   override def isElement(xml: Xml): Boolean = xml match
@@ -36,11 +51,11 @@ object Xml extends XmlAst:
     case XML.CData(value) => value
     case xml => throw new IllegalArgumentException(s"Not an XML atom: $xml")
 
+  // for convenience
+
   val idAttr: String = "id"
 
   def toId(text: String): String = text.trim.replace(' ', '-')
-
-  // for convenience
 
   def element(name: String): XmlBuilder.ElementBuilder = XmlBuilder.element(name)
 
@@ -55,14 +70,3 @@ object Xml extends XmlAst:
     .child(Xml.mkText(text))
     .build
 
-  extension (element: Xml.Element)
-    private def isAttribute(name: String)(attribute: (XmlName, String)): Boolean =
-      attribute._1.qualifiedName == name
-
-    def getAttribute(name: String): Option[String] = element.attributes
-      .find(isAttribute(name)).map(_._2)
-
-    def replaceAttribute(name: String, value: String): Xml.Element = element.copy(attributes = element.attributes
-      .filterNot(isAttribute(name))
-      .appended(XmlName(name) -> value)
-    )

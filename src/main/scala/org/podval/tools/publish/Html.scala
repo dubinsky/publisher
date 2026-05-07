@@ -15,11 +15,19 @@ object Html extends XmlAst:
   override def asElement(xml: Xml): Element = xml.asInstanceOf[XML.Element]
 
   // TODO ZIO Blocks HTML does not allow prefixed names?!
+  // TODO rename name
   override def qName(element: Element): String = element.tag
 
-  override def children(element: Element): Chunk[Xml] = element.children
+  override def rename(element: Element, name: String): Element = XML.Element.Generic(
+    tag = name,
+    attributes = element.attributes,
+    children = element.children
+  )
 
   override def attributes(element: Element, parent: Option[Element]): Chunk[(String, String)] =
+    attributes(element)
+    
+  override def attributes(element: Element): Chunk[(String, String)] =
     element.attributes.map {
       case XML.Attribute.KeyValue(name, value) => (name, attributeValue(value))
       case XML.Attribute.BooleanAttribute(name, enabled) => (name, enabled.toString) // TODO!
@@ -32,6 +40,32 @@ object Html extends XmlAst:
     case XML.AttributeValue.MultiValue(values, separator) => values.mkString(separator.render)
     case XML.AttributeValue.JsValue(value) => value.value
 
+  private def attributeName(attribute: XML.Attribute): String = attribute match
+    case XML.Attribute.KeyValue(name, _) => name
+    case XML.Attribute.BooleanAttribute(name, _) => name
+    case XML.Attribute.AppendValue(name, _, _) => name
+      
+  override def setAttribute(element: Element, name: String, value: String): Element = XML.Element.Generic(
+    tag = element.tag,
+    children = element.children,
+    attributes = element.attributes
+      .filterNot(attribute => attributeName(attribute) == name)
+      .appended(mkAttribute(name, value))
+  )
+
+  private def mkAttribute(name: String, value: String) = XML.Attribute.KeyValue(
+    name,
+    XML.AttributeValue.StringValue(value)
+  )
+  
+  override def children(element: Element): Chunk[Xml] = element.children
+
+  override def setChildren(element: Element, children: Chunk[Xml]): Element = XML.Element.Generic(
+    tag = element.tag,
+    attributes = element.attributes,
+    children = children
+  )
+  
   override def mkText(text: String): Xml = XML.text(text)
 
   override def isText(xml: Xml): Boolean = isAtom(xml)
@@ -51,10 +85,7 @@ object Html extends XmlAst:
   // Note: I do not see any reason to recognize elements (like 'script') or attributes (like 'hidden')...
   def fromXml(element: From.Element): XML.Element = XML.Element.Generic(
     tag = element.name.qualifiedName,
-    attributes = element.attributes.map((name, value) => XML.Attribute.KeyValue(
-      name.qualifiedName,
-      XML.AttributeValue.StringValue(value)
-    )),
+    attributes = element.attributes.map((name, value) => mkAttribute(name.qualifiedName, value)),
     children = element.children.flatMap {
       case From.Comment(value) => None
       case From.ProcessingInstruction(target, data) => None
@@ -75,5 +106,8 @@ object Html extends XmlAst:
     idOpt: Option[String] = None
   ): Html.Element =
     import zio.blocks.html.*
-
-    link(rel := "stylesheet", href := hrefString).whenSome(idOpt)(idd => Seq(id := idOpt.get)) // TODO optional attributes??
+    link(
+      rel := "stylesheet",
+      href := hrefString,
+      idOpt.map(id := _)
+    )
