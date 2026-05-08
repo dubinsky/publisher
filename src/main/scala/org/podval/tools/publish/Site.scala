@@ -182,11 +182,7 @@ final class Site(
     config.social.linkedin.map(SocialLink.LinkedIn(_))
   ).flatten
 
-  lazy val headerPages: List[Page.Link] = config.headerPages.flatMap: ref =>
-    val result: Option[Page.Link] = resolveRef(ref)
-    if result.isDefined
-    then result
-    else reportError(PageError.Unresolved(Path.root, s"header link ref='$ref'"), result)
+  lazy val headerPages: List[Site.HeaderPage] = markupPages.flatMap(_.headerPage).sortBy(_.priority)
 
   // TODO mark errors with class attribute
   def resolveLink(link: Link): Xml.Element =
@@ -207,7 +203,7 @@ final class Site(
           linksResolved = linksResolved.appended(Link.Resolved(link, linkTo))
 
           if link.transclude then
-            linkTo.aXml("transclude") 
+            linkTo.aXml("transclude")
           else link.element match
             case None => linkTo.aXml("wiki-link")
             case Some(element) => linkTo.aXml(element)
@@ -231,6 +227,13 @@ final class Site(
           None
 
 object Site:
+  final class HeaderPage(
+    val page: MarkupPage,
+    val icon: String,
+    val iconStyle: Option[String],
+    val priority: Int
+  )
+
   def main(args: Array[String]): Unit = Cli.main(Array(
     "--log-level=INFO",
     "/home/dub/Podval/dub.podval.org"

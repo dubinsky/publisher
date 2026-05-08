@@ -8,9 +8,9 @@ final class FontAwesome extends Html.JSLibrary:
 
 object FontAwesome:
   import zio.blocks.html.*
-  
+
   def brand(nameString: String): Html.Element =
     span(className := s"grey fa-brands fa-$nameString fa-lg")
 
-  def icon(nameString: String): Html.Element =
-    span(className := s"grey fa-classic fa-solid fa-$nameString")
+  def icon(nameString: String, style: String): Html.Element =
+    span(className := s"grey fa-classic fa-$style fa-$nameString")

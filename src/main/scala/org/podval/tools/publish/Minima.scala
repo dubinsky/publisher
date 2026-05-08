@@ -123,7 +123,16 @@ object Minima:
 //                )
             )
           ),
-          div(className := "nav-items", site.headerPages.map(_.aHtml("nav-item")))
+          div(className := "nav-items",
+            site.headerPages.map: headerPage =>
+              val pageLink = Page.Link(headerPage.page, part = None)
+              a(
+                className := "nav-item",
+                href := pageLink.url,
+                FontAwesome.icon(headerPage.icon, style = headerPage.iconStyle.getOrElse("solid")),
+                pageLink.title
+              )
+          )
         )
       )
     )
@@ -156,7 +165,7 @@ object Minima:
             p(site.description), // TODO escape!
             p(
               a(href := Feed.path.toString,
-                FontAwesome.icon("rss"),
+                FontAwesome.icon("rss", style = "solid"),
                 span(className := "rss-feed", "RSS feed")
               )
             )

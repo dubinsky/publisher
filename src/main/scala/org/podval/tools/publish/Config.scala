@@ -14,7 +14,6 @@ final class Config(
   val timezone: Option[String] = None,
   val lang: Option[String] = None,
   val googleAnalytics: Option[String] = None,  // TODO freaking kebab case: I had to use 'google-analytics' in my config...
-  val headerPages: List[String], // TODO freaking kebab case: I had to use 'header-pages' in my config...
   val social: Config.Social = Config.Social(),
   val exclude: List[String] = List.empty,
 ):

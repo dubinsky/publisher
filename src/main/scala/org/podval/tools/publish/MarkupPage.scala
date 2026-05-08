@@ -16,6 +16,13 @@ open class MarkupPage(
   final def author: String = frontMatter.author.getOrElse(site.author)
   final def lang: String = frontMatter.lang.getOrElse(site.lang)
   final def math: Boolean = frontMatter.math
+  final lazy val headerPage: Option[Site.HeaderPage] = frontMatter.headerPage.map(headerPage =>
+    Site.HeaderPage(
+      page = this,
+      icon = headerPage.icon,
+      iconStyle = headerPage.iconStyle,
+      priority = headerPage.priority.getOrElse(0)
+    ))
 
   private lazy val postDate: Option[LocalDate] = Post.date(path)
   final def isPost: Boolean = postDate.isDefined
@@ -73,7 +80,7 @@ object MarkupPage:
   abstract class AutoMaker[P <: MarkupPage](
     path: Path,
     make: (site: Site, path: Path, frontMatter: FrontMatter, pageMarkup: Option[PageMarkup]) => P,
-    frontMatterWithoutSource: FrontMatter
+    frontMatterWithoutSource: FrontMatter // TODO merge into the supplied frontmatter!
   )(using TypeTest[MarkupPage, P]) extends Maker[P](make):
     final override def path(sourcePath: Path): Option[Path] = Option.when(sourcePath.html == path)(sourcePath)
 

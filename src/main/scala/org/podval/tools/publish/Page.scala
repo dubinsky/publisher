@@ -31,8 +31,11 @@ abstract class Page(
 
   final lazy val parent: Option[Directory] = Directory.parent(site, path)
 
-  final def ref(cls: String): Html.Element = Page.Link(this, part = None).aHtml(cls)
-
+  final def ref(cls: String): Html.Element =
+    import zio.blocks.html.*
+    val pageLink = Page.Link(this, part = None)
+    a(className := cls, href := pageLink.url, pageLink.title)
+  
   final def targetFile: File = path.file(site.targetDirectory)
 
   final def resolveRef(fragment: Option[String]): Option[Page.Link] = fragment match
@@ -63,10 +66,6 @@ object Page:
 
     def title: String = page.title + part.fold("")(part => s"#${part.title}")
     
-    def aHtml(cls: String): Html.Element =
-      import zio.blocks.html.*
-      a(className := cls, href := url, this.title)
-
     def aXml(cls: String): Xml.Element = Xml.a(cls, url, title)
 
     def aXml(element: Xml.Element): Xml.Element =

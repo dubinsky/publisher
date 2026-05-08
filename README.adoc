@@ -110,14 +110,16 @@ TODO
 - while I did manage to list children pages using Jekyll,
 I never figured out how to list subdirectories;
 with my own publisher this is not a problem ;)
+
 - Jekyll ignores Markdown files without front matter; I do not;
 - wiki links
 - link resolution
+- header pages are configured in their frontmatter, with FA icons ;)
 - transclusion
 - directory navigation: up, prev, next; TODO;
 - path navigation; TODO;
 - title transplantation; TODO;
-- insertion of missing index pages; TODO;
+- insertion of missing index pages;
 
 Write about all the plugins I used:
 
@@ -237,6 +239,8 @@ val escaped = userInput.replace("<", "&lt;").replace(">", "&gt;")
 Parse notes (:::note...:::)
 
 == TODO
+
+Mention ZIO Blocks HTML optional attributes in its documentation.
 
 ZIO Blocks HTML does not allow prefixed element names;
 deal with it for TEI - or ask for lenience ;)

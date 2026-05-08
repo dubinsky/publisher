@@ -9,14 +9,16 @@ import scala.util.control.NonFatal
 final class FrontMatter(
   val title: Option[String] = None,
   val description: Option[String] = None,
-  val permalink: Option[String] = None,
   val author: Option[String] = None,
   val lang: Option[String] = None,
   val math: Boolean = false,
   val tags: List[String] = List.empty,
   val categories: List[String] = List.empty,
+  val aliases: List[String] = List.empty,
+  val permalink: Option[String] = None,
   val date: Option[Date] = None,
-  val modified_time: Option[Date] = None // TODO kebab breaks this!
+  val modified_time: Option[Date] = None, // TODO kebab breaks this!
+  val headerPage: Option[FrontMatter.HeaderPage] = None
 ):
   // TODO this with not survive round trip once FrontMatter becomes a case class and `.copy()` is used!
   private var extraKeys: Chunk[(Yaml, Yaml)] = Chunk.empty
@@ -31,6 +33,12 @@ final class FrontMatter(
     s"---\n$mapping\n---\n"
 
 object FrontMatter:
+  final class HeaderPage(
+    val icon: String,
+    val iconStyle: Option[String] = None,
+    val priority: Option[Int] = None
+  )
+
   val empty: FrontMatter = FrontMatter()
 
   val absent: FrontMatter =
