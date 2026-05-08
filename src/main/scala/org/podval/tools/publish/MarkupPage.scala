@@ -63,6 +63,8 @@ object MarkupPage:
   ):
     def path(sourcePath: Path): Option[Path]
 
+    def frontMatterDefault: FrontMatter = FrontMatter.empty
+
     final def withSource(
       site: Site,
       frontMatter: FrontMatter,
@@ -70,8 +72,13 @@ object MarkupPage:
     ): Option[P] = path(pageMarkup.sourcePath).map(path => make(
       site,
       path.html,
-      frontMatter,
-      pageMarkup = Some(pageMarkup)
+      // TODO move the merge into FrontMatter
+      frontMatter.copy(
+        title = frontMatter.title.orElse(frontMatterDefault.title),
+        description = frontMatter.description.orElse(frontMatterDefault.description),
+        permalink = frontMatter.permalink.orElse(frontMatterDefault.permalink)
+      ),
+      Some(pageMarkup)
     ))
 
   object DefaultMaker extends Maker[MarkupPage](MarkupPage.apply):
@@ -80,7 +87,7 @@ object MarkupPage:
   abstract class AutoMaker[P <: MarkupPage](
     path: Path,
     make: (site: Site, path: Path, frontMatter: FrontMatter, pageMarkup: Option[PageMarkup]) => P,
-    frontMatterWithoutSource: FrontMatter // TODO merge into the supplied frontmatter!
+    override val frontMatterDefault: FrontMatter
   )(using TypeTest[MarkupPage, P]) extends Maker[P](make):
     final override def path(sourcePath: Path): Option[Path] = Option.when(sourcePath.html == path)(sourcePath)
 
@@ -88,7 +95,7 @@ object MarkupPage:
       make(
         site,
         path,
-        frontMatter = frontMatterWithoutSource,
+        frontMatter = frontMatterDefault,
         pageMarkup = None
       )
 

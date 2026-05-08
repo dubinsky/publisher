@@ -25,7 +25,7 @@ object Errors:
   object Maker extends MarkupPage.AutoMaker[Errors](
     path = Path("errors").html,
     make = Errors.apply,
-    frontMatterWithoutSource = FrontMatter(
+    frontMatterDefault = FrontMatter(
       title = Some("Errors"),
       description = Some("Site errors by kind"),
       //    permalink = Some(path.withoutExtension.toString)

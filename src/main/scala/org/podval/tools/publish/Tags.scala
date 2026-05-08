@@ -36,7 +36,7 @@ object Tags:
   object Maker extends MarkupPage.AutoMaker[Tags](
     path = Path("tags").html,
     make = Tags.apply,
-    frontMatterWithoutSource = FrontMatter(
+    frontMatterDefault = FrontMatter(
       title = Some("Tags"),
       description = Some("Pages by tags"),
       //    permalink = Some(path.withoutExtension.toString)

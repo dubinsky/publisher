@@ -30,7 +30,7 @@ object Posts:
   object Maker extends MarkupPage.AutoMaker[Posts](
     path = Path("posts").html,
     make = Posts.apply,
-    frontMatterWithoutSource = FrontMatter(
+    frontMatterDefault = FrontMatter(
       title = Some("Posts"),
       description = Some("All posts"),
       //    permalink = Some(path.withoutExtension.toString)

@@ -6,19 +6,19 @@ import zio.blocks.schema.yaml.{Yaml, YamlCodec, YamlFormat, YamlReader, YamlWrit
 import zio.blocks.typeid.TypeId
 import scala.util.control.NonFatal
 
-final class FrontMatter(
-  val title: Option[String] = None,
-  val description: Option[String] = None,
-  val author: Option[String] = None,
-  val lang: Option[String] = None,
-  val math: Boolean = false,
-  val tags: List[String] = List.empty,
-  val categories: List[String] = List.empty,
-  val aliases: List[String] = List.empty,
-  val permalink: Option[String] = None,
-  val date: Option[Date] = None,
-  val modified_time: Option[Date] = None, // TODO kebab breaks this!
-  val headerPage: Option[FrontMatter.HeaderPage] = None
+final case class FrontMatter(
+  title: Option[String] = None,
+  description: Option[String] = None,
+  author: Option[String] = None,
+  lang: Option[String] = None,
+  math: Boolean = false,
+  tags: List[String] = List.empty,
+  categories: List[String] = List.empty,
+  aliases: List[String] = List.empty,
+  permalink: Option[String] = None,
+  date: Option[Date] = None,
+  modified_time: Option[Date] = None, // TODO kebab breaks this!
+  headerPage: Option[FrontMatter.HeaderPage] = None
 ):
   // TODO this with not survive round trip once FrontMatter becomes a case class and `.copy()` is used!
   private var extraKeys: Chunk[(Yaml, Yaml)] = Chunk.empty
@@ -33,6 +33,7 @@ final class FrontMatter(
     s"---\n$mapping\n---\n"
 
 object FrontMatter:
+  // TODO merge this in the Maker too, set default icons, add "include" field
   final class HeaderPage(
     val icon: String,
     val iconStyle: Option[String] = None,
