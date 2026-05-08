@@ -6,12 +6,12 @@ final class Tags(
   site: Site,
   path: Path,
   frontMatter: FrontMatter,
-  pageMarkup: Option[PageMarkup]
+  markup: Option[Markup#WithXml]
 ) extends MarkupPage(
   site,
   path,
   frontMatter,
-  pageMarkup
+  markup
 ) with MarkupPage.BaseLayout:
   override def iconDefault: FontAwesome.Icon = FontAwesome.tags
 

@@ -7,7 +7,7 @@ open class MarkupPage(
   site: Site,
   path: Path,
   frontMatter: FrontMatter,
-  pageMarkup: Option[PageMarkup]
+  markup: Option[Markup#WithXml]
 ) extends Page(
   site,
   path
@@ -40,21 +40,21 @@ open class MarkupPage(
       case None => path.fileName // "index"
 
   final def buildToc(): Unit =
-    pageMarkup.foreach(_.buildToc(this))
+    markup.foreach(_.buildToc(site))
     
   final def resolveLinks(): Unit =
-    pageMarkup.foreach(_.resolveLinks(this))
+    markup.foreach(_.resolveLinks(this))
 
   final override def sourcePathOpt: Option[Path] =
-    pageMarkup.map(_.sourcePath)
+    markup.map(_.sourcePath)
 
   final override def resolveFragment(fragment: String): Option[Toc.Link] =
-    pageMarkup.flatMap(_.resolveFragment(fragment))
+    markup.flatMap(_.toc.resolveFragment(fragment))
 
   final override def htmlContent: Html.Element = Minima.render(
     page = this,
     content = Seq(
-      pageMarkup.map(_.xmlContent).map(Html.fromXml),
+      markup.map(_.xmlContent).map(Html.fromXml),
       syntheticContent
     ).flatten
   )
@@ -65,7 +65,7 @@ object MarkupPage:
   trait BaseLayout extends MarkupPage
 
   abstract class Maker[P <: MarkupPage](
-    make: (site: Site, path: Path, frontMatter: FrontMatter, pageMarkup: Option[PageMarkup]) => P
+    make: (site: Site, path: Path, frontMatter: FrontMatter, markup: Option[Markup#WithXml]) => P
   ):
     def path(sourcePath: Path): Option[Path]
 
@@ -74,12 +74,12 @@ object MarkupPage:
     final def withSource(
       site: Site,
       frontMatter: FrontMatter,
-      pageMarkup: PageMarkup
-    ): Option[P] = path(pageMarkup.sourcePath).map(path => make(
+      markup: Markup#WithXml
+    ): Option[P] = path(markup.sourcePath).map(path => make(
       site,
       path.html,
       frontMatter.merge(frontMatterDefault),
-      Some(pageMarkup)
+      Some(markup)
     ))
 
   object DefaultMaker extends Maker[MarkupPage](MarkupPage.apply):
@@ -87,7 +87,7 @@ object MarkupPage:
 
   abstract class AutoMaker[P <: MarkupPage](
     path: Path,
-    make: (site: Site, path: Path, frontMatter: FrontMatter, pageMarkup: Option[PageMarkup]) => P,
+    make: (site: Site, path: Path, frontMatter: FrontMatter, markup: Option[Markup#WithXml]) => P,
     override val frontMatterDefault: FrontMatter
   )(using TypeTest[MarkupPage, P]) extends Maker[P](make):
     final override def path(sourcePath: Path): Option[Path] = Option.when(sourcePath.html == path)(sourcePath)
@@ -97,7 +97,7 @@ object MarkupPage:
         site,
         path,
         frontMatter = frontMatterDefault,
-        pageMarkup = None
+        markup = None
       )
 
 

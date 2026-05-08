@@ -159,10 +159,10 @@ final class Site(
             Xml.element("div").attr("class", "malformed-xml").child(Xml.mkText(s"Malformed XML: $error")).build
           )
 
-        val pageMarkup: PageMarkup = PageMarkup(sourcePath, markup, xml)
+        val withXml: Markup#WithXml = markup.withXml(sourcePath, xml)
 
         pageMakers
-          .flatMap(_.withSource(this, frontMatter, pageMarkup))
+          .flatMap(_.withSource(this, frontMatter, withXml))
           .headOption
           .getOrElse(throw PageError.Unmakable(sourcePath, s"Can't make the page!"))
 

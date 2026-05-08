@@ -1,16 +1,18 @@
 package org.podval.tools.publish
 
 import scala.annotation.tailrec
-import Toc.{Block, Section}
+import Toc.Section
 
 // Common for markup formats whose XML representation is actually HTML:
 // HTML itself, Markdown, and likely Re-Structured text and AsciiDoc;
 // pure XML markup formats like TEI and DocBook are different.
 abstract class HtmlLike extends Markup:
-  final override def resolveLinks(element: Xml.Element): Boolean =
-    Xml.qName(element) != Html.code
+  final override def recognizeWikiLinks: Boolean = true
 
-  final override def resolveWikiLinks: Boolean = true
+  final override def recognizeBlocks: Boolean = true
+
+  final override def resolveLinksElement(element: Xml.Element): Boolean =
+    Xml.qName(element) != Html.code
 
   final override def sectionElement(element: Xml.Element): Option[Markup.SectionElement] =
     val headerLevel: Option[Int] =
@@ -37,45 +39,49 @@ abstract class HtmlLike extends Markup:
         kind = None
       ))
 
-  final override def sections(xml: Xml.Element): Seq[Section] = nest(getSections(xml))
+  final override def withXml(sourcePath: Path, xml: Xml.Element): WithXml = WithHtml(sourcePath, xml)
 
-  final override def blocks(xml: Xml.Element): Seq[Toc.Block] = getBlocks(xml)
+  private final class WithHtml(
+    sourcePath: Path,
+    xml: Xml.Element
+  ) extends WithXml(
+    sourcePath,
+    xml
+  ):
+    override def getSections(element: Xml.Element, site: Site): Seq[Section] =
+      val result: Seq[Section] = Xml.gather(
+        element,
+        resolveLinksElement,
+        gatherElement = element => getSection(element, site)
+      )
 
-  private def nest(sections: Seq[Section]): Seq[Section] =
-    @tailrec
-    def loop(result: Seq[Section], sections: Seq[Section]): Seq[Section] =
-      if sections.isEmpty then result else
-        val section = sections.head
-        val (deeper: Seq[Section], tail: Seq[Section]) = sections.tail.span(_.level > section.level)
-        loop(result ++ Seq(section.withSections(nest(deeper))), tail)
+      nest(result)
 
-    loop(Seq.empty, sections)
-
-  private def getSections(element: Xml.Element): Seq[Section] = Xml.gather(
-    element,
-    resolveLinks,
-    gatherElement = element =>
+    private def getSection(element: Xml.Element, site: Site): Option[Toc.Section] =
       for
-        sectionElement <- HtmlLike.Html.sectionElement(element)
+        sectionElement <- sectionElement(element)
         level <- sectionElement.level
         title <- sectionElement.text
-      yield Section(
+        id <-
+          val id = sectionElement.id
+          if id.isEmpty then site.reportError(PageError.NoId(sourcePath, s"Defect: No id on section $element"), ())
+          id
+      yield Toc.Section(
         sections = Seq.empty,
         level = level,
         title = title,
-        id = sectionElement.id.getOrElse(throw IllegalArgumentException(s"Defect: No id on section $element"))
+        id = id
       )
-  )
 
-  private def getBlocks(element: Xml.Element): Seq[Block] = Xml.gather(
-    element,
-    resolveLinks,
-    gatherElement = element =>
-      Option.when(Xml.ClassAttribute.has(element, Toc.Block.className)):
-        Xml.getAttribute(element, Xml.idAttr) match
-          case None => throw IllegalArgumentException(s"Defect: No id on block $element")
-          case Some(id) => Toc.Block(id)
-  )
+    private def nest(sections: Seq[Section]): Seq[Section] =
+      @tailrec
+      def loop(result: Seq[Section], sections: Seq[Section]): Seq[Section] =
+        if sections.isEmpty then result else
+          val section = sections.head
+          val (deeper: Seq[Section], tail: Seq[Section]) = sections.tail.span(_.level > section.level)
+          loop(result ++ Seq(section.withSections(nest(deeper))), tail)
+
+      loop(Seq.empty, sections)
 
 object HtmlLike:
   object Html extends HtmlLike:
