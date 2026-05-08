@@ -20,6 +20,18 @@ final case class FrontMatter(
   modified_time: Option[Date] = None, // TODO kebab breaks this!
   headerPage: Option[FrontMatter.HeaderPage] = None
 ):
+  def merge(default: FrontMatter): FrontMatter = copy(
+    title = title.orElse(default.title),
+    description = description.orElse(default.description),
+    lang = lang.orElse(default.lang),
+    permalink = permalink.orElse(default.permalink),
+    headerPage = (headerPage, default.headerPage) match
+      case (None, None) => None
+      case (None, Some(headerPageDefault)) => Some(headerPageDefault)
+      case (Some(headerPage), None) => Some(headerPage)
+      case (Some(headerPage), Some(headerPageDefault)) => Some(headerPage.merge(headerPageDefault))
+  )
+
   // TODO this with not survive round trip once FrontMatter becomes a case class and `.copy()` is used!
   private var extraKeys: Chunk[(Yaml, Yaml)] = Chunk.empty
 
@@ -33,12 +45,17 @@ final case class FrontMatter(
     s"---\n$mapping\n---\n"
 
 object FrontMatter:
-  // TODO merge this in the Maker too, set default icons, add "include" field
-  final class HeaderPage(
-    val icon: String,
-    val iconStyle: Option[String] = None,
-    val priority: Option[Int] = None
-  )
+  final case class HeaderPage(
+    include: Boolean,
+    icon: Option[String] = None,
+    iconStyle: Option[String] = None,
+    priority: Option[Int] = None
+  ):
+    def merge(default: HeaderPage): HeaderPage = copy(
+      icon = icon.orElse(default.icon),
+      iconStyle = iconStyle.orElse(default.iconStyle),
+      priority = priority.orElse(default.priority)
+    )
 
   val empty: FrontMatter = FrontMatter()
 

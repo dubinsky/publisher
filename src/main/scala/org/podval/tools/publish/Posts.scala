@@ -33,6 +33,13 @@ object Posts:
     frontMatterDefault = FrontMatter(
       title = Some("Posts"),
       description = Some("All posts"),
+      lang = Some("en"),
       //    permalink = Some(path.withoutExtension.toString)
+      headerPage = Some(FrontMatter.HeaderPage(
+        include = false,
+        priority = Some(1),
+        icon = Some("envelope"),
+        iconStyle = Some("regular")
+      ))
     )
   )

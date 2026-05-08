@@ -39,6 +39,13 @@ object Tags:
     frontMatterDefault = FrontMatter(
       title = Some("Tags"),
       description = Some("Pages by tags"),
+      lang = Some("en"),
       //    permalink = Some(path.withoutExtension.toString)
+      headerPage = Some(FrontMatter.HeaderPage(
+        include = false,
+        priority = Some(2),
+        icon = Some("tags"),
+        iconStyle = Some("solid")
+      ))
     )
   )

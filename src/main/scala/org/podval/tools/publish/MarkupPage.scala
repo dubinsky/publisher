@@ -16,13 +16,13 @@ open class MarkupPage(
   final def author: String = frontMatter.author.getOrElse(site.author)
   final def lang: String = frontMatter.lang.getOrElse(site.lang)
   final def math: Boolean = frontMatter.math
-  final lazy val headerPage: Option[Site.HeaderPage] = frontMatter.headerPage.map(headerPage =>
-    Site.HeaderPage(
+  final lazy val headerPage: Option[Site.HeaderPage] = frontMatter.headerPage.flatMap(headerPage =>
+    Option.when(headerPage.include)(Site.HeaderPage(
       page = this,
-      icon = headerPage.icon,
+      icon = headerPage.icon.getOrElse("folder"),
       iconStyle = headerPage.iconStyle,
       priority = headerPage.priority.getOrElse(0)
-    ))
+    )))
 
   private lazy val postDate: Option[LocalDate] = Post.date(path)
   final def isPost: Boolean = postDate.isDefined
@@ -72,12 +72,7 @@ object MarkupPage:
     ): Option[P] = path(pageMarkup.sourcePath).map(path => make(
       site,
       path.html,
-      // TODO move the merge into FrontMatter
-      frontMatter.copy(
-        title = frontMatter.title.orElse(frontMatterDefault.title),
-        description = frontMatter.description.orElse(frontMatterDefault.description),
-        permalink = frontMatter.permalink.orElse(frontMatterDefault.permalink)
-      ),
+      frontMatter.merge(frontMatterDefault),
       Some(pageMarkup)
     ))
 

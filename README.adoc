@@ -114,7 +114,8 @@ with my own publisher this is not a problem ;)
 - Jekyll ignores Markdown files without front matter; I do not;
 - wiki links
 - link resolution
-- header pages are configured in their frontmatter, with FA icons ;)
+- front-matter defaults auto-added pages;
+- header pages are configured in their frontmatter, with FA icons (and defaults) ;)
 - transclusion
 - directory navigation: up, prev, next; TODO;
 - path navigation; TODO;

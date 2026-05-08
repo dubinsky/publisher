@@ -28,6 +28,13 @@ object Errors:
     frontMatterDefault = FrontMatter(
       title = Some("Errors"),
       description = Some("Site errors by kind"),
+      lang = Some("en"),
       //    permalink = Some(path.withoutExtension.toString)
+      headerPage = Some(FrontMatter.HeaderPage(
+        include = false,
+        priority = Some(9),
+        icon = Some("circle-xmark"),
+        iconStyle = Some("regular")
+      ))
     )
   )
