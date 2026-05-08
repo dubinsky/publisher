@@ -55,6 +55,9 @@ object Toc:
   sealed abstract class PagePart(val id: String)
 
   final class Block(id: String) extends PagePart(id)
+  
+  object Block:
+    val className: String = "obsidian-block"
 
   final class Section(
     id: String,

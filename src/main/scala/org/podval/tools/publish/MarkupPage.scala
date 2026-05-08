@@ -39,6 +39,9 @@ open class MarkupPage(
       case None if path.path.length > 1 => path.path.init.last // directory name
       case None => path.fileName // "index"
 
+  final def buildToc(): Unit =
+    pageMarkup.foreach(_.buildToc(this))
+    
   final def resolveLinks(): Unit =
     pageMarkup.foreach(_.resolveLinks(this))
 

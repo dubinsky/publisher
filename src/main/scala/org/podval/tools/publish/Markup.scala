@@ -1,5 +1,7 @@
 package org.podval.tools.publish
 
+import zio.blocks.chunk.Chunk
+
 object Markup:
   final case class SectionElement(
     level: Option[Int],
@@ -43,7 +45,7 @@ abstract class Markup derives CanEqual:
 
   final def isExtension(extension: String): Boolean = extensions.contains(extension)
 
-  final def setSectionIds(element: Xml.Element): Xml.Element = Xml.transform(
+  final def setSectionIds(element: Xml.Element, page: MarkupPage): Xml.Element = Xml.transform(
     element,
     delve = resolveLinks,
     transformElement = element => sectionElement(element) match
@@ -57,14 +59,25 @@ abstract class Markup derives CanEqual:
           sectionElement
             .text
             .map(Xml.toId)
+            // TODO page.site.reportError()
             .getOrElse(throw IllegalArgumentException(s"Defect: No id or title on $element"))
         )
   )
-  
-  final def setBlockIds(element: Xml.Element): Xml.Element = Xml.transform(
+
+  final def setBlockIds(element: Xml.Element, page: MarkupPage): Xml.Element = Xml.transform(
     element,
     delve = resolveLinks,
-    transformElement = element => element // TODO
+    transformElement = element =>
+      val children: Chunk[Xml.Xml] = Xml.children(element)
+      if children.isEmpty || !Xml.isText(children.last) then element else
+        val (before: String, id: Option[String]) = Strings.split(Xml.atomText(children.last), '^')
+        id.fold(element): id =>
+          if before.nonEmpty && !Character.isWhitespace(before.last) then element else
+            val result: Xml.Element = Xml.setChildren(element, children.init ++ Option.when(before.nonEmpty)(Xml.mkText(before)).toSeq)
+            val idExisting: Option[String] = Xml.getAttribute(result, Xml.idAttr)
+            // TODO page.site.reportError()
+            if idExisting.nonEmpty then throw IllegalArgumentException(s"Block id '$id' conflicts with existing id '${idExisting.get}'")
+            Xml.ClassAttribute.add(Xml.setAttribute(result, Xml.idAttr, id), Toc.Block.className)
   )
 
   final def resolveLinks(element: Xml.Element, page: MarkupPage): Xml.Element =

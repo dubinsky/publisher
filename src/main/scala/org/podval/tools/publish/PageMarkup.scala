@@ -1,14 +1,16 @@
 package org.podval.tools.publish
 
+// TODO submerge in Markup!!!
 final class PageMarkup(
   val sourcePath: Path,
   markup: Markup,
   private var xml: Xml.Element
 ):
-  xml = markup.setSectionIds(xml)
-  xml = markup.setBlockIds(xml)
+  def buildToc(page: MarkupPage): Unit =
+    xml = markup.setSectionIds(xml, page)
+    xml = markup.setBlockIds(xml, page)
 
-  private val toc: Toc = Toc(
+  private lazy val toc: Toc = Toc(
     sections = markup.sections(xml),
     blocks = markup.blocks(xml)
   )

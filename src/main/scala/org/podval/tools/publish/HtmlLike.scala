@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
 import scala.annotation.tailrec
-import Toc.Section
+import Toc.{Block, Section}
 
 // Common for markup formats whose XML representation is actually HTML:
 // HTML itself, Markdown, and likely Re-Structured text and AsciiDoc;
@@ -24,7 +24,7 @@ abstract class HtmlLike extends Markup:
       id = Xml.getAttribute(element, Xml.idAttr),
       text = Xml.toStringOpt(element)
     ))
-  
+
   // TODO do 'img' too?
   final override def linkElement(element: Xml.Element): Option[Markup.LinkElement] =
     if Xml.qName(element) != Html.a
@@ -39,7 +39,7 @@ abstract class HtmlLike extends Markup:
 
   final override def sections(xml: Xml.Element): Seq[Section] = nest(getSections(xml))
 
-  final override def blocks(xml: Xml.Element): Seq[Toc.Block] = Seq.empty // TODO
+  final override def blocks(xml: Xml.Element): Seq[Toc.Block] = getBlocks(xml)
 
   private def nest(sections: Seq[Section]): Seq[Section] =
     @tailrec
@@ -63,8 +63,18 @@ abstract class HtmlLike extends Markup:
         sections = Seq.empty,
         level = level,
         title = title,
-        id = sectionElement.id.getOrElse(throw IllegalArgumentException(s"Defect: No id on $element"))
+        id = sectionElement.id.getOrElse(throw IllegalArgumentException(s"Defect: No id on section $element"))
       )
+  )
+
+  private def getBlocks(element: Xml.Element): Seq[Block] = Xml.gather(
+    element,
+    resolveLinks,
+    gatherElement = element =>
+      Option.when(Xml.ClassAttribute.has(element, Toc.Block.className)):
+        Xml.getAttribute(element, Xml.idAttr) match
+          case None => throw IllegalArgumentException(s"Defect: No id on block $element")
+          case Some(id) => Toc.Block(id)
   )
 
 object HtmlLike:

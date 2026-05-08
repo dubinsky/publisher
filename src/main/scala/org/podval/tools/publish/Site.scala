@@ -49,7 +49,7 @@ final class Site(
     }
     .getOrElse:
       val page = make
-      log.warn(s"Added $page")
+      log.debug(s"Added $page")
       pagesVar = pagesVar.appended(page)
       page
 
@@ -114,6 +114,9 @@ final class Site(
 
     // Add directory pages
     Directory.addParentDirectories(this)
+
+    // Discover section and block
+    markupPages.foreach(_.buildToc())
 
     // Resolve links
     markupPages.foreach(_.resolveLinks())
@@ -222,16 +225,11 @@ final class Site(
     else pages.find(_.is(ref.path, ref.isAbsolute)).flatMap(_.resolveRef(ref.fragment))
 
   private def externalRef(ref: String): Option[URI] =
-    if ref.contains(" ") then None else
-      try
-        val uri: URI = URI(ref)
-        // TODO recognize and resolve links to *this* site
-        Option.when(uri.getScheme != null)(uri)
-      catch
-        case e: URISyntaxException =>
-          // TODO handle errors better - and log them
-          log.warn(s"Malformed URL: $ref $e")
-          None
+    try
+      val uri: URI = URI(ref)
+      // TODO recognize and resolve links to *this* site
+      Option.when(uri.getScheme != null)(uri)
+    catch case e: URISyntaxException => None
 
 object Site:
   final class HeaderPage(

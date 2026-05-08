@@ -60,12 +60,33 @@ abstract class XmlAst:
     delve: Element => Boolean,
     gatherElement: Element => Option[A]
   ): Seq[A] =
-    def loop(element: Element): Seq[A] =
-      if !delve(element)
-      then Seq.empty
-      else gatherElement(element).toSeq ++ children(element)
+    def loop(element: Element): Seq[A] = if !delve(element) then Seq.empty else
+      gatherElement(element).toSeq ++ children(element)
         .filter(isElement)
         .map(asElement)
         .flatMap(loop)
 
     loop(element)
+
+  object ClassAttribute:
+    val attributeName: String = "class"
+
+    def get(element: Element): Option[String] = getAttribute(element, attributeName)
+    def set(element: Element, value: String): Element = setAttribute(element, attributeName, value)
+    def set(element: Element, values: List[String]): Element = set(element, values.mkString(" "))
+    def has(element: Element, name: String): Boolean = getList(element).contains(name)
+
+    // TODO use in Highlights - better, retrieve languages in Minima itself, to deal with Mermaid etc.
+    def getList(element: Element): List[String] = get(element).fold(List.empty)(_
+      .split(' ')
+      .toList
+      .map(_.trim)
+      .filterNot(_.isEmpty)
+    )
+    
+    def add(element: Element, name: String) =
+      val list = getList(element)
+      if list.contains(name)
+      then element
+      else set(element, list.appended(name))
+     
