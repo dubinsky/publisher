@@ -29,6 +29,14 @@ final class Directory(
       ul(className := s"page-list $cls", pages.map(page => li(page.ref("sub"))))
     )
 
+  def prev(page: Page): Option[Page] = listFor(page).takeWhile(_ != page).reverse.headOption
+  def next(page: Page): Option[Page] = listFor(page).dropWhile(_ != page).dropWhile(_ == page).headOption
+  
+  private def listFor(page: Page): List[Page] =
+    if page.isInstanceOf[Directory]
+    then directories
+    else pages
+    
   // TODO verify that it is a Directory!
   private lazy val directories: List[Page] = site
     .pages

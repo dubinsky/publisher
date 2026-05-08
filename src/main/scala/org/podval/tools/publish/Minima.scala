@@ -130,10 +130,16 @@ object Minima:
           div(className := "nav-items",
             page.site.headerPages.map(headerPage =>
               navItem(headerPage.page, headerPage.icon, FontAwesome.Style(headerPage.iconStyle))
-            ) ++
+            ),
             page.parent.flatMap(parent => Option.when(parent.parent.isDefined)(
-              navItem(parent, "arrow-up", FontAwesome.Style.Solid)
-            )).toSeq
+              navItem(parent, "arrow-up", FontAwesome.Style.Solid, withTitle = false)
+            )),
+            page.parent.flatMap(_.prev(page)).collect { case page: MarkupPage => page } .map(prev =>
+              navItem(prev, "arrow-left", FontAwesome.Style.Solid)
+            ),
+            page.parent.flatMap(_.next(page)).collect { case page: MarkupPage => page } .map(next =>
+              navItem(next, "arrow-right", FontAwesome.Style.Solid)
+            )
           )
         )
       )
@@ -142,14 +148,15 @@ object Minima:
   private def navItem(
     page: MarkupPage,
     icon: String,
-    iconStyle: FontAwesome.Style
+    iconStyle: FontAwesome.Style,
+    withTitle: Boolean = true
   ): Html.Element =
     val pageLink: Page.Link = Page.Link(page, part = None)
     a(
       className := "nav-item",
       href := pageLink.url,
       FontAwesome.icon(icon, style = iconStyle),
-      pageLink.title
+      Option.when(withTitle)(pageLink.title)
     )
 
   private def footerHtml(site: Site): Html.Element =
