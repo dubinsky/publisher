@@ -2,6 +2,8 @@ package org.podval.tools.publish
 
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
+import zio.blocks.chunk.Chunk
+
 import scala.reflect.{ClassTag, TypeTest}
 import java.io.File
 import java.net.{URI, URISyntaxException}
@@ -203,11 +205,15 @@ final class Site(
           // Register resolved link
           linksResolved = linksResolved.appended(Link.Resolved(link, linkTo))
 
-          if link.transclude then
-            linkTo.aXml("transclude")
+          if link.transclude then Xml.a("transclude", linkTo.url, linkTo.title)
           else link.element match
-            case None => linkTo.aXml("wiki-link")
-            case Some(element) => linkTo.aXml(element)
+            case None =>
+              Xml.a("wiki-link", linkTo.url, linkTo.title)
+            case Some(element) =>
+              val result: Xml.Element = Xml.setAttribute(Xml.rename(element, Html.a), Html.hrefAttr, linkTo.url)
+              if result.children.nonEmpty
+              then result
+              else Xml.setChildren(result, Chunk(Xml.mkText(linkTo.title)))
 
   private def resolveRef(refString: String): Option[Page.Link] =
     val ref: Page.Ref = Page.Ref(refString)
@@ -230,13 +236,12 @@ final class Site(
 object Site:
   final class HeaderPage(
     val page: MarkupPage,
-    val icon: String,
-    val iconStyle: Option[String],
     val priority: Int
   )
 
   def main(args: Array[String]): Unit = Cli.main(Array(
     "--log-level=INFO",
+//    "--treat-errors-as-warnings=true",
     "/home/dub/Podval/dub.podval.org"
   ))
 

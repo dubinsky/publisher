@@ -129,16 +129,16 @@ object Minima:
           ),
           div(className := "nav-items",
             page.site.headerPages.map(headerPage =>
-              navItem(headerPage.page, headerPage.icon, FontAwesome.Style(headerPage.iconStyle))
+              navItem(headerPage.page, headerPage.page.icon)
             ),
             page.parent.flatMap(parent => Option.when(parent.parent.isDefined)(
-              navItem(parent, "arrow-up", FontAwesome.Style.Solid, withTitle = false)
+              navItem(parent, FontAwesome.arrowUp, withTitle = false)
             )),
             page.parent.flatMap(_.prev(page)).collect { case page: MarkupPage => page } .map(prev =>
-              navItem(prev, "arrow-left", FontAwesome.Style.Solid)
+              navItem(prev, FontAwesome.arrowLeft)
             ),
             page.parent.flatMap(_.next(page)).collect { case page: MarkupPage => page } .map(next =>
-              navItem(next, "arrow-right", FontAwesome.Style.Solid)
+              navItem(next, FontAwesome.arrowRight)
             )
           )
         )
@@ -147,15 +147,14 @@ object Minima:
 
   private def navItem(
     page: MarkupPage,
-    icon: String,
-    iconStyle: FontAwesome.Style,
+    icon: FontAwesome.Icon,
     withTitle: Boolean = true
   ): Html.Element =
-    val pageLink: Page.Link = Page.Link(page, part = None)
+    val pageLink: Page.Link = page.link
     a(
       className := "nav-item",
       href := pageLink.url,
-      FontAwesome.icon(icon, style = iconStyle),
+      icon.htmlSpan,
       Option.when(withTitle)(pageLink.title)
     )
 
@@ -176,7 +175,7 @@ object Minima:
               ul(className := "social-media-list", site.socialLinks.map(social =>
                 li(
                   a(rel := "me", href := social.href, target := "_blank", titleAttr := social.title,
-                    FontAwesome.brand(social.icon),
+                    FontAwesome.brand(social.icon).htmlSpan,
                     span(className := "username", social.userName)
                   )
                 )
@@ -187,7 +186,7 @@ object Minima:
             p(site.description), // TODO escape!
             p(
               a(href := Feed.path.toString,
-                FontAwesome.icon("rss", style = FontAwesome.Style.Solid),
+                FontAwesome.rss.htmlSpan,
                 span(className := "rss-feed", "RSS feed")
               )
             )

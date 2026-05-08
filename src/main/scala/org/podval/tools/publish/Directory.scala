@@ -13,6 +13,8 @@ final class Directory(
   frontMatter,
   pageMarkup
 ) with MarkupPage.BaseLayout:
+  override def iconDefault: FontAwesome.Icon = FontAwesome.folder
+
   override protected def syntheticContent: Option[Html.Element] = Some:
     div(className := "directory",
       pageList(directories, "Directories", "directories-list"),

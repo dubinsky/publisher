@@ -5,7 +5,8 @@ final class PageMarkup(
   markup: Markup,
   private var xml: Xml.Element
 ):
-  xml = markup.dropAnchors(xml)
+  xml = markup.setSectionIds(xml)
+  xml = markup.setBlockIds(xml)
 
   private val toc: Toc = Toc(
     sections = markup.sections(xml),

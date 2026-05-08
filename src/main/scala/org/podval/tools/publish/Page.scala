@@ -1,7 +1,6 @@
 package org.podval.tools.publish
 
 import java.io.File
-import zio.blocks.chunk.Chunk
 
 abstract class Page(
   val site: Site,
@@ -31,15 +30,18 @@ abstract class Page(
 
   final lazy val parent: Option[Directory] = Directory.parent(site, path)
 
+  final def link: Page.Link = Page.Link(this, part = None)
+
+  // TODO unfold
   final def ref(cls: String): Html.Element =
+    val pageLink = link
     import zio.blocks.html.*
-    val pageLink = Page.Link(this, part = None)
     a(className := cls, href := pageLink.url, pageLink.title)
-  
+
   final def targetFile: File = path.file(site.targetDirectory)
 
   final def resolveRef(fragment: Option[String]): Option[Page.Link] = fragment match
-    case None => Some(Page.Link(this, part = None))
+    case None => Some(link)
     case Some(fragment) => resolveFragment(fragment) match
       case Some(part) => Some(Page.Link(this, Some(part)))
       case None => None
@@ -63,16 +65,7 @@ object Page:
 
   final class Link(val page: Page, part: Option[Toc.Link]):
     def url: String = page.path.toString + part.fold("")(part => s"#${part.id}")
-
     def title: String = page.title + part.fold("")(part => s"#${part.title}")
-    
-    def aXml(cls: String): Xml.Element = Xml.a(cls, url, title)
-
-    def aXml(element: Xml.Element): Xml.Element =
-      val result: Xml.Element = Xml.setAttribute(Xml.rename(element, Html.a), Html.hrefAttr, url)
-      if result.children.nonEmpty
-      then result
-      else Xml.setChildren(result, Chunk(Xml.mkText(title)))
 
   trait WithContent extends Page:
     final override def write(): Unit = Files.write(targetFile, content)

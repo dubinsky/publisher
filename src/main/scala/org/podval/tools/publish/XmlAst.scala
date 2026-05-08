@@ -33,7 +33,7 @@ abstract class XmlAst:
   def setAttribute(element: Element, name: String, value: String): Element
   def children(element: Element): Chunk[Xml]
   def setChildren(element: Element, children: Chunk[Xml]): Element
-  
+
   def mkText(text: String): Xml
   def isAtom(xml: Xml): Boolean
   def isText(xml: Xml): Boolean
@@ -43,17 +43,13 @@ abstract class XmlAst:
   final def transform(
     element: Element,
     delve: Element => Boolean,
-    transformElement: Element => Element,
-    transformText: Xml => Seq[Xml] = Seq(_)
+    transformElement: Element => Element
   ): Element =
-    def loop(element: Element): Element =
-      if !delve(element)
-      then element
-      else transformElement(setChildren(element, children(element).flatMap: xml =>
+    def loop(element: Element): Element = if !delve(element) then element else
+      transformElement(setChildren(element, children(element).map: xml =>
         if isElement(xml)
-        then Seq(loop(asElement(xml)))
-        else if isText(xml) then transformText(xml)
-        else Seq(xml)
+        then loop(asElement(xml))
+        else xml
       ))
 
     loop(element)

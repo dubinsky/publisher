@@ -13,6 +13,8 @@ final class Tags(
   frontMatter,
   pageMarkup
 ) with MarkupPage.BaseLayout:
+  override def iconDefault: FontAwesome.Icon = FontAwesome.tags
+
   private def tagsAll: List[String] = site.markupPages.flatMap(_.tags).distinct.sorted
 
   private def withTag(tag: String): List[Page] = site.markupPages.filter(_.tags.contains(tag)).sortBy(_.title)
@@ -41,11 +43,6 @@ object Tags:
       description = Some("Pages by tags"),
       lang = Some("en"),
       //    permalink = Some(path.withoutExtension.toString)
-      headerPage = Some(FrontMatter.HeaderPage(
-        include = false,
-        priority = Some(2),
-        icon = Some("tags"),
-        iconStyle = Some("solid")
-      ))
+      headerPage = Some(FrontMatter.HeaderPage(priority = Some(2)))
     )
   )

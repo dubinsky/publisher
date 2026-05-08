@@ -17,6 +17,7 @@ final case class FrontMatter(
   aliases: List[String] = List.empty,
   permalink: Option[String] = None,
   date: Option[Date] = None,
+  icon: Option[FontAwesome.Icon] = None,
   modified_time: Option[Date] = None, // TODO kebab breaks this!
   headerPage: Option[FrontMatter.HeaderPage] = None
 ):
@@ -25,6 +26,7 @@ final case class FrontMatter(
     description = description.orElse(default.description),
     lang = lang.orElse(default.lang),
     permalink = permalink.orElse(default.permalink),
+    icon = icon.orElse(default.icon),
     headerPage = (headerPage, default.headerPage) match
       case (None, None) => None
       case (None, Some(headerPageDefault)) => Some(headerPageDefault)
@@ -45,15 +47,18 @@ final case class FrontMatter(
     s"---\n$mapping\n---\n"
 
 object FrontMatter:
+  // TODO adjust schema/codec so that the (lower-case) name of the variant works, without requiring
+  //icon:
+  //  name: folder
+  //  style:
+  //    Regular: {}
+//  def main(args: Array[String]): Unit = println(FrontMatter(icon = Some(FontAwesome.folder)).write)
+
   final case class HeaderPage(
-    include: Boolean,
-    icon: Option[String] = None,
-    iconStyle: Option[String] = None,
+    include: Boolean = false,
     priority: Option[Int] = None
   ):
     def merge(default: HeaderPage): HeaderPage = copy(
-      icon = icon.orElse(default.icon),
-      iconStyle = iconStyle.orElse(default.iconStyle),
       priority = priority.orElse(default.priority)
     )
 
@@ -84,7 +89,7 @@ object FrontMatter:
     case (Right(frontMatter), content) =>
       (Right(frontMatter), content)
     case (Left(yamlError), content) =>
-      (Left(PageError.Parsing(sourcePath, "Malformed FrontMatter", Some(yamlError))), content)
+      (Left(PageError.Parsing(sourcePath, s"Malformed FrontMatter: [$input]", Some(yamlError))), content)
       
   def parse(input: String): (Either[SchemaError, FrontMatter], String) =
     val frontMatterEnd: Int = if !input.startsWith("---\n") then -1 else input.indexOf("\n---\n", 3)

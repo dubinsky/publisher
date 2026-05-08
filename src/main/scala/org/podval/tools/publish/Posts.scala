@@ -13,6 +13,8 @@ final class Posts(
   frontMatter,
   pageMarkup
 ) with MarkupPage.BaseLayout:
+  override def iconDefault: FontAwesome.Icon = FontAwesome.envelope
+
   override protected def syntheticContent: Option[Html.Element] = Some:
     div(className := "home",
       //      h1(className := "page-heading", page.title)
@@ -35,11 +37,6 @@ object Posts:
       description = Some("All posts"),
       lang = Some("en"),
       //    permalink = Some(path.withoutExtension.toString)
-      headerPage = Some(FrontMatter.HeaderPage(
-        include = false,
-        priority = Some(1),
-        icon = Some("envelope"),
-        iconStyle = Some("regular")
-      ))
+      headerPage = Some(FrontMatter.HeaderPage(priority = Some(1)))
     )
   )

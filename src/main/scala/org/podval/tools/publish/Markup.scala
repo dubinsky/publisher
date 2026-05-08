@@ -43,7 +43,7 @@ abstract class Markup derives CanEqual:
 
   final def isExtension(extension: String): Boolean = extensions.contains(extension)
 
-  final def dropAnchors(element: Xml.Element): Xml.Element = Xml.transform(
+  final def setSectionIds(element: Xml.Element): Xml.Element = Xml.transform(
     element,
     delve = resolveLinks,
     transformElement = element => sectionElement(element) match
@@ -60,26 +60,38 @@ abstract class Markup derives CanEqual:
             .getOrElse(throw IllegalArgumentException(s"Defect: No id or title on $element"))
         )
   )
-
-  final def resolveLinks(element: Xml.Element, page: MarkupPage): Xml.Element = Xml.transform(
+  
+  final def setBlockIds(element: Xml.Element): Xml.Element = Xml.transform(
     element,
     delve = resolveLinks,
-    transformText = xml =>
-      if resolveWikiLinks
-      then WikiLink.resolveWikiLinks(Seq.empty, Xml.atomText(xml), page)
-      else Seq(xml),
-    transformElement = element => linkElement(element) match
-      case None => element
-      case Some(linkElement) => page.site.resolveLink(Link(
-        page = page,
-        element = Some(element),
-        ref = linkElement.ref,
-        text = linkElement.text,
-        kind = linkElement.kind,
-        context = None,
-        transclude = false
-      ))
+    transformElement = element => element // TODO
   )
+
+  final def resolveLinks(element: Xml.Element, page: MarkupPage): Xml.Element =
+    def loop(element: Xml.Element): Xml.Element = if !resolveLinks(element) then element else
+      val result: Xml.Element = Xml.setChildren(element, Xml.children(element).flatMap: xml =>
+        if Xml.isElement(xml)
+        then Seq(loop(Xml.asElement(xml)))
+        else if Xml.isText(xml) then
+          if resolveWikiLinks
+          then WikiLink.resolveWikiLinks(Seq.empty, Xml.atomText(xml), page)
+          else Seq(xml)
+        else Seq(xml)
+      )
+
+      linkElement(result) match
+        case None => result
+        case Some(linkElement) => page.site.resolveLink(Link(
+          page = page,
+          element = Some(result),
+          ref = linkElement.ref,
+          text = linkElement.text,
+          kind = linkElement.kind,
+          context = None,
+          transclude = false
+        ))
+
+    loop(element)
 
   final def addToc(element: Xml.Element, toc: Toc): Xml.Element = Xml.transform(
     element,

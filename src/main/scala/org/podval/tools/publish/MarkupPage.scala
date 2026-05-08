@@ -16,13 +16,16 @@ open class MarkupPage(
   final def author: String = frontMatter.author.getOrElse(site.author)
   final def lang: String = frontMatter.lang.getOrElse(site.lang)
   final def math: Boolean = frontMatter.math
-  final lazy val headerPage: Option[Site.HeaderPage] = frontMatter.headerPage.flatMap(headerPage =>
-    Option.when(headerPage.include)(Site.HeaderPage(
+  final def icon: FontAwesome.Icon = frontMatter.icon.getOrElse(iconDefault)
+  def iconDefault: FontAwesome.Icon = FontAwesome.note
+
+  final lazy val headerPage: Option[Site.HeaderPage] = frontMatter
+    .headerPage
+    .filter(_.include)
+    .map(headerPage => Site.HeaderPage(
       page = this,
-      icon = headerPage.icon.getOrElse("folder"),
-      iconStyle = headerPage.iconStyle,
       priority = headerPage.priority.getOrElse(0)
-    )))
+    ))
 
   private lazy val postDate: Option[LocalDate] = Post.date(path)
   final def isPost: Boolean = postDate.isDefined
