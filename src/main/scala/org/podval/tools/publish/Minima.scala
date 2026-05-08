@@ -19,7 +19,7 @@ object Minima:
     html(lang := page.lang,
       headHtml(page, libraries),
       body(
-        headerHtml(page.site),
+        headerHtml(page),
         main(className := "page-content", aria("label") := "Content",
           div(className := "wrapper",
             article(className := "post h-entry", itemScope := true, itemType := "http://schema.org/BlogPosting",
@@ -110,10 +110,10 @@ object Minima:
     //  gtag('config', '{{ site.google_analytics }}');
     //</script>
 
-  private def headerHtml(site: Site): Html.Element =
+  private def headerHtml(page: MarkupPage): Html.Element =
     header(className := "site-header",
       div(className := "wrapper",
-        a(className := "site-title", href := "/", rel := "author", site.title),
+        a(className := "site-title", href := "/", rel := "author", page.site.title),
         nav(className := "site-nav",
           input(`type` := "checkbox", id := "nav-trigger"),
           label(`for` := "nav-trigger",
@@ -124,17 +124,28 @@ object Minima:
             )
           ),
           div(className := "nav-items",
-            site.headerPages.map: headerPage =>
-              val pageLink = Page.Link(headerPage.page, part = None)
-              a(
-                className := "nav-item",
-                href := pageLink.url,
-                FontAwesome.icon(headerPage.icon, style = headerPage.iconStyle.getOrElse("solid")),
-                pageLink.title
-              )
+            page.site.headerPages.map(headerPage =>
+              navItem(headerPage.page, headerPage.icon, FontAwesome.Style(headerPage.iconStyle))
+            ) ++
+            page.parent.flatMap(parent => Option.when(parent.parent.isDefined)(
+              navItem(parent, "arrow-up", FontAwesome.Style.Solid)
+            )).toSeq
           )
         )
       )
+    )
+
+  private def navItem(
+    page: MarkupPage,
+    icon: String,
+    iconStyle: FontAwesome.Style
+  ): Html.Element =
+    val pageLink: Page.Link = Page.Link(page, part = None)
+    a(
+      className := "nav-item",
+      href := pageLink.url,
+      FontAwesome.icon(icon, style = iconStyle),
+      pageLink.title
     )
 
   private def footerHtml(site: Site): Html.Element =
@@ -165,7 +176,7 @@ object Minima:
             p(site.description), // TODO escape!
             p(
               a(href := Feed.path.toString,
-                FontAwesome.icon("rss", style = "solid"),
+                FontAwesome.icon("rss", style = FontAwesome.Style.Solid),
                 span(className := "rss-feed", "RSS feed")
               )
             )
