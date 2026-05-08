@@ -24,6 +24,7 @@ object Minima:
           div(className := "wrapper",
             article(className := "post h-entry", itemScope := true, itemType := "http://schema.org/BlogPosting",
               header(className := "post-header",
+                postPath(page),
                 h1(className := "post-title p-name", itemProp := "name headline", page.title),
                 Option.when(!isBaseLayout)(articleMeta(page))
               ),
@@ -31,21 +32,29 @@ object Minima:
               // Note: skipped Disqus comments for posts
               a(className := "u-url", href := page.path.toString, hidden := true)
             ),
-            // TODO do not include when isBaseLayout?
-            div(className := "backlinks",
+            Option.when(!isBaseLayout)(div(className := "backlinks",
               hr, // TODO do a border
               h3("Backlinks"),
               ul(className := "backlinks-list", page.site.backLinks(page).map(link =>
                 li(link.from.page.ref("backlink")) // TODO!
               ))
-            )
+            ))
           ),
         ),
         footerHtml(page.site),
         libraries.flatMap(_.body)
       )
     )
-  
+
+  private def postPath(page: MarkupPage): Html.Element =
+    def parents(page: MarkupPage): Seq[MarkupPage] = page.parent match
+      case None => Seq.empty
+      case Some(parent) => parents(parent) :+ parent
+
+    val pathFull: Seq[MarkupPage] = parents(page)
+    val path: Seq[MarkupPage] = if pathFull.isEmpty then pathFull else pathFull.tail
+    span(className := "post-path", path.map(page => span("/", page.ref("post-path"))))
+
   private def articleMeta(page: MarkupPage): Html.Element =
     div(className := "post-meta",
       join(
@@ -90,25 +99,20 @@ object Minima:
       // TODO {%- seo -%}: https://github.com/jekyll/jekyll-seo-tag
       title(page.title), // TODO this is here until seo is implemented - it covers the title...
       libraries.flatMap(_.head),
-      Html.stylesheet("/assets/css/style.css", idOpt = Some("main-stylesheet"))
+      Html.stylesheet("/assets/css/style.css", idOpt = Some("main-stylesheet")),
       // TODO {%- feed_meta -%}: https://github.com/jekyll/jekyll-feed
-      // TODO
-      // {%- if jekyll.environment == 'production' and site.google_analytics -%}
-      //   .children(googleAnalytics*)
-      // {%- endif -%}
+      page.site.googleAnalytics.map(googleAnalytics => Seq(
+        script().externalJs(s"https://www.googletagmanager.com/gtag/js?id=$googleAnalytics"),
+        script().inlineJs(
+          js"""window.dataLayer = window.dataLayer || [];
+              |function gtag(){window.dataLayer.push(arguments);}
+              |gtag('js', new Date());
+              |gtag('config', '$googleAnalytics');
+            """.stripMargin
+        )
+      ))
       // Skipped: {%- include custom-head.html -%}
     )
-
-  private def googleAnalytics: Seq[Html.Element] = Seq.empty
-    // TODO
-    //<script async src="https://www.googletagmanager.com/gtag/js?id={{ site.google_analytics }}"></script>
-    //<script>
-    //  window.dataLayer = window.dataLayer || [];
-    //  function gtag(){window.dataLayer.push(arguments);}
-    //  gtag('js', new Date());
-    //
-    //  gtag('config', '{{ site.google_analytics }}');
-    //</script>
 
   private def headerHtml(page: MarkupPage): Html.Element =
     header(className := "site-header",

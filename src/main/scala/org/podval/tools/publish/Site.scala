@@ -33,6 +33,7 @@ final class Site(
   def author: String = config.author
   def email: String = config.email
   def lang: String = config.lang.getOrElse("en")
+  def googleAnalytics: Option[String] = Option.when(production)(config.googleAnalytics).flatten
 
   private var pagesVar: List[Page] = List.empty
   def pages: List[Page] = pagesVar
