@@ -11,14 +11,13 @@ abstract class XmlAst:
   final def toStringOpt(element: Element): Option[String] =
     Option.when(children(element).nonEmpty)(toString(element))
 
-  final def toString(xml: Xml): String =
-    if isAtom(xml) then atomText(xml)
-    else if isElement(xml) then children(asElement(xml)).map(toString).mkString(" ")
-    else ""
+  final def toString(xml: Xml): String = asAtom(xml)
+    .orElse(asElement(xml).map(element => children(element).map(toString).mkString(" ")))
+    .getOrElse("")
 
-  def isElement(xml: Xml): Boolean
-  def asElement(xml: Xml): Element
+  def asElement(xml: Xml): Option[Element]
   def qName(element: Element): String
+  def element(name: String): Element
 
   // TODO deal with the namespaces - and defaults?!
   //    val parentNamespaces: Seq[Namespace] = parent.fold[Seq[Namespace]](Seq.empty)(Namespace.getAll)
@@ -27,17 +26,16 @@ abstract class XmlAst:
   def attributes(element: Element, parent: Option[Element]): Chunk[(String, String)]
   def attributes(element: Element): Chunk[(String, String)]
 
-  final def getAttribute(element: Element, name: String): Option[String] =
-    attributes(element).find(_._1 == name).map(_._2)
-
   def setAttribute(element: Element, name: String, value: String): Element
   def children(element: Element): Chunk[Xml]
+
+  final def setText(element: Element, text: String): Element = setChildren(element, Chunk(mkText(text)))
+
   def setChildren(element: Element, children: Chunk[Xml]): Element
 
   def mkText(text: String): Xml
-  def isAtom(xml: Xml): Boolean
-  def isText(xml: Xml): Boolean
-  def atomText(xml: Xml): String
+  def asAtom(xml: Xml): Option[String]
+  def asText(xml: Xml): Option[String]
 
   def transform(
     element: Element,
@@ -46,25 +44,24 @@ abstract class XmlAst:
   ): Element =
     def loop(element: Element): Element = if stop(element) then element else
       val result: Element = transformElement(element)
-      setChildren(result, children(result).map(xml =>
-        if isElement(xml)
-        then loop(asElement(xml))
-        else xml
-      ))
+      setChildren(result, children(result).map(xml => asElement(xml).fold(xml)(loop)))
 
     loop(element)
-    
-  object IdAttribute:
-    val attributeName: String = "id"
+
+  object A:
+    val elementName: String = "a"
+    def is(element: Element): Boolean = qName(element) == elementName
+
+  sealed abstract class Attribute(val attributeName: String):
+    final def get(element: Element): Option[String] = attributes(element).find(_._1 == attributeName).map(_._2)
+    final def set(element: Element, value: String): Element = setAttribute(element, attributeName, value)
+
+  object Id extends Attribute("id"):
     def toId(text: String): String = text.trim.replace(' ', '-')
-    def get(element: Element): Option[String] = getAttribute(element, attributeName)
-    def set(element: Element, value: String): Element = setAttribute(element, attributeName, value)
 
-  object ClassAttribute:
-    val attributeName: String = "class"
+  object Href extends Attribute("href")
 
-    def get(element: Element): Option[String] = getAttribute(element, attributeName)
-    def set(element: Element, value: String): Element = setAttribute(element, attributeName, value)
+  object ClassName extends Attribute("class"):
     def set(element: Element, values: List[String]): Element = set(element, values.mkString(" "))
     def has(element: Element, name: String): Boolean = getList(element).contains(name)
 
@@ -82,3 +79,13 @@ abstract class XmlAst:
       then element
       else set(element, list.appended(name))
      
+  abstract class ClassName(name: String):
+    final def add(element: Element): Element = ClassName.add(element, name)
+    final def has(element: Element): Boolean = ClassName.has(element, name)
+    
+  abstract class ClassNamePrefix(prefix: String):
+    final def add(element: Element, name: String): Element = ClassName.add(element, s"$prefix-$name")  
+    final def get(element: Element): List[String] = ClassName.getList(element)
+      .filter(_.startsWith(s"$prefix-"))
+      .map(_.substring(prefix.length+1))
+    

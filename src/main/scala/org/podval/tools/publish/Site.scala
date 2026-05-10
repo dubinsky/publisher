@@ -36,6 +36,8 @@ final class Site(
 
   private var pagesVar: List[Page] = List.empty
   def pages: List[Page] = pagesVar
+
+  // TODO make a lazy val
   def markupPages: List[MarkupPage] = pages.collect { case page: MarkupPage => page }
 
   def getOrElse[P <: MarkupPage](path: Path)(make: => P)(using TypeTest[MarkupPage, P]): P = markupPages
@@ -64,6 +66,7 @@ final class Site(
     MarkupPage.DefaultMaker
   )
 
+  // TODO factor out
   private var errorsVar: List[PageError] = List.empty
   def errors: List[PageError] = errorsVar
 
@@ -112,7 +115,7 @@ final class Site(
     Directory.addParentDirectories(this)
 
     // Resolve links
-    markupPages.foreach(_.resolveLinks())
+    markupPages.foreach(page => backLinks.addBackLinks(page.backLinks))
 
     // Write pages
     writePages(pages)
@@ -148,9 +151,11 @@ final class Site(
 
         val xml: Xml.Element = markup.parse(sourcePath, markupContent) match
           case Right(xml) => xml
-          case Left(error) => error.report(this,
-            Xml.element("div").attr("class", "malformed-xml").child(Xml.mkText(s"Malformed XML: $error")).build
-          )
+          case Left(error) =>
+            var result = Xml.element("div")
+            result = Xml.ClassName.add(result, "malformed-xml")
+            result = Xml.setText(result, s"Malformed XML: $error")
+            error.report(this, result)
 
         val pageMarkup: PageMarkup = PageMarkup(markup, this, sourcePath, xml)
 
@@ -168,13 +173,8 @@ final class Site(
 
   lazy val tags: Tags = Tags.Maker.get(this)
 
-  private var backLinks: List[BackLink] = List.empty
-  def addBackLink(backLink: BackLink): Unit = backLinks = backLinks.appended(backLink)
-
-  def backLinks(page: Page): List[BackLink] = backLinks
-    .filter(_.to.page == page)
-    .filterNot(_.from == page)
-    .distinctBy(_.from.path) // TODO once we have context, each link should be listed (grouped by page)
+  private val backLinks: BackLinks = BackLinks()
+  def backLinks(page: Page): List[BackLinks.BackLink] = backLinks.backLinks(page)
 
   val socialLinks: Seq[SocialLink] = Seq(
     config.social.github.map(SocialLink.GitHub(_)),
@@ -184,7 +184,7 @@ final class Site(
 
   lazy val headerPages: List[Site.HeaderPage] = markupPages.flatMap(_.headerPage).sortBy(_.priority)
 
-  // TODO unfold Ref? Move into Markup?
+  // TODO unfold Ref?
   def resolveRef(refString: String): Option[Page.Link] =
     val ref: Page.Ref = Page.Ref(refString)
     if ref.path.path.isEmpty || ref.path.path.exists(_.isEmpty)

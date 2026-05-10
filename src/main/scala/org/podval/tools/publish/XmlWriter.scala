@@ -34,7 +34,7 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
 
     val nodes: List[xml.Xml] = atomize(List.empty, xml.children(element).toList)
     val chunks: Seq[Seq[xml.Xml]] = chunkify(Seq.empty, List.empty, nodes, flush = false)
-    val noText: Boolean = chunks.forall(_.forall(!xml.isAtom(_)))
+    val noText: Boolean = chunks.forall(_.forall(node => xml.asAtom(node).isEmpty))
     val whitespaceLeft: Boolean = nodes.headOption.exists(isWhitespace)
     val whitespaceRight: Boolean = nodes.lastOption.exists(isWhitespace)
     val charactersLeft: Boolean = nodes.headOption.exists(isCharacters)
@@ -92,12 +92,12 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
   
   @scala.annotation.tailrec
   private def atomize(result: List[xml.Xml], nodes: List[xml.Xml]): List[xml.Xml] = if nodes.isEmpty then result else
-    val (atoms: List[xml.Xml], tail: List[xml.Xml]) = nodes.span(xml.isAtom)
+    val (atoms: List[xml.Xml], tail: List[xml.Xml]) = nodes.span(node => xml.asAtom(node).isDefined)
 
     val resultNew: List[xml.Xml] =
       if atoms.isEmpty
       then result
-      else result ++ processText(Seq.empty, Strings.squashBigWhitespace(atoms.map(xml.atomText).mkString("")))
+      else result ++ processText(Seq.empty, Strings.squashBigWhitespace(atoms.map(atom => xml.asAtom(atom).get).mkString("")))
 
     tail match 
       case Nil => resultNew
@@ -129,10 +129,10 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
       case (c :: _ , n :: ns) if !isWhitespace(n) && !cling(c, n) => chunkify(result, current     , n :: ns , flush = true )
   
   private def cling(c: xml.Xml, n: xml.Xml): Boolean =
-    (xml.isAtom(c) && xml.isAtom(n)) || // Note: after atomize(), this should not be possible - right?
-    (xml.isAtom(c) && xml.isElement(n) && clingLeft(xml.atomText(c).last)) || // TODO exclude ;( and friends
-    (xml.isElement(c) && xml.isAtom(n) && clingRight(xml.atomText(n).head)) ||  // TODO exclude ;( and friends
-    (xml.isElement(n) && config.cling(xml.qName(xml.asElement(n))))
+    (xml.asAtom(c).isDefined && xml.asAtom(n).isDefined) || // Note: after atomize(), this should not be possible - right?
+    (xml.asAtom(c).isDefined && xml.asElement(n).isDefined && clingLeft(xml.asAtom(c).get.last)) || // TODO exclude ;( and friends
+    (xml.asElement(c).isDefined && xml.asAtom(n).isDefined && clingRight(xml.asAtom(n).get.head)) ||  // TODO exclude ;( and friends
+    (xml.asElement(n).isDefined && config.cling(xml.qName(xml.asElement(n).get)))
   
   private def clingLeft(char: Char): Boolean =
     val typeCode: Byte = Character.getType(char).toByte
@@ -167,9 +167,8 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
     parent: Option[xml.Element],
     canBreakLeft: Boolean,
     canBreakRight: Boolean
-  ): Doc =
-    if xml.isElement(node) then
-      val element: xml.Element = xml.asElement(node)
+  ): Doc = 
+    xml.asElement(node).map: (element: xml.Element) =>
       val qName: String = xml.qName(element)
       if config.preformat(qName) then
         Doc.text(preformatElement(element, parent).mkString(XmlWriter.hiddenNewline))
@@ -177,8 +176,8 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
         val result: Doc = fromElement(element, parent, canBreakLeft, canBreakRight)
         // Note: suppressing extra hardLine when lb is in a stack is non-trivial - and not worth it :)
         if canBreakRight && config.break(qName) then result + Doc.hardLine else result
-    else if xml.isAtom(node) then Doc.text(encodeXmlSpecials(xml.atomText(node)))
-    else Doc.paragraph(toString(node))
+    .orElse(xml.asAtom(node).map(text => Doc.text(encodeXmlSpecials(text))))
+    .getOrElse(Doc.paragraph(toString(node)))
 
   private def preformatElement(element: xml.Element, parent: Option[xml.Element]): Seq[String] =
     val attributeValues: Chunk[(String, String)] = xml.attributes(element, parent)
@@ -194,10 +193,10 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
     else if children.length == 1 then Seq(s"<$qName$attributes>${children.head}</$qName>")
     else Seq(s"<$qName$attributes>" + children.head) ++ children.tail.init ++ Seq(children.last + s"</$qName>")
 
-  private def preformat(node: xml.Xml, parent: Option[xml.Element]): Seq[String] =
-    if xml.isElement(node) then preformatElement(xml.asElement(node), parent)
-    else if xml.isAtom(node) then preformat(xml.atomText(node))
-    else preformat(toString(node))
+  private def preformat(node: xml.Xml, parent: Option[xml.Element]): Seq[String] = 
+    xml.asElement(node).map(preformatElement(_, parent))
+    .orElse(xml.asAtom(node).map(preformat))
+    .getOrElse(preformat(toString(node)))
 
   private def preformat(string: String): Seq[String] =
     Strings.encodeXmlSpecials(string)
@@ -211,8 +210,8 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
   // TODO see Node.toString(node) in OpenTorah
   private def toString(node: xml.Xml): String = xml.toString(node)
 
-  private def isCharacters(node: xml.Xml): Boolean = xml.isAtom(node) && xml.atomText(node).trim.nonEmpty
-  private def isWhitespace(node: xml.Xml): Boolean = xml.isAtom(node) && xml.atomText(node).trim.isEmpty
+  private def isCharacters(node: xml.Xml): Boolean = xml.asAtom(node).fold(false)(_.trim.nonEmpty)
+  private def isWhitespace(node: xml.Xml): Boolean = xml.asAtom(node).fold(false)(_.trim.isEmpty)
 
 object XmlWriter:
   val xmlWriter: XmlWriter[Xml.type] = XmlWriter(Xml)(htmlWriterConfig)

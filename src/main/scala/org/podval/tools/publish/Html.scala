@@ -8,15 +8,19 @@ object Html extends XmlAst:
   override type Xml = XML
   override type Element = XML.Element
 
-  override def isElement(xml: Xml): Boolean = xml match
-    case _: XML.Element => true
-    case _ => false
-
-  override def asElement(xml: Xml): Element = xml.asInstanceOf[XML.Element]
-
+  override def asElement(xml: Xml): Option[Element] = xml match
+    case element: XML.Element => Some(element)
+    case _ => None
+  
   // TODO ZIO Blocks HTML does not allow prefixed names?!
   // TODO rename name
   override def qName(element: Element): String = element.tag
+
+  override def element(name: String): Element = XML.Element.Generic(
+    tag = name,
+    children = Chunk.empty,
+    attributes = Chunk.empty
+  )
 
   override def attributes(element: Element, parent: Option[Element]): Chunk[(String, String)] =
     attributes(element)
@@ -62,16 +66,12 @@ object Html extends XmlAst:
   
   override def mkText(text: String): Xml = XML.text(text)
 
-  override def isText(xml: Xml): Boolean = isAtom(xml)
+  override def asText(xml: Xml): Option[String] = asAtom(xml)
 
-  override def isAtom(xml: Xml): Boolean = xml match
-    case _: XML.Text => true
-    case _ => false
-
-  override def atomText(xml: Xml): String = xml match
-    case XML.Text(content) => content
-    case xml => throw new IllegalArgumentException(s"Not an XML atom: $xml")
-
+  override def asAtom(xml: Xml): Option[String] = xml match
+    case XML.Text(content) => Some(content)
+    case _ => None
+  
   abstract class JSLibrary:
     def head: List[Html.Element]
     def body: List[Html.Element]
@@ -91,9 +91,7 @@ object Html extends XmlAst:
 
   // for convenience
 
-  val a: String = "a"
   val code: String = "code"
-  val hrefAttr: String = "href"
 
   def stylesheet(
     hrefString: String,

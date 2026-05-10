@@ -39,14 +39,17 @@ open class MarkupPage(
       case None if path.path.length > 1 => path.path.init.last // directory name
       case None => path.fileName // "index"
 
-  final def resolveLinks(): Unit =
-    pageMarkup.foreach(_.resolveLinks(this))
+  final def backLinks: Seq[BackLinks.BackLink] =
+    pageMarkup.fold(Seq.empty)(_.backLinks(this))
 
   final override def sourcePathOpt: Option[Path] =
     pageMarkup.map(_.sourcePath)
 
-  final override def resolveFragment(fragment: String): Option[PageMarkup.Link] =
-    pageMarkup.flatMap(_.resolveFragment(fragment))
+  final override def resolveBlock(id: String): Option[Page.PartLink.ToBlock] =
+    pageMarkup.flatMap(_.resolveBlock(id))
+
+  final override def resolveSection(names: Seq[String]): Option[Page.PartLink.ToSection] =
+    pageMarkup.flatMap(_.resolveSection(names))
 
   final override def htmlContent: Html.Element =
     val markupContent: Option[Html.Element] = pageMarkup.map: pageMarkup =>
@@ -109,22 +112,20 @@ object MarkupPage:
   private def isKramdownTocMarker(element: Html.Element): Boolean =
     Html.qName(element) == "ul" &&
     Html.children(element).length == 1 &&
-    Html.isElement(Html.children(element).head) && {
-    val child = Html.asElement(Html.children(element).head)
-    Html.qName(child) == "li" &&
+    Html.asElement(Html.children(element).head).fold(false): child =>
+      Html.qName(child) == "li" &&
       Html.children(child).length == 1 &&
-      Html.isText(Html.children(child).head) &&
-      Html.atomText(Html.children(child).head).endsWith("{:toc}")
-  }
+      Html.asText(Html.children(child).head).fold(false): text =>
+        text.endsWith("{:toc}")
 
-  private def toc(sections: Seq[PageMarkup.Section]): Html.Element =
+  private def toc(sections: Seq[Page.Section]): Html.Element =
     import zio.blocks.html.*
     div(className := "toc",
       h3("Table of Contents"),
       tocSections(sections)
     )
 
-  private def tocSections(sections: Seq[PageMarkup.Section]): Html.Element =
+  private def tocSections(sections: Seq[Page.Section]): Html.Element =
     import zio.blocks.html.*
     ul(sections.map(section => 
       li(

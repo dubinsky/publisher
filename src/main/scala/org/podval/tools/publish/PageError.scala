@@ -31,5 +31,6 @@ object PageError:
   case object Duplicate extends Kind("duplicate")
   case object Unmakable extends Kind("unmakable")
   case object NoId extends Kind("no id")
+  case object SelfLink extends Kind("spurious external link to this site")
   case object Unresolved extends Kind("unresolved")
 

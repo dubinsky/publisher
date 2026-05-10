@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
 import scala.annotation.tailrec
-import PageMarkup.Section
+import Page.Section
 
 // Common for markup formats whose XML representation is actually HTML:
 // HTML itself, Markdown, and likely Re-Structured text and AsciiDoc;
@@ -31,7 +31,7 @@ abstract class HtmlLike extends Markup:
       level <- headerLevel(element)
       title <- Xml.toStringOpt(element)
       id <-
-        val id = Xml.IdAttribute.get(element)
+        val id = Xml.Id.get(element)
         if id.isEmpty then PageError.NoId(sourcePath, s"Defect: No id on section $element").report(site, ())
         id
     yield Section(
@@ -41,6 +41,7 @@ abstract class HtmlLike extends Markup:
       id = id
     )
 
+  // TODO do nesting on the fly and verify levels!
   private def nest(sections: Seq[Section]): Seq[Section] =
     @tailrec
     def loop(result: Seq[Section], sections: Seq[Section]): Seq[Section] =
@@ -58,5 +59,5 @@ object HtmlLike:
 
     override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] =
       // TODO move into Xml
-      try Right(Xml.asElement(zio.blocks.schema.xml.XmlReader.read(content)))
+      try Right(Xml.asElement(zio.blocks.schema.xml.XmlReader.read(content)).get)
       catch case e: zio.blocks.schema.xml.XmlCodecError => Left(PageError.Parsing(sourcePath, "", Some(e)))

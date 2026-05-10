@@ -19,7 +19,7 @@ final class Tags(
 
   private def withTag(tag: String): List[Page] = site.markupPages.filter(_.tags.contains(tag)).sortBy(_.title)
 
-  def tagRef(tag: String): Html.Element = a(className := "page-tag", href := s"$path#${Xml.IdAttribute.toId(tag)}", tag)
+  def tagRef(tag: String): Html.Element = a(className := "page-tag", href := s"$path#${Xml.Id.toId(tag)}", tag)
 
   override protected def syntheticContent: Option[Html.Element] = Some:
     div(className := "tags",
@@ -28,7 +28,7 @@ final class Tags(
       h2("Pages by tags"),
       ul(tagsAll.map(tag =>
         li(
-          h3(className := "page-tag", id := Xml.IdAttribute.toId(tag), tag),
+          h3(className := "page-tag", id := Xml.Id.toId(tag), tag),
           ul(className := "tag-pages-list", withTag(tag).map(page => li(page.ref("post-link"))))
         )
       ))

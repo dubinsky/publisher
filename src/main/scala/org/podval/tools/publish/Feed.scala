@@ -10,22 +10,24 @@ final class Feed(
   Feed.path
 ):
   // TODO
-  override def xmlContent: Xml.Element = Xml
-    .element("feed")
-    .attr("xmlns", "http://www.w3.org/2005/Atom")
-    .children(
-      //<generator uri="https://jekyllrb.com/" version="4.4.1">Jekyll</generator>
-      //<link href="http://dub.podval.org/feed.xml" rel="self" type="application/atom+xml"/>
-      //<link href="http://dub.podval.org/" rel="alternate" type="text/html"/>
-      //<updated>2026-04-14T14:57:10-04:00</updated>
-      //<id>http://dub.podval.org/feed.xml</id>
-      //<title type="html">Проджеки и мысли</title>
-      //<subtitle>Projects and thoughts</subtitle>
-      //<author>
-      //<name>Leonid Dubinsky</name>
-      //</author>
-    )
-    .build
+  override def xmlContent: Xml.Element =
+    var result: Xml.Element = Xml.element("feed")
+    result = Xml.setAttribute(result, "xmlns", "http://www.w3.org/2005/Atom")
+    result
+    
+    // TODO
+//    .children(
+//      //<generator uri="https://jekyllrb.com/" version="4.4.1">Jekyll</generator>
+//      //<link href="http://dub.podval.org/feed.xml" rel="self" type="application/atom+xml"/>
+//      //<link href="http://dub.podval.org/" rel="alternate" type="text/html"/>
+//      //<updated>2026-04-14T14:57:10-04:00</updated>
+//      //<id>http://dub.podval.org/feed.xml</id>
+//      //<title type="html">Проджеки и мысли</title>
+//      //<subtitle>Projects and thoughts</subtitle>
+//      //<author>
+//      //<name>Leonid Dubinsky</name>
+//      //</author>
+//    )
 
 // TODO 10 latest entries:
 //<entry>

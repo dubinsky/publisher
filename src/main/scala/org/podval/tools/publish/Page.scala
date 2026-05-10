@@ -7,9 +7,7 @@ abstract class Page(
   val path: Path
 ) derives CanEqual:
   def sourcePathOpt: Option[Path]
-
-  def resolveFragment(fragment: String): Option[PageMarkup.Link]
-
+  
   def title: String
 
   def write(): Unit
@@ -32,7 +30,6 @@ abstract class Page(
 
   final def link: Page.Link = Page.Link(this, part = None)
 
-  // TODO unfold
   final def ref(cls: String): Html.Element =
     val pageLink = link
     import zio.blocks.html.*
@@ -40,14 +37,31 @@ abstract class Page(
 
   final def targetFile: File = path.file(site.targetDirectory)
 
-  // TODO simplify
+  // TODO move into site together with Ref
   final def resolveRef(fragment: Option[String]): Option[Page.Link] = fragment match
     case None => Some(link)
-    case Some(fragment) => resolveFragment(fragment) match
-      case Some(part) => Some(Page.Link(this, Some(part)))
-      case None => None
+    case Some(fragment) =>  Some(Page.Link(this,
+      if fragment.startsWith("^")
+      then resolveBlock(id = fragment.substring(1).trim)
+      else resolveSection(names = fragment.split('#').map(_.trim).toSeq)
+    ))
+
+  def resolveBlock(id: String): Option[Page.PartLink.ToBlock]
+  def resolveSection(names: Seq[String]): Option[Page.PartLink.ToSection]
 
 object Page:
+  trait WithContent extends Page:
+    final override def write(): Unit = Files.write(targetFile, content)
+    def content: String
+
+  trait WithXmlContent extends WithContent:
+    final override def content: String = XmlWriter.xmlWriter.render(xmlContent)
+    def xmlContent: Xml.Element
+
+  trait WithHtmlContent extends WithContent:
+    final override def content: String = XmlWriter.htmlWriter.render(htmlContent)
+    def htmlContent: Html.Element
+  
   final class Ref(
     val path: Path, // could be `name`, `path/name`(?)
     val isAbsolute: Boolean,
@@ -64,19 +78,34 @@ object Page:
       val isAbsolute: Boolean = pathString.trim.startsWith("/")
       new Ref(path, isAbsolute, fragment)
 
-  final class Link(val page: Page, part: Option[PageMarkup.Link]):
+  final class Link(val page: Page, part: Option[PartLink]):
     def url: String = page.path.toString + part.fold("")(part => s"#${part.id}")
     def title: String = page.title + part.fold("")(part => s"#${part.title}")
 
-  trait WithContent extends Page:
-    final override def write(): Unit = Files.write(targetFile, content)
-    def content: String
+  sealed abstract class Part(val id: String)
 
-  trait WithXmlContent extends WithContent:
-    final override def content: String = XmlWriter.xmlWriter.render(xmlContent)
-    def xmlContent: Xml.Element
+  final class Block(id: String) extends Part(id)
 
-  trait WithHtmlContent extends WithContent:
-    final override def content: String = XmlWriter.htmlWriter.render(htmlContent)
-    def htmlContent: Html.Element
+  object Block:
+    val className: String = "wiki-block"
 
+  final class Section(
+    id: String,
+    val title: String,
+    val level: Int,
+    val sections: Seq[Section]
+  ) extends Part(id):
+    def withSections(sections: Seq[Section]): Section = Section(id, title, level, sections)
+
+  sealed abstract class PartLink:
+    def title: String
+    def id: String
+
+  object PartLink:
+    final class ToBlock(block: Block) extends PartLink:
+      override def id: String = block.id
+      override def title: String = s"^${block.id}"
+
+    final class ToSection(sections: Seq[Section]) extends PartLink:
+      override def id: String = sections.last.id
+      override def title: String = sections.map(_.title).mkString("#")

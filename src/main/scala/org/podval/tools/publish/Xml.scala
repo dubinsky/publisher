@@ -7,10 +7,14 @@ object Xml extends XmlAst:
   override type Xml = XML
   override type Element = XML.Element
 
-  override def asElement(xml: Xml): Element = xml.asInstanceOf[XML.Element]
+  override def asElement(xml: Xml): Option[Element] = xml match
+    case element: XML.Element => Some(element)
+    case _ => None
 
   override def qName(element: Element): String = element.name.qualifiedName
-  
+
+  override def element(name: String): Element = XmlBuilder.element(name).build
+
   override def attributes(element: Element, parent: Option[Element]): Chunk[(String, String)] =
     attributes(element)
 
@@ -30,26 +34,13 @@ object Xml extends XmlAst:
 
   override def mkText(text: String): Xml = XML.Text(text)
 
-  override def isElement(xml: Xml): Boolean = xml match
-    case _: XML.Element => true
-    case _ => false
+  override def asText(xml: Xml): Option[String] = xml match
+    case XML.Text(value) => Some(value)
+    case _ => None
 
-  override def isText(xml: Xml): Boolean = xml match
-    case _: XML.Text => true
-    case _ => false
-
-  override def isAtom(xml: Xml): Boolean = xml match
-    case _: XML.Text => true
-    case _: XML.CData => true
-    case _ => false
-
-  override def atomText(xml: Xml): String = xml match
-    case XML.Text(value) => value
-    case XML.CData(value) => value
-    case xml => throw new IllegalArgumentException(s"Not an XML atom: $xml")
-
-  // for convenience
-  
-  def element(name: String): XmlBuilder.ElementBuilder = XmlBuilder.element(name)
+  override def asAtom(xml: Xml): Option[String] = xml match
+    case XML.Text(value) => Some(value)
+    case XML.CData(value) => Some(value)
+    case _ => None
 
 
