@@ -36,7 +36,7 @@ object Minima:
               hr, // TODO do a border
               h3("Backlinks"),
               ul(className := "backlinks-list", page.site.backLinks(page).map(link =>
-                li(link.from.page.ref("backlink")) // TODO!
+                li(link.from.ref("backlink")) // TODO!
               ))
             ))
           ),

@@ -18,12 +18,6 @@ object Html extends XmlAst:
   // TODO rename name
   override def qName(element: Element): String = element.tag
 
-  override def rename(element: Element, name: String): Element = XML.Element.Generic(
-    tag = name,
-    attributes = element.attributes,
-    children = element.children
-  )
-
   override def attributes(element: Element, parent: Option[Element]): Chunk[(String, String)] =
     attributes(element)
     

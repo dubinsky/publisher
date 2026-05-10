@@ -6,12 +6,12 @@ final class Errors(
   site: Site,
   path: Path,
   frontMatter: FrontMatter,
-  markup: Option[Markup#WithXml]
+  pageMarkup: Option[PageMarkup]
 ) extends MarkupPage(
   site,
   path,
   frontMatter,
-  markup,
+  pageMarkup,
 ):
   override def iconDefault: FontAwesome.Icon = FontAwesome.errors
 

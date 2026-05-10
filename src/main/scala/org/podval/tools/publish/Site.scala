@@ -2,11 +2,8 @@ package org.podval.tools.publish
 
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
-import zio.blocks.chunk.Chunk
-
-import scala.reflect.{ClassTag, TypeTest}
+import scala.reflect.TypeTest
 import java.io.File
-import java.net.{URI, URISyntaxException}
 
 final class Site(
   sourceDirectoryPath: String,
@@ -70,7 +67,6 @@ final class Site(
   private var errorsVar: List[PageError] = List.empty
   def errors: List[PageError] = errorsVar
 
-  // TODO always return None
   def reportError[R](error: PageError, result: R): R =
     if !treatErrorsAsWarnings then throw error else
       errorsVar = errorsVar.appended(error)
@@ -106,17 +102,14 @@ final class Site(
       .filter(_._2.length > 1)
       .toList
       .foreach((path: Path, pages: List[Page]) =>
-        reportError(PageError.Duplicate(
+        PageError.Duplicate(
           path,
           s"Duplicates for the path $path: ${pages.map(_.title).tail.mkString(", ")}"
-        ), ())
+        ).report(this, ())
       )
 
     // Add directory pages
     Directory.addParentDirectories(this)
-
-    // Discover section and block
-    markupPages.foreach(_.buildToc())
 
     // Resolve links
     markupPages.foreach(_.resolveLinks())
@@ -151,18 +144,18 @@ final class Site(
 
         val frontMatter: FrontMatter = frontMatterOrError match
           case Right(frontMatter) => frontMatter
-          case Left(error) => reportError(error, FrontMatter.absent)
+          case Left(error) => error.report(this, FrontMatter.absent)
 
         val xml: Xml.Element = markup.parse(sourcePath, markupContent) match
           case Right(xml) => xml
-          case Left(error) => reportError(error,
+          case Left(error) => error.report(this,
             Xml.element("div").attr("class", "malformed-xml").child(Xml.mkText(s"Malformed XML: $error")).build
           )
 
-        val withXml: Markup#WithXml = markup.withXml(sourcePath, xml)
+        val pageMarkup: PageMarkup = PageMarkup(markup, this, sourcePath, xml)
 
         pageMakers
-          .flatMap(_.withSource(this, frontMatter, withXml))
+          .flatMap(_.withSource(this, frontMatter, pageMarkup))
           .headOption
           .getOrElse(throw PageError.Unmakable(sourcePath, s"Can't make the page!"))
 
@@ -175,12 +168,13 @@ final class Site(
 
   lazy val tags: Tags = Tags.Maker.get(this)
 
-  private var linksResolved: List[Link.Resolved] = List.empty
+  private var backLinks: List[BackLink] = List.empty
+  def addBackLink(backLink: BackLink): Unit = backLinks = backLinks.appended(backLink)
 
-  def backLinks(page: Page): List[Link.Resolved] = linksResolved
+  def backLinks(page: Page): List[BackLink] = backLinks
     .filter(_.to.page == page)
-    .filterNot(_.from.page == page)
-    .distinctBy(_.from.page.path) // TODO once we have context, each link should be listed (grouped by page)
+    .filterNot(_.from == page)
+    .distinctBy(_.from.path) // TODO once we have context, each link should be listed (grouped by page)
 
   val socialLinks: Seq[SocialLink] = Seq(
     config.social.github.map(SocialLink.GitHub(_)),
@@ -190,46 +184,12 @@ final class Site(
 
   lazy val headerPages: List[Site.HeaderPage] = markupPages.flatMap(_.headerPage).sortBy(_.priority)
 
-  // TODO mark errors with class attribute
-  def resolveLink(link: Link): Xml.Element =
-    def unresolved = link.element match
-      case Some(element) => element
-      case None => Xml.a("wiki-link", link.ref, link.text.getOrElse(link.ref))
-    // TODO can not transclude external links
-    (if !link.transclude then None else Site.embedLink(link.ref, link.text)).getOrElse:
-      if externalRef(link.ref).isDefined then unresolved
-      else resolveRef(link.ref) match
-        case None =>
-          reportError(
-            PageError.Unresolved(link.page.path, s"internal link ref='${link.ref}' text='${link.text.getOrElse("")}'"),
-            unresolved
-          )
-        case Some(linkTo) =>
-          // Register resolved link
-          linksResolved = linksResolved.appended(Link.Resolved(link, linkTo))
-
-          if link.transclude then Xml.a("transclude", linkTo.url, linkTo.title)
-          else link.element match
-            case None =>
-              Xml.a("wiki-link", linkTo.url, linkTo.title)
-            case Some(element) =>
-              val result: Xml.Element = Xml.setAttribute(Xml.rename(element, Html.a), Html.hrefAttr, linkTo.url)
-              if result.children.nonEmpty
-              then result
-              else Xml.setChildren(result, Chunk(Xml.mkText(linkTo.title)))
-
-  private def resolveRef(refString: String): Option[Page.Link] =
+  // TODO unfold Ref? Move into Markup?
+  def resolveRef(refString: String): Option[Page.Link] =
     val ref: Page.Ref = Page.Ref(refString)
     if ref.path.path.isEmpty || ref.path.path.exists(_.isEmpty)
     then None
     else pages.find(_.is(ref.path, ref.isAbsolute)).flatMap(_.resolveRef(ref.fragment))
-
-  private def externalRef(ref: String): Option[URI] =
-    try
-      val uri: URI = URI(ref)
-      // TODO recognize and resolve links to *this* site
-      Option.when(uri.getScheme != null)(uri)
-    catch case e: URISyntaxException => None
 
 object Site:
   final class HeaderPage(
@@ -252,15 +212,3 @@ object Site:
     Path("assets", "css",  "skin").withExtension("css"),
     Path("assets", "css",  "style").withExtension("css"),
   )
-
-  // see https://obsidian.md/help/embeds
-  // TODO FlexMark inlines image links for the ![]() references - but does not process image sizes...
-  private def embedLink(ref: String, text: Option[String]): Option[Xml.Element] =
-    Files.nameAndExtension(ref)._2.flatMap: extension =>
-      if Files.imageExtensions.contains(extension) then None
-      // Embed image
-      //      else if Files.audioExtensions.contains(extension) then
-      //        // Embed audio player
-      //      else if extension == "pdf" then
-      //        // Embed PDF viewer
-      else None

@@ -7,7 +7,7 @@ open class MarkupPage(
   site: Site,
   path: Path,
   frontMatter: FrontMatter,
-  markup: Option[Markup#WithXml]
+  pageMarkup: Option[PageMarkup]
 ) extends Page(
   site,
   path
@@ -39,25 +39,31 @@ open class MarkupPage(
       case None if path.path.length > 1 => path.path.init.last // directory name
       case None => path.fileName // "index"
 
-  final def buildToc(): Unit =
-    markup.foreach(_.buildToc(site))
-    
   final def resolveLinks(): Unit =
-    markup.foreach(_.resolveLinks(this))
+    pageMarkup.foreach(_.resolveLinks(this))
 
   final override def sourcePathOpt: Option[Path] =
-    markup.map(_.sourcePath)
+    pageMarkup.map(_.sourcePath)
 
-  final override def resolveFragment(fragment: String): Option[Toc.Link] =
-    markup.flatMap(_.toc.resolveFragment(fragment))
+  final override def resolveFragment(fragment: String): Option[PageMarkup.Link] =
+    pageMarkup.flatMap(_.resolveFragment(fragment))
 
-  final override def htmlContent: Html.Element = Minima.render(
-    page = this,
-    content = Seq(
-      markup.map(_.xmlContent).map(Html.fromXml),
-      syntheticContent
-    ).flatten
-  )
+  final override def htmlContent: Html.Element =
+    val markupContent: Option[Html.Element] = pageMarkup.map: pageMarkup =>
+      val htmlContent: Html.Element = Html.fromXml(pageMarkup.xmlContent)
+      Html.transform(
+        htmlContent,
+        stop = element => pageMarkup.markup.stop(Html.qName(element)),
+        element =>
+          if !MarkupPage.isKramdownTocMarker(element)
+          then element
+          else MarkupPage.toc(pageMarkup.sections)
+      )
+
+    Minima.render(
+      page = this,
+      content = Seq(markupContent, syntheticContent).flatten
+    )
 
   protected def syntheticContent: Option[Html.Element] = None
 
@@ -65,7 +71,7 @@ object MarkupPage:
   trait BaseLayout extends MarkupPage
 
   abstract class Maker[P <: MarkupPage](
-    make: (site: Site, path: Path, frontMatter: FrontMatter, markup: Option[Markup#WithXml]) => P
+    make: (site: Site, path: Path, frontMatter: FrontMatter, pageMarkup: Option[PageMarkup]) => P
   ):
     def path(sourcePath: Path): Option[Path]
 
@@ -74,12 +80,12 @@ object MarkupPage:
     final def withSource(
       site: Site,
       frontMatter: FrontMatter,
-      markup: Markup#WithXml
-    ): Option[P] = path(markup.sourcePath).map(path => make(
+      pageMarkup: PageMarkup
+    ): Option[P] = path(pageMarkup.sourcePath).map(path => make(
       site,
       path.html,
       frontMatter.merge(frontMatterDefault),
-      Some(markup)
+      Some(pageMarkup)
     ))
 
   object DefaultMaker extends Maker[MarkupPage](MarkupPage.apply):
@@ -87,7 +93,7 @@ object MarkupPage:
 
   abstract class AutoMaker[P <: MarkupPage](
     path: Path,
-    make: (site: Site, path: Path, frontMatter: FrontMatter, markup: Option[Markup#WithXml]) => P,
+    make: (site: Site, path: Path, frontMatter: FrontMatter, pageMarkup: Option[PageMarkup]) => P,
     override val frontMatterDefault: FrontMatter
   )(using TypeTest[MarkupPage, P]) extends Maker[P](make):
     final override def path(sourcePath: Path): Option[Path] = Option.when(sourcePath.html == path)(sourcePath)
@@ -97,7 +103,32 @@ object MarkupPage:
         site,
         path,
         frontMatter = frontMatterDefault,
-        markup = None
+        pageMarkup = None
       )
 
+  private def isKramdownTocMarker(element: Html.Element): Boolean =
+    Html.qName(element) == "ul" &&
+    Html.children(element).length == 1 &&
+    Html.isElement(Html.children(element).head) && {
+    val child = Html.asElement(Html.children(element).head)
+    Html.qName(child) == "li" &&
+      Html.children(child).length == 1 &&
+      Html.isText(Html.children(child).head) &&
+      Html.atomText(Html.children(child).head).endsWith("{:toc}")
+  }
 
+  private def toc(sections: Seq[PageMarkup.Section]): Html.Element =
+    import zio.blocks.html.*
+    div(className := "toc",
+      h3("Table of Contents"),
+      tocSections(sections)
+    )
+
+  private def tocSections(sections: Seq[PageMarkup.Section]): Html.Element =
+    import zio.blocks.html.*
+    ul(sections.map(section => 
+      li(
+        a(className := "toc-link", href := s"#${section.id}", section.title),
+        Option.when(section.sections.nonEmpty)(tocSections(section.sections))
+      )  
+    ))

@@ -6,12 +6,12 @@ final class Posts(
   site: Site,
   path: Path,
   frontMatter: FrontMatter,
-  markup: Option[Markup#WithXml]
+  pageMarkup: Option[PageMarkup]
 ) extends MarkupPage(
   site,
   path,
   frontMatter,
-  markup
+  pageMarkup
 ) with MarkupPage.BaseLayout:
   override def iconDefault: FontAwesome.Icon = FontAwesome.envelope
 

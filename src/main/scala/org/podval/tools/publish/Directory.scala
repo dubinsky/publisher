@@ -6,12 +6,12 @@ final class Directory(
   site: Site,
   path: Path,
   frontMatter: FrontMatter,
-  markup: Option[Markup#WithXml]
+  pageMarkup: Option[PageMarkup]
 ) extends MarkupPage(
   site,
   path,
   frontMatter,
-  markup
+  pageMarkup
 ) with MarkupPage.BaseLayout:
   override def iconDefault: FontAwesome.Icon = FontAwesome.folder
 
@@ -75,7 +75,7 @@ object Directory:
           site,
           parentPath,
           frontMatter = FrontMatter.absent,
-          markup = None
+          pageMarkup = None
         )
         // Force insertion of the parent's parent for the newly-inserted parent
         parent.parent

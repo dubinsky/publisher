@@ -10,27 +10,24 @@ object Xml extends XmlAst:
   override def asElement(xml: Xml): Element = xml.asInstanceOf[XML.Element]
 
   override def qName(element: Element): String = element.name.qualifiedName
-
-  override def rename(element: Element, name: String): Element =
-    element.copy(name = XmlName(name))
-
+  
   override def attributes(element: Element, parent: Option[Element]): Chunk[(String, String)] =
     attributes(element)
-    
+
   override def attributes(element: Element): Chunk[(String, String)] =
     element.attributes.map((xmlName, value) => (xmlName.qualifiedName, value))
-  
+
   override def setAttribute(element: Element, name: String, value: String): Element =
     element.copy(attributes = element.attributes
       .filterNot(_._1.qualifiedName == name)
       .appended(XmlName(name) -> value)
     )
-  
+
   override def children(element: Element): Chunk[Xml] = element.children
 
   override def setChildren(element: Element, children: Chunk[Xml]): Element =
     element.copy(children = children)
-  
+
   override def mkText(text: String): Xml = XML.Text(text)
 
   override def isElement(xml: Xml): Boolean = xml match
@@ -52,21 +49,7 @@ object Xml extends XmlAst:
     case xml => throw new IllegalArgumentException(s"Not an XML atom: $xml")
 
   // for convenience
-
-  val idAttr: String = "id"
-
-  def toId(text: String): String = text.trim.replace(' ', '-')
-
+  
   def element(name: String): XmlBuilder.ElementBuilder = XmlBuilder.element(name)
 
-  def a(
-    cls: String,
-    href: String,
-    text: String
-  ): Xml.Element = Xml
-    .element("a")
-    .attr("class", cls)
-    .attr(Html.hrefAttr, href)
-    .child(Xml.mkText(text))
-    .build
 

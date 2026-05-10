@@ -8,7 +8,9 @@ final class PageError(
 ) extends Throwable(
   s"$kind: $message ($sourcePath) ${cause.map(_.getMessage).getOrElse("")}",
   cause.orNull
-)
+):
+  def report[R](site: Site, result: R): R = site.reportError(this, result)
+  def report[R](site: Site): Option[R] = site.reportError(this, None)
 
 object PageError:
   sealed abstract class Kind(override val toString: String):

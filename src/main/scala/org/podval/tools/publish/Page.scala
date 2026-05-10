@@ -8,7 +8,7 @@ abstract class Page(
 ) derives CanEqual:
   def sourcePathOpt: Option[Path]
 
-  def resolveFragment(fragment: String): Option[Toc.Link]
+  def resolveFragment(fragment: String): Option[PageMarkup.Link]
 
   def title: String
 
@@ -40,6 +40,7 @@ abstract class Page(
 
   final def targetFile: File = path.file(site.targetDirectory)
 
+  // TODO simplify
   final def resolveRef(fragment: Option[String]): Option[Page.Link] = fragment match
     case None => Some(link)
     case Some(fragment) => resolveFragment(fragment) match
@@ -63,7 +64,7 @@ object Page:
       val isAbsolute: Boolean = pathString.trim.startsWith("/")
       new Ref(path, isAbsolute, fragment)
 
-  final class Link(val page: Page, part: Option[Toc.Link]):
+  final class Link(val page: Page, part: Option[PageMarkup.Link]):
     def url: String = page.path.toString + part.fold("")(part => s"#${part.id}")
     def title: String = page.title + part.fold("")(part => s"#${part.title}")
 

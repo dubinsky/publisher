@@ -11,7 +11,8 @@ abstract class Asset(
 
   final override def title: String = path.fileNameWithNonHtmlExtension
 
-  final override def resolveFragment(fragment: String): Option[Toc.Link] = None
+  // TODO only on MarkupPage?
+  final override def resolveFragment(fragment: String): Option[PageMarkup.Link] = None
 
 object Asset:
   final class WithSource(

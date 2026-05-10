@@ -4,6 +4,7 @@ import zio.blocks.chunk.Chunk
 
 abstract class XmlAst:
   type Xml
+  
   type Element <: Xml
 
   // Remove markup
@@ -18,7 +19,6 @@ abstract class XmlAst:
   def isElement(xml: Xml): Boolean
   def asElement(xml: Xml): Element
   def qName(element: Element): String
-  def rename(element: Element, name: String): Element
 
   // TODO deal with the namespaces - and defaults?!
   //    val parentNamespaces: Seq[Namespace] = parent.fold[Seq[Namespace]](Seq.empty)(Namespace.getAll)
@@ -39,34 +39,26 @@ abstract class XmlAst:
   def isText(xml: Xml): Boolean
   def atomText(xml: Xml): String
 
-  // transformation
-  final def transform(
+  def transform(
     element: Element,
-    delve: Element => Boolean,
+    stop: Element => Boolean,
     transformElement: Element => Element
   ): Element =
-    def loop(element: Element): Element = if !delve(element) then element else
-      transformElement(setChildren(element, children(element).map: xml =>
+    def loop(element: Element): Element = if stop(element) then element else
+      val result: Element = transformElement(element)
+      setChildren(result, children(result).map(xml =>
         if isElement(xml)
         then loop(asElement(xml))
         else xml
       ))
 
     loop(element)
-
-  // data gathering
-  final def gather[A](
-    element: Element,
-    delve: Element => Boolean,
-    gatherElement: Element => Option[A]
-  ): Seq[A] =
-    def loop(element: Element): Seq[A] = if !delve(element) then Seq.empty else
-      gatherElement(element).toSeq ++ children(element)
-        .filter(isElement)
-        .map(asElement)
-        .flatMap(loop)
-
-    loop(element)
+    
+  object IdAttribute:
+    val attributeName: String = "id"
+    def toId(text: String): String = text.trim.replace(' ', '-')
+    def get(element: Element): Option[String] = getAttribute(element, attributeName)
+    def set(element: Element, value: String): Element = setAttribute(element, attributeName, value)
 
   object ClassAttribute:
     val attributeName: String = "class"
@@ -84,7 +76,7 @@ abstract class XmlAst:
       .filterNot(_.isEmpty)
     )
     
-    def add(element: Element, name: String) =
+    def add(element: Element, name: String): Element =
       val list = getList(element)
       if list.contains(name)
       then element
