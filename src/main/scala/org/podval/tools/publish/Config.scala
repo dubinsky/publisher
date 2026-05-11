@@ -13,7 +13,7 @@ final class Config(
   val email: String,
   val timezone: Option[String] = None,
   val lang: Option[String] = None,
-  val googleAnalytics: Option[String] = None,  // TODO freaking kebab case: I had to use 'google-analytics' in my config...
+  val googleAnalytics: Option[String] = None,
   val social: Config.Social = Config.Social(),
   val exclude: List[String] = List.empty,
 ):
@@ -55,9 +55,7 @@ object Config:
   )
 
   private val log: Logger = LoggerFactory.getLogger(this.getClass)
-
-  // TODO also exclude stuff from `.gitignore` if present
-
+  
   private val special: Set[String] = Set(
     ".jekyll-cache",
     ".sass-cache",

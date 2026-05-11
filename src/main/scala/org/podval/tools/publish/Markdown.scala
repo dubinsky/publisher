@@ -3,24 +3,36 @@ package org.podval.tools.publish
 import org.podval.tools.publish.PageError
 import scala.jdk.CollectionConverters.SeqHasAsJava
 import com.vladsch.flexmark.ext.autolink.AutolinkExtension
+import com.vladsch.flexmark.ext.footnotes.FootnoteExtension
+import com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughSubscriptExtension
+import com.vladsch.flexmark.ext.gfm.tasklist.TaskListExtension
 import com.vladsch.flexmark.ext.tables.TablesExtension
 import com.vladsch.flexmark.html.HtmlRenderer
 import com.vladsch.flexmark.parser.Parser
+import com.vladsch.flexmark.util.ast.Document
 import com.vladsch.flexmark.util.data.MutableDataSet
 
 object Markdown extends HtmlLike:
   override val extension: String = "md"
   override val additionalExtensions: Set[String] = Set.empty
 
-  // TODO add missing extensions:
-  // - admonitions
-  private val flexMarkExtensions: List[Parser.ParserExtension & HtmlRenderer.HtmlRendererExtension] = List(
-    // TODO      AdmonitionsExtension.create,
-    // TODO      AsideExtension.create,
-    // TODO      AutolinkExtension.create,
-    // TODO      GFMTaskListExtension.create
-    TablesExtension.create
+  private val extensionsCommon: List[Parser.ParserExtension & HtmlRenderer.HtmlRendererExtension] = List(
+//    FootnoteExtension.create, // TODO inserts &#8617; "right arrow curling left emoji" into output
+    StrikethroughSubscriptExtension.create,
+    TablesExtension.create,
+//    TaskListExtension.create // TODO inserts `&nbsp;` into output
   )
+
+  private val extensionsParserOnly: List[Parser.ParserExtension] = List(
+    AutolinkExtension.create
+  )
+
+  private val extensionsParser: List[Parser.ParserExtension] = extensionsCommon ++ extensionsParserOnly
+
+  private val extensionsRendererOnly: List[HtmlRenderer.HtmlRendererExtension] = List(
+  )
+
+  private val extensionsRenderer: List[HtmlRenderer.HtmlRendererExtension] = extensionsCommon ++ extensionsRendererOnly
 
   private val options: MutableDataSet = new MutableDataSet
 //  options.set(WikiLinkExtension.ALLOW_ANCHORS, true)
@@ -31,17 +43,28 @@ object Markdown extends HtmlLike:
 
   private val parser: Parser = Parser
     .builder(options)
-    .extensions(flexMarkExtensions.asJava)
+    .extensions(extensionsParser.asJava)
     .build
 
   private val renderer: HtmlRenderer = HtmlRenderer
     .builder(options)
-    .extensions(flexMarkExtensions.asJava)
+    .extensions(extensionsRenderer.asJava)
     .build
 
+  // Note: FlexMark Parser and Renderer do not throw exceptions on invalid syntax and such.
+  def parse(content: String): Document = parser.parse(content)
+  def parseAndRender(content: String): String = renderer.render(parse(content))
+
+  def main(args: Array[String]): Unit = println(parseAndRender(
+    s"""See [^footnote] for an example
+       |
+       |sxdafsadfadsf
+       |
+       |[^footnote]: this is a footnote
+       |""".stripMargin
+  ))
+
+  // Wrap Markdown rendered as HTML in a 'div' and parse.
   override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] =
-    // TODO catch errors!
-    val doc = parser.parse(content)
-    // Wrap Markdown rendered as HTML in a 'div' and parse.
-    HtmlLike.Html.parse(sourcePath, s"<div>${renderer.render(doc)}</div>")
+    HtmlLike.Html.parse(sourcePath, s"<div>${parseAndRender(content)}</div>")
 

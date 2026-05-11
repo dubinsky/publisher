@@ -6,12 +6,12 @@ final class Tags(
   site: Site,
   path: Path,
   frontMatter: FrontMatter,
-  pageMarkup: Option[PageMarkup]
+  source: Option[MarkupPage.Source]
 ) extends MarkupPage(
   site,
   path,
   frontMatter,
-  pageMarkup
+  source
 ) with MarkupPage.BaseLayout:
   override def iconDefault: FontAwesome.Icon = FontAwesome.tags
 
@@ -19,7 +19,12 @@ final class Tags(
 
   private def withTag(tag: String): List[Page] = site.markupPages.filter(_.tags.contains(tag)).sortBy(_.title)
 
-  def tagRef(tag: String): Html.Element = a(className := "page-tag", href := s"$path#${Xml.Id.toId(tag)}", tag)
+  def tagRef(tag: String): Html.Element = a(
+    className := "page-tag",
+    href := s"$path#${Xml.Id.toId(tag)}",
+    FontAwesome.tag.htmlSpan,
+    tag
+  )
 
   override protected def syntheticContent: Option[Html.Element] = Some:
     div(className := "tags",
@@ -29,7 +34,7 @@ final class Tags(
       ul(tagsAll.map(tag =>
         li(
           h3(className := "page-tag", id := Xml.Id.toId(tag), tag),
-          ul(className := "tag-pages-list", withTag(tag).map(page => li(page.ref("post-link"))))
+          Minima.list(withTag(tag), "tag-pages-list", "post-link")
         )
       ))
     )

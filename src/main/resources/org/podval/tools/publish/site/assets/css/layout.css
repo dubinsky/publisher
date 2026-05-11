@@ -383,16 +383,21 @@
     border-radius: 4px;
     color: var(--text-color);
     font-size: 90%;
-    &:before {
-        content: "\f02b";
-        font-family: FontAwesome;
-        padding-right: .5em;
-    }
+    /* I now add the icon explicitly, so styling is done using `.icon-span` class. */
+    /*&:before {*/
+    /*    content: "\f02b";*/
+    /*    font-family: FontAwesome;*/
+    /*    padding-right: .5em;*/
+    /*}*/
     &:hover {
         text-decoration: none;
         background: var(--brand-color);
         color: var(--background-color);
     }
+}
+
+.icon-span {
+    padding-right: .3em;
 }
 
 .page-list {
@@ -405,12 +410,10 @@
     }
 }
 
-.wiki-link::before {
-    content: "[[";
+.page-backlinks-count {
+    float: right;
 }
-.wiki-link::after {
-    content: "]]";
-}
+
 .invalid-wiki-link {
     background: red;
 }

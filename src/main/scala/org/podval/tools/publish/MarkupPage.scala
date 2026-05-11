@@ -1,5 +1,6 @@
 package org.podval.tools.publish
 
+import scala.ref.SoftReference
 import scala.reflect.TypeTest
 import java.time.LocalDate
 
@@ -7,7 +8,7 @@ open class MarkupPage(
   site: Site,
   path: Path,
   frontMatter: FrontMatter,
-  pageMarkup: Option[PageMarkup]
+  source: Option[MarkupPage.Source]
 ) extends Page(
   site,
   path
@@ -29,7 +30,6 @@ open class MarkupPage(
 
   private lazy val postDate: Option[LocalDate] = Post.date(path)
   final def isPost: Boolean = postDate.isDefined
-  // TODO get dates from GIT too
   final def date: Option[Date] = postDate.map(Date.Local(_)).orElse(frontMatter.date)
   final def dateModified: Option[Date] = frontMatter.modified_time
 
@@ -40,39 +40,47 @@ open class MarkupPage(
       case None => path.fileName // "index"
 
   final override def sourcePathOpt: Option[Path] =
-    pageMarkup.map(_.sourcePath)
+    source.map(_.sourcePath)
 
   final def backLinks: Seq[BackLinks.BackLink] =
-    pageMarkup.fold(Seq.empty)(_.backLinks(this))
+    source.fold(Seq.empty)(_.cached.backLinks(this))
 
-  final override def resolveBlock(id: String): Option[Page.PartLink.ToBlock] =
-    pageMarkup.flatMap(_.resolveBlock(id))
+  final override def resolveBlock(id: String): Option[Link.ToBlock] =
+    source.flatMap(_.cached.resolveBlock(id))
 
-  final override def resolveSection(names: Seq[String]): Option[Page.PartLink.ToSection] =
-    pageMarkup.flatMap(_.resolveSection(names))
+  final override def resolveSection(names: Seq[String]): Option[Link.ToSection] =
+    source.flatMap(_.cached.resolveSection(names))
 
-  final override def htmlContent: Html.Element =
-    val markupContent: Option[Html.Element] = pageMarkup.map: pageMarkup =>
-      val htmlContent: Html.Element = Html.fromXml(pageMarkup.xmlContent)
-      Html.transform(htmlContent, pageMarkup.markup.stop, element =>
-        if !MarkupPage.isKramdownTocMarker(element)
-        then element
-        else MarkupPage.toc(pageMarkup.sections)
-      )
-
-    Minima.render(
-      page = this,
-      markupContent = markupContent,
-      syntheticContent = syntheticContent
-    )
+  final override def htmlContent: Html.Element = Minima.render(
+    page = this,
+    markupContent = source.map(_.cached.htmlContent),
+    syntheticContent = syntheticContent
+  )
 
   protected def syntheticContent: Option[Html.Element] = None
 
 object MarkupPage:
   trait BaseLayout extends MarkupPage
 
+  final class Source(
+    val markup: Markup,
+    val site: Site,
+    val sourcePath: Path
+  ):
+    private var cachedVar: Option[SoftReference[PageMarkup]] = None
+    private def cache(cached: PageMarkup): Unit = cachedVar = Some(SoftReference(cached))
+
+    def cache(xml: Xml.Element): Unit = cache(PageMarkup(this, xml))
+
+    def cached: PageMarkup = cachedVar.get.get.getOrElse:
+      site.log.warn(s"Re-reading evicted PageMarkup: $sourcePath")
+      val (frontMatter: FrontMatter, xml: Xml.Element) = site.parseMarkup(sourcePath, markup)
+      val cached: PageMarkup = PageMarkup(this, xml)
+      cache(cached)
+      cached
+
   abstract class Maker[P <: MarkupPage](
-    make: (site: Site, path: Path, frontMatter: FrontMatter, pageMarkup: Option[PageMarkup]) => P
+    make: (site: Site, path: Path, frontMatter: FrontMatter, source: Option[Source]) => P
   ):
     def path(sourcePath: Path): Option[Path]
 
@@ -81,12 +89,12 @@ object MarkupPage:
     final def withSource(
       site: Site,
       frontMatter: FrontMatter,
-      pageMarkup: PageMarkup
-    ): Option[P] = path(pageMarkup.sourcePath).map(path => make(
+      source: Source
+    ): Option[P] = path(source.sourcePath).map(path => make(
       site,
       path.html,
       frontMatter.merge(frontMatterDefault),
-      Some(pageMarkup)
+      Some(source)
     ))
 
   object DefaultMaker extends Maker[MarkupPage](MarkupPage.apply):
@@ -94,7 +102,7 @@ object MarkupPage:
 
   abstract class AutoMaker[P <: MarkupPage](
     path: Path,
-    make: (site: Site, path: Path, frontMatter: FrontMatter, pageMarkup: Option[PageMarkup]) => P,
+    make: (site: Site, path: Path, frontMatter: FrontMatter, source: Option[Source]) => P,
     override val frontMatterDefault: FrontMatter
   )(using TypeTest[MarkupPage, P]) extends Maker[P](make):
     final override def path(sourcePath: Path): Option[Path] = Option.when(sourcePath.html == path)(sourcePath)
@@ -104,30 +112,5 @@ object MarkupPage:
         site,
         path,
         frontMatter = frontMatterDefault,
-        pageMarkup = None
+        source = None
       )
-
-  private def isKramdownTocMarker(element: Html.Element): Boolean =
-    Html.qName(element) == "ul" &&
-    Html.children(element).length == 1 &&
-    Html.asElement(Html.children(element).head).fold(false): child =>
-      Html.qName(child) == "li" &&
-      Html.children(child).length == 1 &&
-      Html.asText(Html.children(child).head).fold(false): text =>
-        text.endsWith("{:toc}")
-
-  private def toc(sections: Seq[Page.Section]): Html.Element =
-    import zio.blocks.html.*
-    div(className := "toc",
-      h3("Table of Contents"),
-      tocSections(sections)
-    )
-
-  private def tocSections(sections: Seq[Page.Section]): Html.Element =
-    import zio.blocks.html.*
-    ul(sections.map(section => 
-      li(
-        a(className := "toc-link", href := s"#${section.id}", section.title),
-        Option.when(section.sections.nonEmpty)(tocSections(section.sections))
-      )  
-    ))

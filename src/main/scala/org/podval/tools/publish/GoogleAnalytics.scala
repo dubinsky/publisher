@@ -3,7 +3,6 @@ package org.podval.tools.publish
 import zio.blocks.html.*
 
 final class GoogleAnalytics(id: String) extends Html.JSLibrary:
-  // TODO should it really go into the head?
   override def head: List[Html.Element] = List(
     script().externalJs(s"https://www.googletagmanager.com/gtag/js?id=$id"),
     script().inlineJs(

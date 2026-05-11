@@ -6,12 +6,12 @@ final class Posts(
   site: Site,
   path: Path,
   frontMatter: FrontMatter,
-  pageMarkup: Option[PageMarkup]
+  source: Option[MarkupPage.Source]
 ) extends MarkupPage(
   site,
   path,
   frontMatter,
-  pageMarkup
+  source
 ) with MarkupPage.BaseLayout:
   override def iconDefault: FontAwesome.Icon = FontAwesome.envelope
 
@@ -22,7 +22,7 @@ final class Posts(
       ul(className := "post-list", site.markupPages.filter(_.isPost).sortBy(_.date).reverse.map(post =>
         li(
           span(className := "post-meta", post.date.map(_.toShortString).getOrElse("")),
-          h3(className := "post-link", post.ref("post-link"))
+          h3(className := "post-link", Minima.ref(post, "post-link"))
           // {%- if site.minima.show_excerpts -%} {{ post.excerpt }} {%- endif -%} // TODO unify with feed.xml
         )
       ))

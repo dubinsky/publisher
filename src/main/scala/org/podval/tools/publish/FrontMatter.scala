@@ -18,7 +18,7 @@ final case class FrontMatter(
   permalink: Option[String] = None,
   date: Option[Date] = None,
   icon: Option[FontAwesome.Icon] = None,
-  modified_time: Option[Date] = None, // TODO kebab breaks this!
+  modified_time: Option[Date] = None,
   headerPage: Option[FrontMatter.HeaderPage] = None
 ):
   def merge(default: FrontMatter): FrontMatter = copy(
@@ -34,7 +34,6 @@ final case class FrontMatter(
       case (Some(headerPage), Some(headerPageDefault)) => Some(headerPage.merge(headerPageDefault))
   )
 
-  // TODO this with not survive round trip once FrontMatter becomes a case class and `.copy()` is used!
   private var extraKeys: Chunk[(Yaml, Yaml)] = Chunk.empty
 
   private var absent: Boolean = false
@@ -47,13 +46,6 @@ final case class FrontMatter(
     s"---\n$mapping\n---\n"
 
 object FrontMatter:
-  // TODO adjust schema/codec so that the (lower-case) name of the variant works, without requiring
-  //icon:
-  //  name: folder
-  //  style:
-  //    Regular: {}
-//  def main(args: Array[String]): Unit = println(FrontMatter(icon = Some(FontAwesome.folder)).write)
-
   final case class HeaderPage(
     include: Boolean = false,
     priority: Option[Int] = None
@@ -71,7 +63,6 @@ object FrontMatter:
 
   private val schema: Schema[FrontMatter] = Schema.derived
 
-  // TODO these are from the schema; since codec turns the names to kebab case, some are not going to match...
   private val fieldNames: Set[String] = schema
     .reflect
     .asRecord
@@ -83,6 +74,7 @@ object FrontMatter:
   private val codec: YamlCodec[FrontMatter] = schema
     .deriving(YamlFormat.deriver)
     .instance(TypeId.of[Date], Date.codec)
+    .instance(TypeId.of[FontAwesome.Style], FontAwesome.Style.codec)
     .derive
 
   def parse(sourcePath: Path, input: String): (Either[PageError, FrontMatter], String) = parse(input) match

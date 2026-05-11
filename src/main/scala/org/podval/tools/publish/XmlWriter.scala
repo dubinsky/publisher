@@ -167,7 +167,7 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
     parent: Option[xml.Element],
     canBreakLeft: Boolean,
     canBreakRight: Boolean
-  ): Doc = 
+  ): Doc =
     xml.asElement(node).map: (element: xml.Element) =>
       val qName: String = xml.qName(element)
       if config.preformat(qName) then
@@ -193,7 +193,7 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
     else if children.length == 1 then Seq(s"<$qName$attributes>${children.head}</$qName>")
     else Seq(s"<$qName$attributes>" + children.head) ++ children.tail.init ++ Seq(children.last + s"</$qName>")
 
-  private def preformat(node: xml.Xml, parent: Option[xml.Element]): Seq[String] = 
+  private def preformat(node: xml.Xml, parent: Option[xml.Element]): Seq[String] =
     xml.asElement(node).map(preformatElement(_, parent))
     .orElse(xml.asAtom(node).map(preformat))
     .getOrElse(preformat(toString(node)))
@@ -207,7 +207,6 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
 
   private def space: xml.Xml = xml.mkText(" ")
 
-  // TODO see Node.toString(node) in OpenTorah
   private def toString(node: xml.Xml): String = xml.toString(node)
 
   private def isCharacters(node: xml.Xml): Boolean = xml.asAtom(node).fold(false)(_.trim.nonEmpty)

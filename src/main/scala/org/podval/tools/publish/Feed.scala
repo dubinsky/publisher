@@ -9,13 +9,11 @@ final class Feed(
   site,
   Feed.path
 ):
-  // TODO
   override def xmlContent: Xml.Element =
     var result: Xml.Element = Xml.element("feed")
     result = Xml.setAttribute(result, "xmlns", "http://www.w3.org/2005/Atom")
     result
-    
-    // TODO
+
 //    .children(
 //      //<generator uri="https://jekyllrb.com/" version="4.4.1">Jekyll</generator>
 //      //<link href="http://dub.podval.org/feed.xml" rel="self" type="application/atom+xml"/>
@@ -29,7 +27,7 @@ final class Feed(
 //      //</author>
 //    )
 
-// TODO 10 latest entries:
+// 10 latest entries:
 //<entry>
 //<title type="html">Mill: why?!</title>
 //<link href="http://dub.podval.org/2025/12/22/mill-why.html" rel="alternate" type="text/html" title="Mill: why?!"/>

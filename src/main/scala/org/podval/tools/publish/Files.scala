@@ -7,8 +7,8 @@ import java.nio.file.{Paths, StandardCopyOption, StandardOpenOption, Files as NF
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 object Files:
-  val imageExtensions: Set[String] = Set("jpg") // TODO more
-  val audioExtensions: Set[String] = Set("ogg") // TODO more
+  val imageExtensions: Set[String] = Set("jpg")
+  val audioExtensions: Set[String] = Set("ogg")
 
   def requireExists(file: File): Unit = require(file.exists, s"File does not exist: $file")
 

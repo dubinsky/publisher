@@ -12,14 +12,12 @@ final class Sitemap(
 ):
   override def xmlContent: Xml.Element =
     var result: Xml.Element = Xml.element("urlset")
-    // TODO I feed ZIO Blocks XML prefixed names here!
     result = Xml.setAttribute(result, "xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance")
     result = Xml.setAttribute(result, "xsi:schemaLocation", "http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd")
     result
-    
-    // TODO
+
+// TODO unordered, for each file; lastmod only if date (lastModified?) is present;
 //    .children(
-//      // TODO unordered, for each file; lastmod only if date (lastModified?) is present;
 //      // directories are included, even the top level;
 //      // only HTML files are included, not the CSS
 //      //<url>
@@ -27,4 +25,4 @@ final class Sitemap(
 //      //<lastmod>2009-08-07T14:30:00-04:00</lastmod>
 //      //</url>
 //    )
-  
+

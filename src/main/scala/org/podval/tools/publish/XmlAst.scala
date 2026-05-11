@@ -39,10 +39,11 @@ abstract class XmlAst:
 
   def transform(
     element: Element,
-    stop: String => Boolean,
+    // TODO change to:  stop: XmlAst => Element => Boolean
+    stop: Element => Boolean,
     transformElement: Element => Element
   ): Element =
-    def loop(element: Element): Element = if stop(qName(element)) then element else
+    def loop(element: Element): Element = if stop(element) then element else
       val result: Element = transformElement(element)
       setChildren(result, children(result).map(xml => asElement(xml).fold(xml)(loop)))
 
@@ -50,12 +51,12 @@ abstract class XmlAst:
 
   final def gather[A](
     element: Element,
-    stop: String => Boolean,
+    stop: Element => Boolean,
     gatherElement: Element => Option[A]
   ): Seq[A] =
     def loop(element: Element): Seq[A] =
       val fromElement: Option[A] = gatherElement(element)
-      val fromChildren: Seq[A] = if stop(qName(element)) then Seq.empty else
+      val fromChildren: Seq[A] = if stop(element) then Seq.empty else
         flatMapChildren(element, element => loop(element))
 
       fromElement.toSeq ++ fromChildren
@@ -64,12 +65,12 @@ abstract class XmlAst:
 
   final def gatherWithParents[A](
     element: Element,
-    stop: String => Boolean,
+    stop: Element => Boolean,
     gatherElement: (Element, Seq[Element]) => Option[A]
   ): Seq[A] =
     def loop(element: Element, parents: Seq[Element]): Seq[A] =
       val fromElement: Option[A] = gatherElement(element, parents)
-      val fromChildren: Seq[A] = if stop(qName(element)) then Seq.empty else
+      val fromChildren: Seq[A] = if stop(element) then Seq.empty else
         val parentsNew: Seq[Element] = element +: parents
         flatMapChildren(element, element => loop(element, parentsNew))
 
@@ -126,4 +127,13 @@ abstract class XmlAst:
   abstract class ClassNamePrefix(prefix: String):
     final def add(element: Element, name: String): Element = ClassName.add(element, s"$prefix-$name")
     final def get(element: Element): List[String] = ClassName.getStartsWith(element, prefix)
+
+  object InternalLinkClass extends ClassName("internal-link")
+  object WikiLinkClass extends ClassName("wiki-link")
+  object TranscludeClass extends ClassName("transclude")
+  object WikiBlockClass extends ClassName("wiki-block")
+
+  // TEI org/person/place, facsimile, etc.
+  object LinkKindClassPrefix extends ClassNamePrefix("ref-kind")
+
 

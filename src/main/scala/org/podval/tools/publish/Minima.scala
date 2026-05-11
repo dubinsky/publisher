@@ -29,7 +29,6 @@ object Minima:
       page.site.googleAnalytics.map(GoogleAnalytics(_))
     ).flatten
 
-    // TODO I may have to rip out the titles at layout...
     html(lang := page.lang,
       headHtml(page, libraries),
       body(
@@ -61,7 +60,7 @@ object Minima:
 
     val pathFull: Seq[MarkupPage] = parents(page)
     val path: Seq[MarkupPage] = if pathFull.isEmpty then pathFull else pathFull.tail
-    span(className := "post-path", path.map(page => span("/", page.ref("post-path"))))
+    span(className := "post-path", path.map(page => span("/", ref(page, "post-path"))))
 
   private def articleMeta(page: MarkupPage): Html.Element =
     div(className := "post-meta",
@@ -102,22 +101,23 @@ object Minima:
   ): Option[Html.Element] =
     if isBaseLayout || backLinks.isEmpty then None else Some:
       div(className := "backlinks",
-        hr, // TODO do a border
+        hr,
         h3("Backlinks"),
         ul(className := "backlinks-list", backLinks.map((from, links) =>
-          val url = from.link.url
+          val url = Link(from).url
           li(
-            // TODO use span instead of h4: title on the left, number on the right;
-            // it should also be linked to the page
-            h4(className := "page-backLinks-header", from.title, s"(${links.length})"),
-            // TODO I want this li foldable
-            ul(className := "page-backLinks", links.map(link =>
-              // TODO this should link to the context - but where do I get the ids?
-              // I SHOULD ADD IDs To ALL LINKS!
-              li(
-                a(className := "backlink", href := url, link.context)
-              )
-            ))
+            details(
+              summary(
+                className := "page-backLinks-header",
+                ref(from, "page-backlinks-link"),
+                span(className := "page-backlinks-count", links.length)
+              ),
+              ul(className := "page-backLinks", links.map(link =>
+                li(
+                  a(className := "backlink", href := url, link.context)
+                )
+              ))
+            )
           )
         ))
       )
@@ -132,9 +132,9 @@ object Minima:
       meta(httpEquiv := "X-UA-Compatible", content := "IE=edge"),
       meta(name := "viewport", content := "width=device-width, initial-scale=1"),
       // TODO {%- seo -%}: https://github.com/jekyll/jekyll-seo-tag
-      title(page.title), // TODO this is here until seo is implemented - it covers the title...
+      title(page.title),
       libraries.flatMap(_.head),
-      Html.stylesheet("/assets/css/style.css", idOpt = Some("main-stylesheet")),
+      Html.stylesheet(Site.mainStyleSheet, idOpt = Some("main-stylesheet")),
       // TODO {%- feed_meta -%}: https://github.com/jekyll/jekyll-feed
     )
 
@@ -174,7 +174,7 @@ object Minima:
     icon: FontAwesome.Icon,
     withTitle: Boolean = true
   ): Html.Element =
-    val pageLink: Page.Link = page.link
+    val pageLink: Link = Link(page)
     a(
       className := "nav-item",
       href := pageLink.url,
@@ -184,13 +184,13 @@ object Minima:
 
   private def footerHtml(site: Site): Html.Element =
     footer(className  := "site-footer h-card",
-      data(className := "u-url", href := "/"), // TODO base url?
+      data(className := "u-url", href := "/"),
       div(className := "wrapper",
-        h2(className := "footer-heading", site.title), // TODO as it used to be
+        h2(className := "footer-heading", site.title),
         div(className := "footer-col-wrapper",
           div(className := "footer-col footer-col-1",
             ul(className := "contact-list",
-              li(className := "p-name", site.author), // TODO escape
+              li(className := "p-name", site.author),
               li(a(className := "u-email", href := s"mailto:${site.email}", site.email))
             )
           ),
@@ -207,7 +207,7 @@ object Minima:
             )
           ),
           div(className := "footer-col footer-col-3",
-            p(site.description), // TODO escape!
+            p(site.description),
             p(
               a(href := Feed.path.toString,
                 FontAwesome.rss.htmlSpan,
@@ -218,3 +218,37 @@ object Minima:
         )
       )
     )
+
+  def pageList(
+    pages: List[Page],
+    title: String,
+    listClass: String,
+    itemClass: String
+  ): Option[Html.Element] = Option.when(pages.nonEmpty):
+    div(className := ("page-list", listClass),
+      h3(title),
+      Minima.list(pages, listClass, itemClass)
+    )
+
+  def list(pages: Seq[Page], listClass: String, itemClass: String): Html.Element = ul(
+    className := ("page-list", listClass),
+    pages.map(page => li(ref(page, itemClass)))
+  )
+
+  def ref(page: Page, cls: String): Html.Element =
+    val pageLink = Link(page)
+    a(className := cls, href := pageLink.url, pageLink.title)
+
+  def toc(sections: Seq[Page.Section]): Html.Element =
+    div(className := "toc",
+      h3("Table of Contents"),
+      tocSections(sections)
+    )
+
+  private def tocSections(sections: Seq[Page.Section]): Html.Element =
+    ul(sections.map(section =>
+      li(
+        a(className := "toc-link", href := s"#${section.id}", section.title),
+        Option.when(section.sections.nonEmpty)(tocSections(section.sections))
+      )
+    ))

@@ -11,12 +11,12 @@ abstract class HtmlLike extends Markup:
 
   final override def recognizeBlocks: Boolean = true
 
-  final override def stop(elementName: String): Boolean = elementName == Html.Code.elementName
+  final override def stop(xml: XmlAst)(element: xml.Element): Boolean = xml.Code.is(element)
 
   final override def convertLinks(element: Xml.Element): Xml.Element = element
 
   final override def getSections(element: Xml.Element, site: Site, sourcePath: Path): Seq[Section] =
-    nest(Xml.gather(element, stop, element => getSection(element, site, sourcePath)))
+    nest(Xml.gather(element, stop(Xml), element => getSection(element, site, sourcePath)))
 
   final override def isSectionElement(element: Xml.Element): Boolean = headerLevel(element).isDefined
 
@@ -41,7 +41,6 @@ abstract class HtmlLike extends Markup:
       id = id
     )
 
-  // TODO do nesting on the fly and verify levels!
   private def nest(sections: Seq[Section]): Seq[Section] =
     @tailrec
     def loop(result: Seq[Section], sections: Seq[Section]): Seq[Section] =
@@ -57,7 +56,6 @@ object HtmlLike:
     override val extension: String = "html"
     override val additionalExtensions: Set[String] = Set.empty
 
-    override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] =
-      // TODO move into Xml
-      try Right(Xml.asElement(zio.blocks.schema.xml.XmlReader.read(content)).get)
-      catch case e: zio.blocks.schema.xml.XmlCodecError => Left(PageError.Parsing(sourcePath, "", Some(e)))
+    override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] = Xml.parse(content) match
+      case Right(xml) => Right(Xml.asElement(xml).get)
+      case Left(e) => Left(PageError.Parsing(sourcePath, "HTML parsing error", Some(e)))

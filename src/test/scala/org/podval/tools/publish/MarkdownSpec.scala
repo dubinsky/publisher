@@ -17,7 +17,6 @@ object MarkdownSpec extends ZIOSpecDefault:
         xml =>
 
           println(XmlWriter.xmlWriter.render(xml))
-          // TODO verify
           assertTrue(
             true
           )

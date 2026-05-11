@@ -1,10 +1,8 @@
 package org.podval.tools.publish
 
-import zio.blocks.chunk.Chunk
 import BackLinks.BackLink
 
 final class BackLinks:
-  // TODO I will have to serialize this to disc probably or something...
   private var backLinks: List[BackLink] = List.empty
 
   def addBackLinks(backLink: Seq[BackLink]): Unit = backLinks = backLinks.appendedAll(backLink)
@@ -18,7 +16,7 @@ final class BackLinks:
 
 object BackLinks:
   final class BackLink(
-    val to: Page.Link,
+    val to: Link,
     val from: MarkupPage,
     val transclude: Boolean,
     val kind: Option[String],

@@ -67,7 +67,6 @@ final class Site(
     MarkupPage.DefaultMaker
   )
 
-  // TODO factor out
   private var errorsVar: List[PageError] = List.empty
   def errors: List[PageError] = errorsVar
 
@@ -146,11 +145,11 @@ final class Site(
 
       case Some(markup) =>
         val (frontMatter: FrontMatter, xml: Xml.Element) = parseMarkup(sourcePath, markup)
-        val pageMarkup: PageMarkup = PageMarkup(markup, this, sourcePath)
-        pageMarkup.cache(xml)
+        val source: MarkupPage.Source = MarkupPage.Source(markup, this, sourcePath)
+        source.cache(xml)
 
         pageMakers
-          .flatMap(_.withSource(this, frontMatter, pageMarkup))
+          .flatMap(_.withSource(this, frontMatter, source))
           .headOption
           .getOrElse(throw PageError.Unmakable(sourcePath, s"Can't make the page!"))
 
@@ -192,13 +191,6 @@ final class Site(
 
   lazy val headerPages: List[Site.HeaderPage] = markupPages.flatMap(_.headerPage).sortBy(_.priority)
 
-  // TODO unfold Ref?
-  def resolveRef(refString: String): Option[Page.Link] =
-    val ref: Page.Ref = Page.Ref(refString)
-    if ref.path.path.isEmpty || ref.path.path.exists(_.isEmpty)
-    then None
-    else pages.find(_.is(ref.path, ref.isAbsolute)).flatMap(_.resolveRef(ref.fragment))
-
 object Site:
   final class HeaderPage(
     val page: MarkupPage,
@@ -210,6 +202,8 @@ object Site:
 //    "--treat-errors-as-warnings=true",
     "/home/dub/Podval/dub.podval.org"
   ))
+
+  val mainStyleSheet: String = "/assets/css/style.css"
 
   // TODO list using Files.listResources
   val resourcesBase: String = "/org/podval/tools/publish/site"

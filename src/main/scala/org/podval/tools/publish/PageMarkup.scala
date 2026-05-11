@@ -1,246 +1,246 @@
 package org.podval.tools.publish
 
 import zio.blocks.chunk.Chunk
+import zio.blocks.html.*
 import java.net.{URI, URISyntaxException}
 import scala.annotation.tailrec
-import scala.ref.SoftReference
-import BackLinks.BackLink
 import Page.{Block, Section}
-import PageMarkup.Cached
-
-final class PageMarkup(
-  val markup: Markup,
-  val site: Site,
-  val sourcePath: Path
-):
-  private var cachedVar: Option[SoftReference[Cached]] = None
-  private def cache(cached: Cached): Unit = cachedVar = Some(SoftReference(cached))
-
-  def cache(xml: Xml.Element): Unit = cache(Cached(this, xml))
-
-  private def cached: Cached = cachedVar.get.get match
-    case Some(cached) => cached
-    case None =>
-      site.log.warn(s"Re-reading evicted PageMarkup: $sourcePath")
-      val (frontMatter: FrontMatter, xml: Xml.Element) = site.parseMarkup(sourcePath, markup)
-      val cached: Cached = Cached(this, xml)
-      cached
-
-  def resolveBlock(id: String): Option[Page.PartLink.ToBlock] = cached.resolveBlock(id)
-  def resolveSection(names: Seq[String]): Option[Page.PartLink.ToSection] = cached.resolveSection(names)
-  def backLinks(page: MarkupPage): Seq[BackLink] = cached.backLinks(page)
-  def xmlContent: Xml.Element = cached.xmlContent
-  def sections: Seq[Section] = cached.sections
 
 object PageMarkup:
-  private object InternalLinkClass extends Xml.ClassName("internal-link")
-  private object WikiLinkClass extends Xml.ClassName("wiki-link")
-  private object TranscludeClass extends Xml.ClassName("transclude")
+  private def isKramdownTocMarker(element: Html.Element): Boolean =
+    Html.qName(element) == "ul" &&
+    Html.children(element).length == 1 &&
+    Html.asElement(Html.children(element).head).fold(false): child =>
+      Html.qName(child) == "li" &&
+      Html.children(child).length == 1 &&
+      Html.asText(Html.children(child).head).fold(false): text =>
+        text.endsWith("{:toc}")
 
-  // TEI org/person/place, facsimile, etc.
-  private object LinkKindClassPrefix extends Xml.ClassNamePrefix("ref-kind")
+final class PageMarkup(
+  source: MarkupPage.Source,
+  private var xml: Xml.Element
+):
+  private def markup: Markup = source.markup
+  private def site: Site = source.site
+  private def sourcePath: Path = source.sourcePath
 
-  private final class Cached(
-    pageMarkup: PageMarkup,
-    private var xml: Xml.Element
-  ):
-    private def markup: Markup = pageMarkup.markup
-    private def site: Site = pageMarkup.site
-    private def sourcePath: Path = pageMarkup.sourcePath
+  // Pre-process raw XML
+  this.xml = Xml.transform(xml, markup.stop(Xml), element =>
+    var result: Xml.Element = element
+    result = setSectionId(result)
+    result = setBlockId(result)
+    result = markup.convertLinks(result)
+    result = convertWikiLinks(result)
+    result = markInternalLinks(result)
+    result
+  )
 
-    this.xml = Xml.transform(xml, markup.stop, element =>
+  def htmlContent: Html.Element =
+    // Post-process XML
+    val xmlResult: Xml.Element = Xml.transform(xml, markup.stop(Xml), element =>
       var result: Xml.Element = element
-      result = setSectionId(result)
-      result = setBlockId(result)
-      result = markup.convertLinks(result)
-      result = convertWikiLinks(result)
-      result = markInternalLinks(result)
-      result = embed(result)
+      result = resolveInternalLinks(result)
       result
     )
 
-    def xmlContent: Xml.Element =
-      xml = resolveInternalLinks(xml)
-      xml = restoreWikiLinks(xml)
-      xml
+    // Convert to HTML and post-process some more
+    Html.transform(Html.fromXml(xmlResult), markup.stop(Html), element =>
+      var result: Html.Element = element
+      result = embed(result)
+      result = restoreWikiLinks(result)
+      result = addToc(result)
+      result
+    )
 
-    private lazy val blocks: Seq[Block] = if !markup.recognizeBlocks then Seq.empty else
-      Xml.gather(xml, markup.stop, element =>
-        if !Xml.ClassName.has(element, Block.className) then None else Xml.Id.get(element) match
-          case None => PageError.NoId(sourcePath, s"Defect: No id on block $element").report(site)
-          case Some(id) => Some(Block(id))
+  def resolveBlock(id: String): Option[Link.ToBlock] = blocks
+    .find(_.id == id)
+    .map(Link.ToBlock(_))
+
+  private lazy val sections: Seq[Section] = markup.getSections(xml, site, sourcePath)
+
+  private lazy val sectionsFlat: Seq[Section] =
+    def forSection(section: Section): Seq[Section] = section +: section.sections.flatMap(forSection)
+    sections.flatMap(forSection)
+
+  def resolveSection(names: Seq[String]): Option[Link.ToSection] =
+    def loop(result: Seq[Section], sections: Seq[Section], names: Seq[String]): Option[Seq[Section]] =
+      if names.isEmpty then Some(result) else sections
+        .find(section => section.title == names.head || section.id == names.head)
+        .flatMap(section => loop(
+          result = result :+ section,
+          sections = section.sections,
+          names = names.tail
+        ))
+
+    loop(
+      result = Seq.empty,
+      sections = sectionsFlat,
+      names = names
+    )
+      .map(Link.ToSection(_))
+
+  // Note: for Markdown, this can be achieved by setting `HtmlRenderer.GENERATE_HEADER_ID`,
+  // but I do it manually and uniformly for HTML, TEI etc.
+  private def setSectionId(element: Xml.Element): Xml.Element =
+    if !markup.isSectionElement(element) || Xml.Id.get(element).isDefined then element else
+      Xml.toStringOpt(element) match
+        case None => PageError.NoId(sourcePath, s"No id or title on $element").report(site, element)
+        case Some(title) => Xml.Id.set(element, Xml.Id.toId(title))
+
+  // TODO according to the Obsidian documentation, block anchor can be added to a "structured block"
+  // (e.g., a list) by putting it after the block, with empty lines before and after;
+  // I'll deal with this later...
+  private def setBlockId(element: Xml.Element): Xml.Element =
+    if !markup.recognizeBlocks then element else
+      val children: Chunk[Xml.Xml] = Xml.children(element)
+      if children.isEmpty then element else Xml.asText(children.last).fold(element): text =>
+        val (before: String, id: Option[String]) = Strings.split(text, '^')
+        id.fold(element): id =>
+          if before.nonEmpty && !Character.isWhitespace(before.last) then element else
+            val result: Xml.Element = Xml.setChildren(element,
+              children.init ++ Option.when(before.nonEmpty)(Xml.mkText(before)).toSeq
+            )
+            Xml.Id.get(result) match
+              case Some(idExisting) =>
+                PageError.NoId(sourcePath, s"Block id '$id' conflicts with existing id '$idExisting'").report(site, result)
+              case None => Xml.WikiBlockClass.add(Xml.Id.set(result, id))
+
+  private def convertWikiLinks(element: Xml.Element): Xml.Element =
+    if !markup.recognizeWikiLinks then element else Xml.setChildren(element, Xml.children(element).flatMap(xml =>
+      Xml.asText(xml).fold(Seq(xml))(text => convertWikiLinks(Seq.empty, text)))
+    )
+
+  // see https://obsidian.md/help/links
+  @tailrec
+  private def convertWikiLinks(result: Seq[Xml.Xml], text: String): Seq[Xml.Xml] =
+    if text.isEmpty then result else
+      convertWikiLink(text, "![[", "]]", transclude = true)
+        .orElse(convertWikiLink(text, "[[", "]]", transclude = false)) match
+        case None => result ++ Seq(Xml.mkText(text))
+        case Some(xml: Seq[Xml.Xml], after: String) => convertWikiLinks(result ++ xml, after)
+
+  private def convertWikiLink(
+    text: String,
+    start: String,
+    end: String,
+    transclude: Boolean
+  ): Option[(Seq[Xml.Xml], String)] =
+    val startIndex: Int = text.indexOf(start)
+    val endIndex: Int = if startIndex == -1 then -1 else text.indexOf(end, startIndex + start.length)
+    if endIndex == -1 then None else
+      val before: String = text.substring(0, startIndex).trim
+      val body: String = text.substring(startIndex + start.length, endIndex).trim
+      val after: String = text.substring(endIndex + end.length).trim
+      val (ref: String, textOpt: Option[String]) = Strings.split(body, '|')
+
+      val result: Xml.Element =
+        var result: Xml.Element = Xml.element(Xml.A.elementName)
+        result = Xml.setAttribute(result, Html.Href.attributeName, ref.trim)
+        result = Xml.WikiLinkClass.add(result)
+        if transclude then result = Xml.TranscludeClass.add(result)
+        textOpt.map(_.trim).filterNot(_.isEmpty).foreach(text => result = Xml.setText(result, text))
+        result
+
+      Some(
+        Option.when(before.nonEmpty)(Xml.mkText(before)).toSeq ++ Seq(result),
+        after
       )
 
-    def resolveBlock(id: String): Option[Page.PartLink.ToBlock] =
-      blocks.find(_.id == id).map(Page.PartLink.ToBlock(_))
-
-    lazy val sections: Seq[Section] = markup.getSections(xml, site, sourcePath)
-
-    private lazy val sectionsFlat: Seq[Section] =
-      def forSection(section: Section): Seq[Section] = section +: section.sections.flatMap(forSection)
-      sections.flatMap(forSection)
-
-    def resolveSection(names: Seq[String]): Option[Page.PartLink.ToSection] =
-      def loop(result: Seq[Section], sections: Seq[Section], names: Seq[String]): Option[Seq[Section]] =
-        if names.isEmpty then Some(result) else sections
-          .find(section => section.title == names.head || section.id == names.head)
-          .flatMap(section => loop(
-            result = result :+ section,
-            sections = section.sections,
-            names = names.tail
-          ))
-
-      loop(
-        result = Seq.empty,
-        sections = sectionsFlat,
-        names = names
-      )
-        .map(Page.PartLink.ToSection(_))
-
-    private def setSectionId(element: Xml.Element): Xml.Element =
-      if !markup.isSectionElement(element) || Xml.Id.get(element).isDefined then element else
-        Xml.toStringOpt(element) match
-          case None => PageError.NoId(sourcePath, s"No id or title on $element").report(site, element)
-          case Some(title) => Xml.Id.set(element, Xml.Id.toId(title))
-
-    // TODO according to the Obsidian documentation, block anchor can be added to a "structured block"
-    // (e.g., a list) by putting it after the block, with empty lines before and after;
-    // I'll deal with this later...
-    private def setBlockId(element: Xml.Element): Xml.Element =
-      if !markup.recognizeBlocks then element else
-        val children: Chunk[Xml.Xml] = Xml.children(element)
-        if children.isEmpty then element else Xml.asText(children.last).fold(element): text =>
-          val (before: String, id: Option[String]) = Strings.split(text, '^')
-          id.fold(element): id =>
-            if before.nonEmpty && !Character.isWhitespace(before.last) then element else
-              val result: Xml.Element = Xml.setChildren(element,
-                children.init ++ Option.when(before.nonEmpty)(Xml.mkText(before)).toSeq
-              )
-              Xml.Id.get(result) match
-                case Some(idExisting) =>
-                  PageError.NoId(sourcePath, s"Block id '$id' conflicts with existing id '$idExisting'").report(site, result)
-                case None => Xml.ClassName.add(Xml.Id.set(result, id), Block.className)
-
-    private def convertWikiLinks(element: Xml.Element): Xml.Element =
-      if !markup.recognizeWikiLinks then element else Xml.setChildren(element, Xml.children(element).flatMap(xml =>
-        Xml.asText(xml).fold(Seq(xml))(text => convertWikiLinks(Seq.empty, text)))
-      )
-
-    // see https://obsidian.md/help/links
-    @tailrec
-    private def convertWikiLinks(result: Seq[Xml.Xml], text: String): Seq[Xml.Xml] =
-      if text.isEmpty then result else
-        convertWikiLink(text, "![[", "]]", transclude = true)
-          .orElse(convertWikiLink(text, "[[", "]]", transclude = false)) match
-          case None => result ++ Seq(Xml.mkText(text))
-          case Some(xml: Seq[Xml.Xml], after: String) => convertWikiLinks(result ++ xml, after)
-
-    private def convertWikiLink(
-      text: String,
-      start: String,
-      end: String,
-      transclude: Boolean
-    ): Option[(Seq[Xml.Xml], String)] =
-      val startIndex: Int = text.indexOf(start)
-      val endIndex: Int = if startIndex == -1 then -1 else text.indexOf(end, startIndex + start.length)
-      if endIndex == -1 then None else
-        val before: String = text.substring(0, startIndex).trim
-        val body: String = text.substring(startIndex + start.length, endIndex).trim
-        val after: String = text.substring(endIndex + end.length).trim
-        val (ref: String, textOpt: Option[String]) = Strings.split(body, '|')
-
-        val result: Xml.Element =
-          var result: Xml.Element = Xml.element(Xml.A.elementName)
-          result = Xml.setAttribute(result, Html.Href.attributeName, ref.trim)
-          result = PageMarkup.WikiLinkClass.add(result)
-          if transclude then result = PageMarkup.TranscludeClass.add(result)
-          textOpt.map(_.trim).filterNot(_.isEmpty).foreach(text => result = Xml.setText(result, text))
-          result
-
-        Some(
-          Option.when(before.nonEmpty)(Xml.mkText(before)).toSeq ++ Seq(result),
-          after
-        )
-
-    private def markInternalLinks(element: Xml.Element): Xml.Element =
-      if !Xml.A.is(element) then element else
-        Xml.Href.get(element).fold(element): ref =>
-          val isInternal: Boolean = try
-            val uri: URI = URI(ref)
-            if uri.getScheme != null && uri.getHost == site.url
-            then PageError.SelfLink(sourcePath, ref).report(site)
-            uri.getScheme == null
-          catch case e: URISyntaxException => true
-
-          if !isInternal
-          then
-            // TODO verify that external link is not broken if the Site is so configured
-            element
-          else PageMarkup.InternalLinkClass.add(element)
-
-    // see https://obsidian.md/help/embeds
-    // TODO FlexMark inlines image links for the ![]() references - but does not process image sizes...
-    private def embed(element: Xml.Element): Xml.Element = if !Xml.A.is(element) then element else
+  private def markInternalLinks(element: Xml.Element): Xml.Element =
+    if !Xml.A.is(element) then element else
       Xml.Href.get(element).fold(element): ref =>
-        if !PageMarkup.TranscludeClass.has(element) then element else
-          val embedded: Option[Xml.Element] = Files.nameAndExtension(ref)._2.fold(None): extension =>
-            if Files.imageExtensions.contains(extension) then
-              // TODO Embed image, potentially with sizes WIDTHxHEIGHT or just WIDTH or nothing in the text
-              None
-            else if Files.audioExtensions.contains(extension) then
-              // TODO Embed audio player
-              None
-            else if extension == "pdf" then
-              // TODO Embed PDF viewer, with potentially page=PAGE&height=HEIGHT or one or none in the text
-              None
-            else
-              None
+        val isInternal: Boolean = try
+          val uri: URI = URI(ref)
+          if uri.getScheme != null && uri.getHost == site.url
+          then PageError.SelfLink(sourcePath, ref).report(site)
+          uri.getScheme == null
+        catch case e: URISyntaxException => true
 
-          embedded.getOrElse:
-            // TODO can not transclude external links
-            element
+        if !isInternal
+        then
+          // TODO verify that external link is not broken if the Site is so configured
+          element
+        else Xml.InternalLinkClass.add(element)
 
-    def backLinks(page: MarkupPage): Seq[BackLink] = Xml.gatherWithParents(xml, markup.stop, (element, parents) =>
-      if !Xml.A.is(element) || !PageMarkup.InternalLinkClass.has(element) then None else
-        for
-          ref <- Xml.Href.get(element)
-          linkTo <- site.resolveRef(ref)
-        yield BackLink(
-          to = linkTo,
-          from = page,
-          transclude = PageMarkup.TranscludeClass.has(element),
-          kind = PageMarkup.LinkKindClassPrefix.get(element).headOption,
-          context = context(element, parents)
-        )
+  def backLinks(page: MarkupPage): Seq[BackLinks.BackLink] = Xml.gatherWithParents(xml, markup.stop(Xml), (element, parents) =>
+    if !Xml.A.is(element) || !Xml.InternalLinkClass.has(element) then None else
+      for
+        ref <- Xml.Href.get(element)
+        linkTo <- Link.resolve(ref, site)
+      yield BackLinks.BackLink(
+        to = linkTo,
+        from = page,
+        transclude = Xml.TranscludeClass.has(element),
+        kind = Xml.LinkKindClassPrefix.get(element).headOption,
+        context = context(element, parents)
+      )
+    )
+
+  // Note: I can widen the context by going after grandparent etc. if it is too short - but Obsidian does not seem to do it...
+  private def context(focus: Xml.Element, parents: Seq[Xml.Element]): Html.Element =
+    var parent: Xml.Element = parents.head
+    parent = Xml.setChildren(parent, Xml.children(parent).map(node => Xml.asElement(node).fold(node): element =>
+      if element ne focus then element else Xml.ClassName.add(element, "backLink-focus")
+    ))
+    Html.transform(Html.fromXml(parent), markup.stop(Html), restoreWikiLinks)
+
+  private def resolveInternalLinks(element: Xml.Element): Xml.Element =
+    if !Xml.A.is(element) || !Xml.InternalLinkClass.has(element) then element else
+      Xml.Href.get(element).fold(element)(ref => Link.resolve(ref, site) match
+      case None =>
+        PageError.Unresolved(sourcePath, s"unresolved internal link ref='$ref': $element}'").report(site, element)
+        val result = Xml.ClassName.add(element, "unresolved-link")
+        result
+      case Some(linkTo) =>
+        // TODO transclude
+        var result: Xml.Element = Xml.Href.set(element, linkTo.url)
+        if Xml.children(element).isEmpty then result = Xml.setText(result, linkTo.title)
+        result
       )
 
-    // Note: I can widen the context by going after grandparent etc. if it is too short - but Obsidian does not seem to do it...
-    private def context(focus: Xml.Element, parents: Seq[Xml.Element]): Html.Element =
-      var parent = parents.head
-      parent = Xml.setChildren(parent, Xml.children(parent).map(node => Xml.asElement(node).fold(node): element =>
-        if element ne focus then element else Xml.ClassName.add(element, "backLink-focus")
-      ))
-      parent = restoreWikiLinks(parent)
-      // TODO shorten the context if it is too long (120-130, with at least one side breaking on punctuation...)
-      Html.fromXml(parent)
+  // see https://obsidian.md/help/embeds
+  // TODO FlexMark inlines image links for the ![]() references - but does not process image sizes...
+  private def embed(element: Html.Element): Html.Element = if !Html.A.is(element) then element else
+    Html.Href.get(element).fold(element): ref =>
+      if !Html.TranscludeClass.has(element) then element else
+        val embedded: Option[Html.Element] = Files.nameAndExtension(ref)._2.fold(None): extension =>
+          if Files.imageExtensions.contains(extension) then
+            val (widthOpt: Option[Int], heightOpt: Option[Int]) =
+              // TODO Embed image, potentially with sizes WIDTHxHEIGHT or just WIDTH or nothing in the text
+              (None, None)
 
-    // TODO resolve 'img' too?
-    private def resolveInternalLinks(element: Xml.Element): Xml.Element = Xml.transform(element, markup.stop, element =>
-      if !Xml.A.is(element) || !PageMarkup.InternalLinkClass.has(element) then element else
-        Xml.Href.get(element).fold(element)(ref => site.resolveRef(ref) match
-        case None =>
-          PageError.Unresolved(sourcePath, s"unresolved internal link ref='$ref': $element}'").report(site, element)
-          val result = Xml.ClassName.add(element, "unresolved-link")
-          result
-        case Some(linkTo) =>
-          // TODO transclude
-          var result: Xml.Element = Xml.Href.set(element, linkTo.url)
-          if Xml.children(element).isEmpty then result = Xml.setText(result, linkTo.title)
-          result
-      ))
+            Some(img(
+              src := ref,
+              alt := s"Image: $ref",
+              widthOpt.map(value => width := value),
+              heightOpt.map(value => height := value)
+            ))
+          else if Files.audioExtensions.contains(extension) then
+            Some(audio(controls := true, src := ref))
+          else if extension == "pdf" then
+            // TODO Embed PDF viewer, with potentially page=PAGE&height=HEIGHT or one or none in the text
+            None
+          else
+            None
 
-    // Unresolved wiki links do not have any text; restore the ref as their text.
-    private def restoreWikiLinks(element: Xml.Element): Xml.Element = Xml.transform(element, markup.stop, element =>
-      if !Xml.A.is(element) || !PageMarkup.WikiLinkClass.has(element) || Xml.children(element).nonEmpty then element else
-        Xml.Href.get(element).fold(element)(ref => Xml.setText(element, ref))
+        embedded.getOrElse:
+          // TODO can not transclude external links
+          element
+
+  // Unresolved wiki links do not have any text; restore the ref as their text;
+  // also, surround the text with explicit [[...]] instead of adding them in CSS.
+  private def restoreWikiLinks(element: Html.Element): Html.Element =
+    // TODO if internal non-wiki links can be empty, use InternalLinkClass instead?
+    if !Html.A.is(element) || !Html.WikiLinkClass.has(element) then element else
+      val text = Html.toStringOpt(element).orElse(Html.Href.get(element)).getOrElse("EMPTY LINK")
+      Html.setText(element, s"[[$text]]")
+
+  private def addToc(element: Html.Element): Html.Element =
+    if !PageMarkup.isKramdownTocMarker(element) then element else Minima.toc(sections)
+
+  private lazy val blocks: Seq[Block] = if !markup.recognizeBlocks then Seq.empty else
+    Xml.gather(xml, markup.stop(Xml), element =>
+      if !Xml.WikiBlockClass.has(element) then None else Xml.Id.get(element) match
+        case None => PageError.NoId(sourcePath, s"Defect: No id on block $element").report(site)
+        case Some(id) => Some(Block(id))
     )

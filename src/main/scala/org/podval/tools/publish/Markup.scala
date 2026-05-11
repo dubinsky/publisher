@@ -23,7 +23,7 @@ abstract class Markup derives CanEqual:
 
   def recognizeBlocks: Boolean
 
-  def stop(elementName: String): Boolean
+  def stop(xml: XmlAst)(element: xml.Element): Boolean
 
   def isSectionElement(element: Xml.Element): Boolean
 

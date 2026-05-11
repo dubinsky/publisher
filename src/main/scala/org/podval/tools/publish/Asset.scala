@@ -11,9 +11,9 @@ abstract class Asset(
 
   final override def title: String = path.fileNameWithNonHtmlExtension
 
-  final override def resolveBlock(id: String): Option[Page.PartLink.ToBlock] = None
+  final override def resolveBlock(id: String): Option[Link.ToBlock] = None
 
-  final override def resolveSection(names: Seq[String]): Option[Page.PartLink.ToSection] = None
+  final override def resolveSection(names: Seq[String]): Option[Link.ToSection] = None
 
 object Asset:
   final class WithSource(

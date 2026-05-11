@@ -43,4 +43,7 @@ object Xml extends XmlAst:
     case XML.CData(value) => Some(value)
     case _ => None
 
+  def parse(content: String): Either[zio.blocks.schema.xml.XmlCodecError, Xml] =
+    try Right(zio.blocks.schema.xml.XmlReader.read(content))
+    catch case e: zio.blocks.schema.xml.XmlCodecError => Left(e)
 

@@ -6,29 +6,19 @@ final class Directory(
   site: Site,
   path: Path,
   frontMatter: FrontMatter,
-  pageMarkup: Option[PageMarkup]
+  source: Option[MarkupPage.Source]
 ) extends MarkupPage(
   site,
   path,
   frontMatter,
-  pageMarkup
+  source
 ) with MarkupPage.BaseLayout:
   override def iconDefault: FontAwesome.Icon = FontAwesome.folder
 
   override protected def syntheticContent: Option[Html.Element] = Some:
     div(className := "directory",
-      pageList(directories, "Directories", "directories-list"),
-      pageList(pages, "Pages", "pages-list")
-    )
-
-  private def pageList(
-    pages: List[Page],
-    title: String,
-    cls: String
-  ): Option[Html.Element] = Option.when(pages.nonEmpty):
-    div(className := s"page-list $cls",
-      h3(title),
-      ul(className := s"page-list $cls", pages.map(page => li(page.ref("sub"))))
+      Minima.pageList(directories, "Directories", "directories-list", "sub"),
+      Minima.pageList(pages, "Pages", "pages-list", "sub")
     )
 
   def prev(page: Page): Option[Page] = listFor(page).takeWhile(_ != page).reverse.headOption
@@ -75,7 +65,7 @@ object Directory:
           site,
           parentPath,
           frontMatter = FrontMatter.absent,
-          pageMarkup = None
+          source = None
         )
         // Force insertion of the parent's parent for the newly-inserted parent
         parent.parent

@@ -6,19 +6,16 @@ final class Errors(
   site: Site,
   path: Path,
   frontMatter: FrontMatter,
-  pageMarkup: Option[PageMarkup]
+  source: Option[MarkupPage.Source]
 ) extends MarkupPage(
   site,
   path,
   frontMatter,
-  pageMarkup,
+  source,
 ):
   override def iconDefault: FontAwesome.Icon = FontAwesome.errors
 
   override protected def syntheticContent: Option[Html.Element] = Some:
-    // TODO generate report page(s):
-    //- broken links
-    //- inconsistent titles
     div(className := "site-errors", id := "site-errors")
 
 object Errors:

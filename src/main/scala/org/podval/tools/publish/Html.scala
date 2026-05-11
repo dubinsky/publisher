@@ -12,7 +12,6 @@ object Html extends XmlAst:
     case element: XML.Element => Some(element)
     case _ => None
 
-  // TODO ZIO Blocks HTML does not allow prefixed names?!
   // TODO rename name
   override def qName(element: Element): String = element.tag
 
@@ -28,13 +27,13 @@ object Html extends XmlAst:
   override def attributes(element: Element): Chunk[(String, String)] =
     element.attributes.map {
       case XML.Attribute.KeyValue(name, value) => (name, attributeValue(value))
-      case XML.Attribute.BooleanAttribute(name, enabled) => (name, enabled.toString) // TODO!
+      case XML.Attribute.BooleanAttribute(name, enabled) => (name, enabled.toString)
       case XML.Attribute.AppendValue(name, value, separator) => (name, attributeValue(value))
     }
 
   private def attributeValue(value: XML.AttributeValue): String = value match
     case XML.AttributeValue.StringValue(value) => value
-    case XML.AttributeValue.BooleanValue(value) => value.toString // TODO!
+    case XML.AttributeValue.BooleanValue(value) => value.toString
     case XML.AttributeValue.MultiValue(values, separator) => values.mkString(separator.render)
     case XML.AttributeValue.JsValue(value) => value.value
 
