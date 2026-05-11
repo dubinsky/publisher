@@ -39,11 +39,11 @@ open class MarkupPage(
       case None if path.path.length > 1 => path.path.init.last // directory name
       case None => path.fileName // "index"
 
-  final def backLinks: Seq[BackLinks.BackLink] =
-    pageMarkup.fold(Seq.empty)(_.backLinks(this))
-
   final override def sourcePathOpt: Option[Path] =
     pageMarkup.map(_.sourcePath)
+
+  final def backLinks: Seq[BackLinks.BackLink] =
+    pageMarkup.fold(Seq.empty)(_.backLinks(this))
 
   final override def resolveBlock(id: String): Option[Page.PartLink.ToBlock] =
     pageMarkup.flatMap(_.resolveBlock(id))
@@ -54,13 +54,10 @@ open class MarkupPage(
   final override def htmlContent: Html.Element =
     val markupContent: Option[Html.Element] = pageMarkup.map: pageMarkup =>
       val htmlContent: Html.Element = Html.fromXml(pageMarkup.xmlContent)
-      Html.transform(
-        htmlContent,
-        stop = element => pageMarkup.markup.stop(Html.qName(element)),
-        element =>
-          if !MarkupPage.isKramdownTocMarker(element)
-          then element
-          else MarkupPage.toc(pageMarkup.sections)
+      Html.transform(htmlContent, pageMarkup.markup.stop, element =>
+        if !MarkupPage.isKramdownTocMarker(element)
+        then element
+        else MarkupPage.toc(pageMarkup.sections)
       )
 
     Minima.render(

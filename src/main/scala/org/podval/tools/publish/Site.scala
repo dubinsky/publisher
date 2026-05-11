@@ -16,7 +16,7 @@ final class Site(
   private given CanEqual[File, File] = CanEqual.derived
 
   Logging.configureLogBack(level = logLevel, useLogStash = false)
-  private val log: Logger = LoggerFactory.getLogger(this.getClass)
+  val log: Logger = LoggerFactory.getLogger(this.getClass)
 
   private val config: Config = Config(
     sourceDirectoryPath,
@@ -26,6 +26,7 @@ final class Site(
 
   def sourceDirectory: File = config.sourceDirectory
   def targetDirectory: File = config.targetDirectory
+
   def title: String = config.title
   def description: String = config.description
   def url: String = config.url
@@ -114,8 +115,10 @@ final class Site(
     // Add directory pages
     Directory.addParentDirectories(this)
 
-    // Resolve links
+    // Gather back-links
     markupPages.foreach(page => backLinks.addBackLinks(page.backLinks))
+
+    // TODO sort pages topologically based on transclusions
 
     // Write pages
     writePages(pages)
@@ -142,22 +145,9 @@ final class Site(
       case None => Asset.WithSource(site = this, path = sourcePath)
 
       case Some(markup) =>
-        val (frontMatterOrError: Either[PageError, FrontMatter], markupContent: String) =
-          FrontMatter.parse(sourcePath, Files.read(sourcePath.file(sourceDirectory)))
-
-        val frontMatter: FrontMatter = frontMatterOrError match
-          case Right(frontMatter) => frontMatter
-          case Left(error) => error.report(this, FrontMatter.absent)
-
-        val xml: Xml.Element = markup.parse(sourcePath, markupContent) match
-          case Right(xml) => xml
-          case Left(error) =>
-            var result = Xml.element("div")
-            result = Xml.ClassName.add(result, "malformed-xml")
-            result = Xml.setText(result, s"Malformed XML: $error")
-            error.report(this, result)
-
-        val pageMarkup: PageMarkup = PageMarkup(markup, this, sourcePath, xml)
+        val (frontMatter: FrontMatter, xml: Xml.Element) = parseMarkup(sourcePath, markup)
+        val pageMarkup: PageMarkup = PageMarkup(markup, this, sourcePath)
+        pageMarkup.cache(xml)
 
         pageMakers
           .flatMap(_.withSource(this, frontMatter, pageMarkup))
@@ -166,6 +156,24 @@ final class Site(
 
     log.debug(s"Read: $page")
     page
+
+  def parseMarkup(sourcePath: Path, markup: Markup): (FrontMatter, Xml.Element) =
+    val (frontMatterOrError: Either[PageError, FrontMatter], markupContent: String) =
+      FrontMatter.parse(sourcePath, Files.read(sourcePath.file(sourceDirectory)))
+
+    val frontMatter: FrontMatter = frontMatterOrError match
+      case Right(frontMatter) => frontMatter
+      case Left(error) => error.report(this, FrontMatter.absent)
+
+    val xml: Xml.Element = markup.parse(sourcePath, markupContent) match
+      case Right(xml) => xml
+      case Left(error) =>
+        var result = Xml.element("div")
+        result = Xml.ClassName.add(result, "malformed-xml")
+        result = Xml.setText(result, s"Malformed XML: $error")
+        error.report(this, result)
+
+    (frontMatter, xml)
 
   private def writePages(pages: List[Page]): Unit = pages.foreach: page =>
     page.write()

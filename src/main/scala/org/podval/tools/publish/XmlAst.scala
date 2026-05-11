@@ -39,10 +39,10 @@ abstract class XmlAst:
 
   def transform(
     element: Element,
-    stop: Element => Boolean,
+    stop: String => Boolean,
     transformElement: Element => Element
   ): Element =
-    def loop(element: Element): Element = if stop(element) then element else
+    def loop(element: Element): Element = if stop(qName(element)) then element else
       val result: Element = transformElement(element)
       setChildren(result, children(result).map(xml => asElement(xml).fold(xml)(loop)))
 
@@ -78,14 +78,13 @@ abstract class XmlAst:
       if list.contains(name)
       then element
       else set(element, list.appended(name))
-     
+
   abstract class ClassName(name: String):
     final def add(element: Element): Element = ClassName.add(element, name)
     final def has(element: Element): Boolean = ClassName.has(element, name)
-    
+
   abstract class ClassNamePrefix(prefix: String):
-    final def add(element: Element, name: String): Element = ClassName.add(element, s"$prefix-$name")  
+    final def add(element: Element, name: String): Element = ClassName.add(element, s"$prefix-$name")
     final def get(element: Element): List[String] = ClassName.getList(element)
       .filter(_.startsWith(s"$prefix-"))
       .map(_.substring(prefix.length+1))
-    
