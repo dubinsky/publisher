@@ -3,16 +3,30 @@ package org.podval.tools.publish
 import zio.blocks.html.*
 
 // Based on https://github.com/jekyll/minima
-// TODO add up/prev/next to navigation!
-// TODO unfold?
 object Minima:
-  def render(page: MarkupPage, content: Seq[Html.Element]): Html.Element =
+  def render(
+    page: MarkupPage,
+    markupContent: Option[Html.Element],
+    syntheticContent: Option[Html.Element]
+  ): Html.Element =
     val isBaseLayout: Boolean = page.isInstanceOf[MarkupPage.BaseLayout]
 
+    def getLanguages(element: Html.Element): Seq[String] =
+      if Html.Code.is(element)
+      then Html.ClassName.getStartsWith(element, "language")
+      else Html.flatMapChildren(element, getLanguages)
+
+    val languages: Set[String] = markupContent.fold(Set.empty)(getLanguages(_).toSet)
+    val languagesToHighlight: Set[String] = languages - "mermaid"
+
+    val content: Seq[Html.Element] = Seq(markupContent, syntheticContent).flatten
+
     val libraries: List[Html.JSLibrary] = List(
-      Highlights.get(content),
+      Option.when(languagesToHighlight.nonEmpty)(Highlights(languages)),
       Option.when(page.math)(MathJax),
-      Some(FontAwesome())
+      Some(FontAwesome()),
+      Option.when(languages.contains("mermaid"))(Mermaid()),
+      page.site.googleAnalytics.map(GoogleAnalytics(_))
     ).flatten
 
     // TODO I may have to rip out the titles at layout...
@@ -108,6 +122,7 @@ object Minima:
         ))
       )
 
+  // TODO unfold
   private def headHtml(
     page: MarkupPage,
     libraries: List[Html.JSLibrary]
@@ -121,17 +136,6 @@ object Minima:
       libraries.flatMap(_.head),
       Html.stylesheet("/assets/css/style.css", idOpt = Some("main-stylesheet")),
       // TODO {%- feed_meta -%}: https://github.com/jekyll/jekyll-feed
-      page.site.googleAnalytics.map(googleAnalytics => Seq(
-        script().externalJs(s"https://www.googletagmanager.com/gtag/js?id=$googleAnalytics"),
-        script().inlineJs(
-          js"""window.dataLayer = window.dataLayer || [];
-              |function gtag(){window.dataLayer.push(arguments);}
-              |gtag('js', new Date());
-              |gtag('config', '$googleAnalytics');
-            """.stripMargin
-        )
-      ))
-      // Skipped: {%- include custom-head.html -%}
     )
 
   private def headerHtml(page: MarkupPage): Html.Element =

@@ -81,7 +81,7 @@ object Page:
       new Ref(path, isAbsolute, fragment)
 
   final class Link(val page: Page, part: Option[PartLink]):
-    def url: String = page.path.toString + part.fold("")(part => s"#${part.id}")
+    def url: String = page.path.toString /* TODO URL-encode!*/ + part.fold("")(part => s"#${part.id}")
     def title: String = page.title + part.fold("")(part => s"#${part.title}")
 
   sealed abstract class Part(val id: String)

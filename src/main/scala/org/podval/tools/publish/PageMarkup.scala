@@ -65,7 +65,7 @@ object PageMarkup:
       xml
 
     private lazy val blocks: Seq[Block] = if !markup.recognizeBlocks then Seq.empty else
-      markup.gather(xml, element =>
+      Xml.gather(xml, markup.stop, element =>
         if !Xml.ClassName.has(element, Block.className) then None else Xml.Id.get(element) match
           case None => PageError.NoId(sourcePath, s"Defect: No id on block $element").report(site)
           case Some(id) => Some(Block(id))
@@ -200,7 +200,7 @@ object PageMarkup:
             // TODO can not transclude external links
             element
 
-    def backLinks(page: MarkupPage): Seq[BackLink] = markup.gatherWithParents(xml, (element, parents) =>
+    def backLinks(page: MarkupPage): Seq[BackLink] = Xml.gatherWithParents(xml, markup.stop, (element, parents) =>
       if !Xml.A.is(element) || !PageMarkup.InternalLinkClass.has(element) then None else
         for
           ref <- Xml.Href.get(element)

@@ -2,10 +2,8 @@ package org.podval.tools.publish
 
 import org.podval.tools.publish.PageError
 import scala.jdk.CollectionConverters.SeqHasAsJava
-import com.vladsch.flexmark.ext.anchorlink.AnchorLinkExtension
 import com.vladsch.flexmark.ext.autolink.AutolinkExtension
 import com.vladsch.flexmark.ext.tables.TablesExtension
-//import com.vladsch.flexmark.ext.toc.TocExtension
 import com.vladsch.flexmark.html.HtmlRenderer
 import com.vladsch.flexmark.parser.Parser
 import com.vladsch.flexmark.util.data.MutableDataSet
@@ -17,12 +15,11 @@ object Markdown extends HtmlLike:
   // TODO add missing extensions:
   // - admonitions
   private val flexMarkExtensions: List[Parser.ParserExtension & HtmlRenderer.HtmlRendererExtension] = List(
-    //      AnchorLinkExtension.create,
-    //      AutolinkExtension.create,
-    TablesExtension.create,
-    //      TocExtension.create,
-    //      WikiLinkExtension.create,
-    //      StrikethroughExtension.create
+    // TODO      AdmonitionsExtension.create,
+    // TODO      AsideExtension.create,
+    // TODO      AutolinkExtension.create,
+    // TODO      GFMTaskListExtension.create
+    TablesExtension.create
   )
 
   private val options: MutableDataSet = new MutableDataSet

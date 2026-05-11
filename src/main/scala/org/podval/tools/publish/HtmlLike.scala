@@ -11,12 +11,12 @@ abstract class HtmlLike extends Markup:
 
   final override def recognizeBlocks: Boolean = true
 
-  final override def stop(elementName: String): Boolean = elementName == Html.code
+  final override def stop(elementName: String): Boolean = elementName == Html.Code.elementName
 
   final override def convertLinks(element: Xml.Element): Xml.Element = element
 
   final override def getSections(element: Xml.Element, site: Site, sourcePath: Path): Seq[Section] =
-    nest(gather(element, element => getSection(element, site, sourcePath)))
+    nest(Xml.gather(element, stop, element => getSection(element, site, sourcePath)))
 
   final override def isSectionElement(element: Xml.Element): Boolean = headerLevel(element).isDefined
 

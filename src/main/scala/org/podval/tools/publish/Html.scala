@@ -11,7 +11,7 @@ object Html extends XmlAst:
   override def asElement(xml: Xml): Option[Element] = xml match
     case element: XML.Element => Some(element)
     case _ => None
-  
+
   // TODO ZIO Blocks HTML does not allow prefixed names?!
   // TODO rename name
   override def qName(element: Element): String = element.tag
@@ -71,10 +71,6 @@ object Html extends XmlAst:
   override def asAtom(xml: Xml): Option[String] = xml match
     case XML.Text(content) => Some(content)
     case _ => None
-  
-  abstract class JSLibrary:
-    def head: List[Html.Element]
-    def body: List[Html.Element]
 
   // Note: I do not see any reason to recognize elements (like 'script') or attributes (like 'hidden')...
   def fromXml(element: From.Element): XML.Element = XML.Element.Generic(
@@ -91,7 +87,9 @@ object Html extends XmlAst:
 
   // for convenience
 
-  val code: String = "code"
+  abstract class JSLibrary:
+    def head: List[Html.Element]
+    def body: List[Html.Element]
 
   def stylesheet(
     hrefString: String,

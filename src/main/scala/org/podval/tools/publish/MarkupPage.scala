@@ -62,7 +62,8 @@ open class MarkupPage(
 
     Minima.render(
       page = this,
-      content = Seq(markupContent, syntheticContent).flatten
+      markupContent = markupContent,
+      syntheticContent = syntheticContent
     )
 
   protected def syntheticContent: Option[Html.Element] = None

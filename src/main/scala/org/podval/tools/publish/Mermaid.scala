@@ -1,0 +1,15 @@
+package org.podval.tools.publish
+
+import zio.blocks.html.*
+
+final class Mermaid extends Html.JSLibrary:
+  override def head: List[Html.Element] = List.empty
+
+  override def body: List[Html.Element] = List(
+    script(`type` := "module").inlineJs(
+      js"""import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+          |mermaid.initialize({ startOnLoad: false });
+          |await mermaid.run({ querySelector: '.language-mermaid', });
+          |""".stripMargin
+    )
+  )

@@ -48,9 +48,46 @@ abstract class XmlAst:
 
     loop(element)
 
-  object A:
-    val elementName: String = "a"
+  final def gather[A](
+    element: Element,
+    stop: String => Boolean,
+    gatherElement: Element => Option[A]
+  ): Seq[A] =
+    def loop(element: Element): Seq[A] =
+      val fromElement: Option[A] = gatherElement(element)
+      val fromChildren: Seq[A] = if stop(qName(element)) then Seq.empty else
+        flatMapChildren(element, element => loop(element))
+
+      fromElement.toSeq ++ fromChildren
+
+    loop(element)
+
+  final def gatherWithParents[A](
+    element: Element,
+    stop: String => Boolean,
+    gatherElement: (Element, Seq[Element]) => Option[A]
+  ): Seq[A] =
+    def loop(element: Element, parents: Seq[Element]): Seq[A] =
+      val fromElement: Option[A] = gatherElement(element, parents)
+      val fromChildren: Seq[A] = if stop(qName(element)) then Seq.empty else
+        val parentsNew: Seq[Element] = element +: parents
+        flatMapChildren(element, element => loop(element, parentsNew))
+
+      fromElement.toSeq ++ fromChildren
+
+    loop(element, Seq.empty)
+
+  def flatMapChildren[A](element: Element, f: Element => Seq[A]): Seq[A] = children(element)
+    .flatMap(asElement)
+    .flatMap(element => f(element))
+
+  // TODO extract and make AST-independent...
+  sealed abstract class Elem(val elementName: String):
     def is(element: Element): Boolean = qName(element) == elementName
+
+  object A extends Elem("a")
+
+  object Code extends Elem("code")
 
   sealed abstract class Attribute(val attributeName: String):
     final def get(element: Element): Option[String] = attributes(element).find(_._1 == attributeName).map(_._2)
@@ -65,14 +102,17 @@ abstract class XmlAst:
     def set(element: Element, values: List[String]): Element = set(element, values.mkString(" "))
     def has(element: Element, name: String): Boolean = getList(element).contains(name)
 
-    // TODO use in Highlights - better, retrieve languages in Minima itself, to deal with Mermaid etc.
-    def getList(element: Element): List[String] = get(element).fold(List.empty)(_
+    private def getList(element: Element): List[String] = get(element).fold(List.empty)(_
       .split(' ')
       .toList
       .map(_.trim)
       .filterNot(_.isEmpty)
     )
-    
+
+    def getStartsWith(element: Element, prefix: String): List[String] = getList(element)
+      .filter(_.startsWith(s"$prefix-"))
+      .map(_.substring(prefix.length + 1))
+
     def add(element: Element, name: String): Element =
       val list = getList(element)
       if list.contains(name)
@@ -85,6 +125,5 @@ abstract class XmlAst:
 
   abstract class ClassNamePrefix(prefix: String):
     final def add(element: Element, name: String): Element = ClassName.add(element, s"$prefix-$name")
-    final def get(element: Element): List[String] = ClassName.getList(element)
-      .filter(_.startsWith(s"$prefix-"))
-      .map(_.substring(prefix.length+1))
+    final def get(element: Element): List[String] = ClassName.getStartsWith(element, prefix)
+
