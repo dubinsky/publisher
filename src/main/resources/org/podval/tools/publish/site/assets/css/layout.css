@@ -422,3 +422,7 @@ ul.backlinks {
 .backlink {
     font-style: italic;
 }
+
+.backLink-focus {
+    background-color: yellowgreen;
+}

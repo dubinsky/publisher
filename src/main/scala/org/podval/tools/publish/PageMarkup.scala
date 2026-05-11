@@ -60,7 +60,8 @@ object PageMarkup:
     )
 
     def xmlContent: Xml.Element =
-      xml = resolveLinks(xml)
+      xml = resolveInternalLinks(xml)
+      xml = restoreWikiLinks(xml)
       xml
 
     private lazy val blocks: Seq[Block] = if !markup.recognizeBlocks then Seq.empty else
@@ -200,24 +201,33 @@ object PageMarkup:
             element
 
     def backLinks(page: MarkupPage): Seq[BackLink] = markup.gatherWithParents(xml, (element, parents) =>
-      for
-        ref <- internalLinkRef(element)
-        linkTo <- site.resolveRef(ref)
-      yield BackLink(
-        to = linkTo,
-        from = page,
-        transclude = PageMarkup.TranscludeClass.has(element),
-        kind = PageMarkup.LinkKindClassPrefix.get(element).headOption,
-        context = context(parents)
+      if !Xml.A.is(element) || !PageMarkup.InternalLinkClass.has(element) then None else
+        for
+          ref <- Xml.Href.get(element)
+          linkTo <- site.resolveRef(ref)
+        yield BackLink(
+          to = linkTo,
+          from = page,
+          transclude = PageMarkup.TranscludeClass.has(element),
+          kind = PageMarkup.LinkKindClassPrefix.get(element).headOption,
+          context = context(element, parents)
+        )
       )
-    )
 
-    // TODO
-    private def context(parents: Seq[Xml.Element]): Option[String] = None // TODO
+    // Note: I can widen the context by going after grandparent etc. if it is too short - but Obsidian does not seem to do it...
+    private def context(focus: Xml.Element, parents: Seq[Xml.Element]): Html.Element =
+      var parent = parents.head
+      parent = Xml.setChildren(parent, Xml.children(parent).map(node => Xml.asElement(node).fold(node): element =>
+        if element ne focus then element else Xml.ClassName.add(element, "backLink-focus")
+      ))
+      parent = restoreWikiLinks(parent)
+      // TODO shorten the context if it is too long (120-130, with at least one side breaking on punctuation...)
+      Html.fromXml(parent)
 
     // TODO resolve 'img' too?
-    private def resolveLinks(element: Xml.Element): Xml.Element = Xml.transform(element, markup.stop, element =>
-      internalLinkRef(element).fold(element)(ref => site.resolveRef(ref) match
+    private def resolveInternalLinks(element: Xml.Element): Xml.Element = Xml.transform(element, markup.stop, element =>
+      if !Xml.A.is(element) || !PageMarkup.InternalLinkClass.has(element) then element else
+        Xml.Href.get(element).fold(element)(ref => site.resolveRef(ref) match
         case None =>
           PageError.Unresolved(sourcePath, s"unresolved internal link ref='$ref': $element}'").report(site, element)
           val result = Xml.ClassName.add(element, "unresolved-link")
@@ -229,11 +239,8 @@ object PageMarkup:
           result
       ))
 
-    private def internalLinkRef(element: Xml.Element): Option[String] =
-      for
-        ref <- Xml.Href.get(element)
-        if Xml.A.is(element)
-        if PageMarkup.InternalLinkClass.has(element)
-      yield
-        ref
-
+    // Unresolved wiki links do not have any text; restore the ref as their text.
+    private def restoreWikiLinks(element: Xml.Element): Xml.Element = Xml.transform(element, markup.stop, element =>
+      if !Xml.A.is(element) || !PageMarkup.WikiLinkClass.has(element) || Xml.children(element).nonEmpty then element else
+        Xml.Href.get(element).fold(element)(ref => Xml.setText(element, ref))
+    )

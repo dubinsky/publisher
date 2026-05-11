@@ -182,7 +182,7 @@ final class Site(
   lazy val tags: Tags = Tags.Maker.get(this)
 
   private val backLinks: BackLinks = BackLinks()
-  def backLinks(page: Page): List[BackLinks.BackLink] = backLinks.backLinks(page)
+  def backLinks(page: Page): Seq[(MarkupPage, List[BackLinks.BackLink])] = backLinks.backLinks(page)
 
   val socialLinks: Seq[SocialLink] = Seq(
     config.social.github.map(SocialLink.GitHub(_)),

@@ -32,13 +32,7 @@ object Minima:
               // Note: skipped Disqus comments for posts
               a(className := "u-url", href := page.path.toString, hidden := true)
             ),
-            Option.when(!isBaseLayout)(div(className := "backlinks",
-              hr, // TODO do a border
-              h3("Backlinks"),
-              ul(className := "backlinks-list", page.site.backLinks(page).map(link =>
-                li(link.from.ref("backlink")) // TODO!
-              ))
-            ))
+            backLinksList(isBaseLayout, page.site.backLinks(page))
           ),
         ),
         footerHtml(page.site),
@@ -87,6 +81,32 @@ object Minima:
     date.fold(Seq.empty): date =>
       label.fold(Seq.empty)(label => Seq(span(className := "meta-label", label))) ++
       Seq(time(className := cls, datetime := date.toString, itemProp := itemprop, date.toShortString))
+
+  private def backLinksList(
+    isBaseLayout: Boolean,
+    backLinks: Seq[(MarkupPage, List[BackLinks.BackLink])]
+  ): Option[Html.Element] =
+    if isBaseLayout || backLinks.isEmpty then None else Some:
+      div(className := "backlinks",
+        hr, // TODO do a border
+        h3("Backlinks"),
+        ul(className := "backlinks-list", backLinks.map((from, links) =>
+          val url = from.link.url
+          li(
+            // TODO use span instead of h4: title on the left, number on the right;
+            // it should also be linked to the page
+            h4(className := "page-backLinks-header", from.title, s"(${links.length})"),
+            // TODO I want this li foldable
+            ul(className := "page-backLinks", links.map(link =>
+              // TODO this should link to the context - but where do I get the ids?
+              // I SHOULD ADD IDs To ALL LINKS!
+              li(
+                a(className := "backlink", href := url, link.context)
+              )
+            ))
+          )
+        ))
+      )
 
   private def headHtml(
     page: MarkupPage,

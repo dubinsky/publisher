@@ -16,6 +16,8 @@ abstract class Page(
     case that: Page => this.path == that.path
     case _ => false
 
+  final override def hashCode(): Int = path.hashCode()
+  
   final override def toString: String =
     val source: String = sourcePathOpt match
       case Some(sourcePath) if sourcePath.path != path.path  => s" ($sourcePath)"

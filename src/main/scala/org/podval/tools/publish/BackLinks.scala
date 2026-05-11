@@ -1,5 +1,6 @@
 package org.podval.tools.publish
 
+import zio.blocks.chunk.Chunk
 import BackLinks.BackLink
 
 final class BackLinks:
@@ -8,10 +9,12 @@ final class BackLinks:
 
   def addBackLinks(backLink: Seq[BackLink]): Unit = backLinks = backLinks.appendedAll(backLink)
 
-  def backLinks(page: Page): List[BackLink] = backLinks
+  def backLinks(page: Page): Seq[(MarkupPage, List[BackLink])] = backLinks
     .filter(_.to.page == page)
     .filterNot(_.from == page)
-    .distinctBy(_.from.path) // TODO once we have context, each link should be listed (grouped by page)
+    .groupBy(_.from)
+    .toSeq
+    .sortBy(_._1.title)
 
 object BackLinks:
   final class BackLink(
@@ -19,6 +22,5 @@ object BackLinks:
     val from: MarkupPage,
     val transclude: Boolean,
     val kind: Option[String],
-    val context: Option[String]
+    val context: Html.Element
   )
-  
