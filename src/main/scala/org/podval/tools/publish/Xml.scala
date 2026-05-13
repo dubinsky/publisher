@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
 import zio.blocks.chunk.Chunk
-import zio.blocks.schema.xml.{Xml as XML, XmlCodecError, XmlBuilder, XmlName, XmlReader}
+import zio.blocks.schema.xml.{Xml as XML, XmlBuilder, XmlName}
 
 object Xml extends XmlAst:
   override type Xml = XML
@@ -43,8 +43,28 @@ object Xml extends XmlAst:
     case XML.CData(value) => Some(value)
     case _ => None
 
-  private val useSTaXParserInsteadOfZIOBlocksXML: Boolean = true
-  def parse(content: String): Either[Throwable, Xml] =
-    if useSTaXParserInsteadOfZIOBlocksXML then XmlParser.parse(content) else
-      try Right(XmlReader.read(content))
-      catch case e: XmlCodecError => Left(e)
+  def parse(content: String): Either[Throwable, Xml] = XmlParser.parse(content)
+
+  // Was with the ZIO Blocks XML parser
+//  def parse(content: String): Either[Throwable, Xml] =
+//    try Right(XmlReader.read(content))
+//    catch case e: XmlCodecError => Left(e)
+
+
+  def main(args: Array[String]): Unit =
+    val string =
+      """<div>
+        |"<a href="http://www.amazon.com/Real-World-Haskell-Bryan-OSullivan/dp/0596514980/">Real World Haskell</a>"
+        |Bryan O'Sullivan, John Goerzen, Don Stewart
+        |</div>
+        |""".stripMargin
+//      """<div>
+//        |  sxdfsf
+//        |  &nbsp;
+//        |</div>
+//        |""".stripMargin
+
+    //    println(Markdown.parseAndRender(string))
+    //    println(XmlParser.parse(Markdown.parseAndRender(string)).toOption.get)
+    println(XmlParser.parse(string).toOption.get)
+//    println(XmlWriter.xmlWriter.render(XmlParser.parse(string).toOption.get))

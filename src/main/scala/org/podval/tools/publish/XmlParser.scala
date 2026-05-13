@@ -18,7 +18,6 @@ object XmlParser:
   private def parseInternal(content: String): Xml.Element =
     val factory: XMLInputFactory = XMLInputFactory.newInstance
     factory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, false)
-//    factory.setProperty(XMLInputFactory.IS_COALESCING, true)
     val reader: XMLEventReader = factory.createXMLEventReader(new StringReader(content))
 
     val elements: mutable.Stack[Xml.Element] = mutable.Stack.empty
@@ -54,9 +53,11 @@ object XmlParser:
 
       case characters: Characters =>
         val text: String = characters.getData
-        if !characters.isCData then addCharacters(text) else
+        if characters.isCData then
           flushCharacters()
           addChild(Xml.CData(text))
+        else
+          addCharacters(text)
 
       case entityReference: EntityReference =>
         addCharacters(s"&${entityReference.getName};")

@@ -76,14 +76,7 @@ final class Site(
       log.warn(error.getMessage)
       result
 
-  def generateAndReport(): Unit =
-    try
-      generate()
-      println("Done!")
-    catch case error: PageError =>
-      println(s"Error generating site: ${error.getMessage}")
-
-  private def generate(): Unit =
+  def generate(): Unit =
     // Wipe out output directory
     Files.deleteDirectory(config.targetDirectory)
 
@@ -121,6 +114,9 @@ final class Site(
 
     // Write pages
     writePages(pages)
+
+    // Done
+    log.info("Done!")
 
   private def directoryPages(directoryPath: Seq[String], directory: File): List[Page] =
     Files.requireExists(directory)

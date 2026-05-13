@@ -55,15 +55,3 @@ object Markdown extends HtmlLike:
   // Wrap Markdown rendered as HTML in a 'div' and parse.
   override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] =
     HtmlLike.Html.parse(sourcePath, s"<div>${parseAndRender(content)}</div>")
-
-  def main(args: Array[String]): Unit =
-    val string =
-       """<div>
-         |  sxdfsf
-         |  &nbsp;
-         |</div>
-         |""".stripMargin
-
-//    println(parseAndRender(string))
-//    println(XmlParser.parse(parseAndRender(string)).toOption.get)
-    println(XmlParser.parse(string).toOption.get)

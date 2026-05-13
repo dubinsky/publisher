@@ -8,7 +8,9 @@ object  Cli:
     val options: List[(String, String)] = optionArgs.map(_.substring(2)).map: string =>
       val eqIndex = string.indexOf('=')
       (string.substring(0, eqIndex), string.substring(eqIndex+1))
-    def option(name: String): Option[String] = options.find(_._1 == name).map(_._2)
+    def option(name: String): Option[String] =
+      // TODO add retrieval of environment variables
+      options.find(_._1 == name).map(_._2)
 
     Site(
       sourceDirectoryPath = positional(0),
@@ -18,5 +20,5 @@ object  Cli:
       treatErrorsAsWarnings = option("treat-errors-as-warnings").exists(_.toBoolean),
       logLevel = option("log-level").map(option => Level.valueOf(option.toUpperCase)).getOrElse(Level.DEBUG)
     )
-      .generateAndReport()
+      .generate()
 
