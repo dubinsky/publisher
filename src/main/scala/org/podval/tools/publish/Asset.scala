@@ -15,6 +15,8 @@ abstract class Asset(
 
   final override def resolveSection(names: Seq[String]): Option[Link.ToSection] = None
 
+  final override def resolveId(id: String): Option[Link.ToId] = None
+
 object Asset:
   final class WithSource(
     site: Site,

@@ -17,7 +17,7 @@ object Markdown extends HtmlLike:
   override val additionalExtensions: Set[String] = Set.empty
 
   private val extensionsCommon: List[Parser.ParserExtension & HtmlRenderer.HtmlRendererExtension] = List(
-//    FootnoteExtension.create,
+    FootnoteExtension.create,
     StrikethroughSubscriptExtension.create,
     TablesExtension.create,
     TaskListExtension.create

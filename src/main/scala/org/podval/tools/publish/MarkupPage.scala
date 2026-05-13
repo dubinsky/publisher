@@ -51,9 +51,12 @@ open class MarkupPage(
   final override def resolveSection(names: Seq[String]): Option[Link.ToSection] =
     source.flatMap(_.cached.resolveSection(names))
 
-  final override def htmlContent: Html.Element = Minima.render(
+  final override def resolveId(id: String): Option[Link.ToId] =
+    source.flatMap(_.cached.resolveId(id))
+
+  final override def htmlContent(page: Page): Html.Element = Minima.render(
     page = this,
-    markupContent = source.map(_.cached.htmlContent),
+    markupContent = source.map(_.cached.htmlContent(page)),
     syntheticContent = syntheticContent
   )
 

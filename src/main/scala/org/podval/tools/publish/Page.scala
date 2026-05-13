@@ -33,6 +33,8 @@ abstract class Page(
   def resolveBlock(id: String): Option[Link.ToBlock]
 
   def resolveSection(names: Seq[String]): Option[Link.ToSection]
+  
+  def resolveId(id: String): Option[Link.ToId]
 
 object Page:
   trait WithContent extends Page:
@@ -44,8 +46,8 @@ object Page:
     def xmlContent: Xml.Element
 
   trait WithHtmlContent extends WithContent:
-    final override def content: String = XmlWriter.htmlWriter.render(htmlContent)
-    def htmlContent: Html.Element
+    final override def content: String = XmlWriter.htmlWriter.render(htmlContent(this))
+    def htmlContent(page: Page): Html.Element
 
   sealed abstract class Fragment(val id: String)
 

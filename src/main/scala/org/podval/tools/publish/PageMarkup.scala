@@ -24,6 +24,11 @@ final class PageMarkup(
   private def site: Site = source.site
   private def sourcePath: Path = source.sourcePath
 
+  private var generatedId: Int = 0
+  private def generateId: String =
+    generatedId = generatedId + 1
+    s"_generated_id$generatedId"
+  
   // Pre-process raw XML
   this.xml = Xml.transform(xml, markup.stop(Xml), element =>
     var result: Xml.Element = element
@@ -35,11 +40,11 @@ final class PageMarkup(
     result
   )
 
-  def htmlContent: Html.Element =
+  def htmlContent(page: Page): Html.Element =
     // Post-process XML
     val xmlResult: Xml.Element = Xml.transform(xml, markup.stop(Xml), element =>
       var result: Xml.Element = element
-      result = resolveInternalLinks(result)
+      result = resolveInternalLinks(result, page)
       result
     )
 
@@ -52,10 +57,23 @@ final class PageMarkup(
       result
     )
 
+  def resolveId(id: String): Option[Link.ToId] = ids
+    .find(_ == id)
+    .map(Link.ToId(_))
+    
+  private lazy val ids: Seq[String] = Xml.gather(xml, markup.stop(Xml), Xml.Id.get)
+  
   def resolveBlock(id: String): Option[Link.ToBlock] = blocks
     .find(_.id == id)
     .map(Link.ToBlock(_))
 
+  private lazy val blocks: Seq[Block] = if !markup.recognizeBlocks then Seq.empty else
+    Xml.gather(xml, markup.stop(Xml), element =>
+      if !Xml.WikiBlockClass.has(element) then None else Xml.Id.get(element) match
+        case None => PageError.NoId(sourcePath, s"Defect: No id on block $element").report(site)
+        case Some(id) => Some(Block(id))
+    )
+    
   private lazy val sections: Seq[Section] = markup.getSections(xml, site, sourcePath)
 
   private lazy val sectionsFlat: Seq[Section] =
@@ -160,13 +178,17 @@ final class PageMarkup(
         then
           // TODO verify that external link is not broken if the Site is so configured
           element
-        else Xml.InternalLinkClass.add(element)
+        else
+          val result: Xml.Element = Xml.InternalLinkClass.add(element)
+          if Xml.Id.get(result).isDefined 
+          then result
+          else Xml.Id.set(result, generateId)
 
   def backLinks(page: MarkupPage): Seq[BackLinks.BackLink] = Xml.gatherWithParents(xml, markup.stop(Xml), (element, parents) =>
     if !Xml.A.is(element) || !Xml.InternalLinkClass.has(element) then None else
       for
         ref <- Xml.Href.get(element)
-        linkTo <- Link.resolve(ref, site)
+        linkTo <- Link.resolve(ref, page)
       yield BackLinks.BackLink(
         to = linkTo,
         from = page,
@@ -184,9 +206,9 @@ final class PageMarkup(
     ))
     Html.transform(Html.fromXml(parent), markup.stop(Html), restoreWikiLinks)
 
-  private def resolveInternalLinks(element: Xml.Element): Xml.Element =
+  private def resolveInternalLinks(element: Xml.Element, page: Page): Xml.Element =
     if !Xml.A.is(element) || !Xml.InternalLinkClass.has(element) then element else
-      Xml.Href.get(element).fold(element)(ref => Link.resolve(ref, site) match
+      Xml.Href.get(element).fold(element)(ref => Link.resolve(ref, page) match
       case None =>
         PageError.Unresolved(sourcePath, s"unresolved internal link ref='$ref': $element}'").report(site, element)
         val result = Xml.ClassName.add(element, "unresolved-link")
@@ -238,9 +260,3 @@ final class PageMarkup(
   private def addToc(element: Html.Element): Html.Element =
     if !PageMarkup.isKramdownTocMarker(element) then element else Minima.toc(sections)
 
-  private lazy val blocks: Seq[Block] = if !markup.recognizeBlocks then Seq.empty else
-    Xml.gather(xml, markup.stop(Xml), element =>
-      if !Xml.WikiBlockClass.has(element) then None else Xml.Id.get(element) match
-        case None => PageError.NoId(sourcePath, s"Defect: No id on block $element").report(site)
-        case Some(id) => Some(Block(id))
-    )
