@@ -400,6 +400,10 @@
     padding-right: .3em;
 }
 
+ul.page-list {
+    list-style: none;
+}
+
 .page-list {
     font-size: 18px;
 
@@ -410,22 +414,26 @@
     }
 }
 
-.page-backlinks-count {
-    float: right;
-}
-
 .invalid-wiki-link {
     background: red;
 }
 
-ul.backlinks {
-    list-style-type: "•";
+.backlinks {
+    > ul {
+        list-style-type: none;
+
+        .backlinks-count {
+            float: right;
+        }
+
+        .backlinks-list {
+            li {
+                list-style-type: disc;
+            }
+            .backlink {
+                background-color: #cdca32;
+            }
+        }
+    }
 }
 
-.backlink {
-    font-style: italic;
-}
-
-.backLink-focus {
-    background-color: yellowgreen;
-}

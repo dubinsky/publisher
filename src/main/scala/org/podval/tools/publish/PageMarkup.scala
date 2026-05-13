@@ -28,7 +28,7 @@ final class PageMarkup(
   private def generateId: String =
     generatedId = generatedId + 1
     s"_generated_id$generatedId"
-  
+
   // Pre-process raw XML
   this.xml = Xml.transform(xml, markup.stop(Xml), element =>
     var result: Xml.Element = element
@@ -60,9 +60,9 @@ final class PageMarkup(
   def resolveId(id: String): Option[Link.ToId] = ids
     .find(_ == id)
     .map(Link.ToId(_))
-    
+
   private lazy val ids: Seq[String] = Xml.gather(xml, markup.stop(Xml), Xml.Id.get)
-  
+
   def resolveBlock(id: String): Option[Link.ToBlock] = blocks
     .find(_.id == id)
     .map(Link.ToBlock(_))
@@ -73,7 +73,7 @@ final class PageMarkup(
         case None => PageError.NoId(sourcePath, s"Defect: No id on block $element").report(site)
         case Some(id) => Some(Block(id))
     )
-    
+
   private lazy val sections: Seq[Section] = markup.getSections(xml, site, sourcePath)
 
   private lazy val sectionsFlat: Seq[Section] =
@@ -101,8 +101,8 @@ final class PageMarkup(
   // but I do it manually and uniformly for HTML, TEI etc.
   private def setSectionId(element: Xml.Element): Xml.Element =
     if !markup.isSectionElement(element) || Xml.Id.get(element).isDefined then element else
-      Xml.toStringOpt(element) match
-        case None => PageError.NoId(sourcePath, s"No id or title on $element").report(site, element)
+      markup.getSectionTitle(element) match
+        case None => PageError.NoId(sourcePath, s"No id nor title on $element").report(site, element)
         case Some(title) => Xml.Id.set(element, Xml.Id.toId(title))
 
   // TODO according to the Obsidian documentation, block anchor can be added to a "structured block"
@@ -180,7 +180,7 @@ final class PageMarkup(
           element
         else
           val result: Xml.Element = Xml.InternalLinkClass.add(element)
-          if Xml.Id.get(result).isDefined 
+          if Xml.Id.get(result).isDefined
           then result
           else Xml.Id.set(result, generateId)
 
@@ -194,17 +194,46 @@ final class PageMarkup(
         from = page,
         transclude = Xml.TranscludeClass.has(element),
         kind = Xml.LinkKindClassPrefix.get(element).headOption,
-        context = context(element, parents)
+        context = context(element, parents, page)
       )
     )
 
+  // Note: Obsidian expands the context to the source level, which is good for searching - but doesn't look great
+  // when there are non-wiki links in there;
+  // I am going with just text, so the non-wiki links are not going to be visible...
   // Note: I can widen the context by going after grandparent etc. if it is too short - but Obsidian does not seem to do it...
-  private def context(focus: Xml.Element, parents: Seq[Xml.Element]): Html.Element =
-    var parent: Xml.Element = parents.head
-    parent = Xml.setChildren(parent, Xml.children(parent).map(node => Xml.asElement(node).fold(node): element =>
-      if element ne focus then element else Xml.ClassName.add(element, "backLink-focus")
-    ))
-    Html.transform(Html.fromXml(parent), markup.stop(Html), restoreWikiLinks)
+  private val contextLengthHalf: Int = 60
+  private def shortenContext(isBefore: Boolean, string: String): String =
+    if string.length <= contextLengthHalf then string else
+      if isBefore then
+        val result = string.substring(string.length-contextLengthHalf)
+        val prefix = /*if result.startsWith(" ") then "" else*/ "..."
+        prefix + result.trim
+      else
+        val result = string.substring(0, contextLengthHalf)
+        val suffix = /*if result.endsWith(" ") then "" else*/ "..."
+        result.trim + suffix
+
+  private def context(
+    focus: Xml.Element,
+    parents: Seq[Xml.Element],
+    page: Page
+  ): BackLinks.Context =
+    def elementText(element: Xml.Element): String =
+      Html.toString(Html.transform(Html.fromXml(element), markup.stop(Html), restoreWikiLinks))
+
+    def childrenText(children: Chunk[Xml.Xml], isBefore: Boolean): String =
+      shortenContext(isBefore, elementText(Xml.setChildren(Xml.element("dummy"), children)))
+
+    val (before: Chunk[Xml.Xml], tail) = Xml.children(parents.head).span(Xml.asElement(_).fold(true)(_ ne focus))
+    val it: Xml.Element = Xml.asElement(tail.head).get
+
+    BackLinks.Context(
+      url = Link.resolveId(page, Xml.Id.get(it).get).url,
+      before = childrenText(before, isBefore = true),
+      it = elementText(it),
+      after = childrenText(tail.tail, isBefore = false)
+    )
 
   private def resolveInternalLinks(element: Xml.Element, page: Page): Xml.Element =
     if !Xml.A.is(element) || !Xml.InternalLinkClass.has(element) then element else

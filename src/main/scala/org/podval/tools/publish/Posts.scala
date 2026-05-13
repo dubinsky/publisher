@@ -22,7 +22,7 @@ final class Posts(
       ul(className := "post-list", site.markupPages.filter(_.isPost).sortBy(_.date).reverse.map(post =>
         li(
           span(className := "post-meta", post.date.map(_.toShortString).getOrElse("")),
-          h3(className := "post-link", Minima.ref(post, "post-link"))
+          h3(className := "post-link", Minima.pageRef(post))
           // {%- if site.minima.show_excerpts -%} {{ post.excerpt }} {%- endif -%} // TODO unify with feed.xml
         )
       ))

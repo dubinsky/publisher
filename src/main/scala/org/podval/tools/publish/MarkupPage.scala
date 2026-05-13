@@ -17,8 +17,8 @@ open class MarkupPage(
   final def author: String = frontMatter.author.getOrElse(site.author)
   final def lang: String = frontMatter.lang.getOrElse(site.lang)
   final def math: Boolean = frontMatter.math
-  final def icon: FontAwesome.Icon = frontMatter.icon.getOrElse(iconDefault)
-  def iconDefault: FontAwesome.Icon = FontAwesome.note
+  final override def icon: FontAwesome.Icon = frontMatter.icon.getOrElse(iconDefault)
+  def iconDefault: FontAwesome.Icon = if isPost then FontAwesome.envelope else FontAwesome.note
 
   final lazy val headerPage: Option[Site.HeaderPage] = frontMatter
     .headerPage
@@ -33,11 +33,12 @@ open class MarkupPage(
   final def date: Option[Date] = postDate.map(Date.Local(_)).orElse(frontMatter.date)
   final def dateModified: Option[Date] = frontMatter.modified_time
 
+  final override def aliases: List[String] = frontMatter.aliases
+
   final override def title: String = frontMatter.title.getOrElse:
-    if !Directory.is(path) then path.fileNameWithNonHtmlExtension else postDate match
+    if !isDirectory then path.fileNameWithNonHtmlExtension else postDate match
       case Some(postDate) => postDate.toString // daily note
-      case None if path.path.length > 1 => path.path.init.last // directory name
-      case None => path.fileName // "index"
+      case None => fileName
 
   final override def sourcePathOpt: Option[Path] =
     source.map(_.sourcePath)
@@ -54,9 +55,9 @@ open class MarkupPage(
   final override def resolveId(id: String): Option[Link.ToId] =
     source.flatMap(_.cached.resolveId(id))
 
-  final override def htmlContent(page: Page): Html.Element = Minima.render(
+  final override def htmlContent: Html.Element = Minima.render(
     page = this,
-    markupContent = source.map(_.cached.htmlContent(page)),
+    markupContent = source.map(_.cached.htmlContent(this)),
     syntheticContent = syntheticContent
   )
 

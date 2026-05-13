@@ -9,7 +9,7 @@ object Post:
       val dateString = s"${path.path(0)}-${path.path(1)}-${path.path(2)}"
       try Some(LocalDate.parse(dateString))
       catch case e: DateTimeParseException => None
-
+  
   final class Maker(
     site: Site,
     postsDirectoryName: String,
@@ -19,12 +19,9 @@ object Post:
     private val dailiesMixedWithPosts: Boolean = dailyNotesDirectoryName.contains(postsDirectoryName)
 
     override def path(sourcePath: Path): Option[Path] =
-      val isPost: Boolean =
-        sourcePath.startsWith(List(postsDirectoryName)) ||
-          draftsDirectoryName.exists(draftsDirectoryName => sourcePath.startsWith(List(draftsDirectoryName)))
-
-      val isDaily: Boolean =
-        dailyNotesDirectoryName.exists(dailyNotesDirectoryName => sourcePath.startsWith(List(dailyNotesDirectoryName)))
+      def inDirectory(name: String): Boolean = sourcePath.path.head == name
+      val isPost: Boolean = inDirectory(postsDirectoryName) || draftsDirectoryName.exists(inDirectory)
+      val isDaily: Boolean = dailyNotesDirectoryName.exists(inDirectory)
 
       if !isPost && !isDaily then None else
         val fileName: String = sourcePath.fileName

@@ -1,5 +1,6 @@
 package org.podval.tools.publish
 
+import zio.blocks.chunk.Chunk
 import scala.annotation.tailrec
 import Page.Section
 
@@ -15,10 +16,9 @@ abstract class HtmlLike extends Markup:
 
   final override def convertLinks(element: Xml.Element): Xml.Element = element
 
-  final override def getSections(element: Xml.Element, site: Site, sourcePath: Path): Seq[Section] =
-    nest(Xml.gather(element, stop(Xml), element => getSection(element, site, sourcePath)))
-
   final override def isSectionElement(element: Xml.Element): Boolean = headerLevel(element).isDefined
+
+  final override def getSectionTitle(element: Xml.Element): Option[String] = Xml.toStringOpt(element)
 
   private def headerLevel(element: Xml.Element): Option[Int] =
     val qName: String = Xml.qName(element)
@@ -26,32 +26,59 @@ abstract class HtmlLike extends Markup:
       try Some(qName.substring(1).toInt)
       catch case _: NumberFormatException => None
 
-  private def getSection(element: Xml.Element, site: Site, sourcePath: Path): Option[Section] =
-    for
-      level <- headerLevel(element)
-      title <- Xml.toStringOpt(element)
-      id <-
-        val id = Xml.Id.get(element)
-        if id.isEmpty then PageError.NoId(sourcePath, s"Defect: No id on section $element").report(site, ())
-        id
-    yield Section(
-      sections = Seq.empty,
-      level = level,
-      title = title,
-      id = id
-    )
+  // Note: only sections on the top level are detected;
+  // sections of levels lower than the level of the first section are not allowed.
+  final override def getSections(element: Xml.Element, site: Site, sourcePath: Path): Seq[Section] =
+    val sectionElements: Chunk[HtmlLike.Section] = Xml
+      .children(element)
+      .flatMap(node => Xml.asElement(node))
+      .flatMap(element =>
+        for
+          level <- headerLevel(element)
+          title <- Xml.toStringOpt(element)
+          id <-
+            val id = Xml.Id.get(element)
+            if id.isEmpty then PageError.NoId(sourcePath, s"Defect: No id on section $element").report(site, ())
+            id
+        yield HtmlLike.Section(
+          level = level,
+          title = title,
+          id = id
+        )
+      )
 
-  private def nest(sections: Seq[Section]): Seq[Section] =
-    @tailrec
-    def loop(result: Seq[Section], sections: Seq[Section]): Seq[Section] =
-      if sections.isEmpty then result else
-        val section = sections.head
-        val (deeper: Seq[Section], tail: Seq[Section]) = sections.tail.span(_.level > section.level)
-        loop(result ++ Seq(section.withSections(nest(deeper))), tail)
+    getSections(sectionElements)
 
-    loop(Seq.empty, sections)
+  private def getSections(sections: Chunk[HtmlLike.Section]): Seq[Section] =
+    if sections.isEmpty
+    then Seq.empty
+    else getSections(Seq.empty, sections.head.level, sections)
+
+  @tailrec
+  private def getSections(result: Seq[Page.Section], level: Int, sections: Chunk[HtmlLike.Section]): Seq[Section] =
+    if sections.isEmpty then result else
+      val head: HtmlLike.Section = sections.head
+      val (nested: Chunk[HtmlLike.Section], tail: Chunk[HtmlLike.Section]) = sections.tail.span(_.level > head.level)
+      val section: Page.Section = Page.Section(
+        id = head.id,
+        title = head.title,
+        sections = getSections(nested)
+      )
+
+      getSections(
+        result :+ section,
+        level,
+        tail
+      )
+
 
 object HtmlLike:
+  private final class Section(
+    val level: Int,
+    val title: String,
+    val id: String
+  )
+
   object Html extends HtmlLike:
     override val extension: String = "html"
     override val additionalExtensions: Set[String] = Set.empty

@@ -11,6 +11,10 @@ abstract class Asset(
 
   final override def title: String = path.fileNameWithNonHtmlExtension
 
+  final override def aliases: List[String] = List.empty
+
+  final override def icon: FontAwesome.Icon = FontAwesome.file
+  
   final override def resolveBlock(id: String): Option[Link.ToBlock] = None
 
   final override def resolveSection(names: Seq[String]): Option[Link.ToSection] = None

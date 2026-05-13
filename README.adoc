@@ -12,6 +12,8 @@ Generate, serve and publish websites.
 [#features]
 == Features
 
+TODO table of Markdown features with FlexMark extensions and Obsidian plugins.
+
 == Farewell, Jekyll
 
 Events of 2026:
@@ -60,7 +62,7 @@ Write about all the plugins I used:
 == Future
 
 === Transclusion
-Sort the pages in transclusion order, transclude, and style the transclusions
+Sort the pages in transclusion order, extract the sections and block,  transclude, and style the transclusions
 
 === Chunking and Paging
 - implement splitting of HTML by section when front matter has `chunk: true`
@@ -91,9 +93,19 @@ Generate PDF when front-matter says `pdf: true`
 
 === Further Research
 
+Add admonitions/asides/callouts support in a way that works for both FlexMark and Obsidian.
+
+Look at https://stephango.com/vault
+
 Look at https://squidfunk.github.io/mkdocs-material/
 
-Add admonitions/asides/callouts support in a way that works for both FlexMark and Obsidian.
+Look at https://github.com/KaTeX/KaTeX[KaTeX] as a MathJax alternative...
+
+Think about serializing the full list of back-links out of the memory
+
+Maybe use FlexMark to convert wiki-links without resolving them (and lose support for wiki links in TEI)
+
+Maybe configure FlexMark to not convert general transclusion Markdown links (if it does now)
 
 [#motivation]
 == Motivation
@@ -338,34 +350,21 @@ ignores the rest, which is _definitely_ not the right thing.
 == TODO
 
 === Pages
+- file named after a directory is its index!
+- surface resolved page alias, so that it, and not the title, gets displayed
 - handle categories; they can be wiki links?!
 - auto-create category pages
 - auto-create tag pages
 - handle permalinks and multi-name redirects
-- handle aliases
-- file named after a directory is its index!
-- include (some of the) SyntheticPages in the link resolution
-or introduce (non-transcludable) Link.ToAnchor?
 
-=== Markdown
-- catch parsing exceptions and convert them
-- add FlexMark footnotes extension (Obsidian does not seem to support footnotes) - and deal with the "Unknown entity reference: &#8617;"
-- add FlexMark gfm.tasklist extension - and deal with the resulting error from ZIO Blocks XML parser (I guess): "Unknown entity reference: &nbsp;"; time to change parsers!
-- add GitHub Flavored Markup to FlexMark? Probably no, but loot at https://github.com/KaTeX/KaTeX[KaTeX] as a MathJax alternative...
-- maybe use FlexMark to convert wiki-links without resolving them (and lose support for wiki links in TEI)
-- maybe configure FlexMark to not convert general transclusion Markdown links (if it does now)
-
-=== Sections Hierarchy
-- nest HTML-like sections while gathering them and verify the nesting levels
-- code retrieval of a section for transclusion
-- code section gathering for XML-like formats (TEI DocBook)
-- remove HTML-specific `level` from the general `Page.Section`
-
-=== Back-links
-- shorten the context to 120-130 characters
-- make mentions links to the source of the link; for that:
-- add ids to all (internal) links
-- think about serializing the full list of back-links out of the memory
+=== CSS and HTML
+- unify approach to producing horizontal lines: `<hr>` or CSS border
+- escape URLs etc.?
+- alias languages unknown to Highlights.js to known ones - or to autodetect
+- style code blocks so that they do not break up into stripes when not recognized by Highlights.js
+- for documents that have titles in the body and not in front matter (like in TEI), transplant them into the layout-appropriate place
+- remove unneeded classes
+- unify and clean up the CSS
 
 === Embedding
 - do PDF embedding - with `<object>`, `<iframe>` or?
@@ -383,27 +382,16 @@ or introduce (non-transcludable) Link.ToAnchor?
 - retrieve Git creation/modification dates using JGit
 - ask Obsidian developers to make file moves visible to Git if the vault is a Git repository
 
+=== JS Libraries
+- unify the CDNs used
+- unify the approach to what goes into the head and what - into the body
+- do I need `defer` and/or `async` attributes on my `script` tags?
+
 === Errors
 - introduce a notion of warning
 - generate error report page(s):
 * broken links
 * inconsistent titles
-
-=== CSS and HTML
-- unify approach to producing horizontal lines: `<hr>` or CSS border
-- unify creation of HTML lists, references etc.
-- display page icon in the list
-- escape URLs etc.?
-- alias languages unknown to Highlights.js to known ones - or to autodetect
-- style code blocks so that they do not break up into stripes when not recognized by Highlights.js
-- for documents that have titles in the body and not in front matter (like in TEI), transplant them into the layout-appropriate place
-- remove unneeded classes
-- unify and clean up the CSS
-
-=== JS Libraries
-- unify the CDNs used
-- unify the approach to what goes into the head and what - into the body
-- do I need `defer` and/or `async` attributes on my `script` tags?
 
 === Sitemap and Feed
 - generate RSS feed

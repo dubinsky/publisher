@@ -16,10 +16,7 @@ final class Directory(
   override def iconDefault: FontAwesome.Icon = FontAwesome.folder
 
   override protected def syntheticContent: Option[Html.Element] = Some:
-    div(className := "directory",
-      Minima.pageList(directories, "Directories", "directories-list", "sub"),
-      Minima.pageList(pages, "Pages", "pages-list", "sub")
-    )
+    div(className := "directory", Minima.pageList(directories ++ pages))
 
   def prev(page: Page): Option[Page] = listFor(page).takeWhile(_ != page).reverse.headOption
   def next(page: Page): Option[Page] = listFor(page).dropWhile(_ != page).dropWhile(_ == page).headOption
@@ -29,18 +26,16 @@ final class Directory(
     then directories
     else pages
     
-  // TODO verify that it is a Directory!
   private lazy val directories: List[Page] = site
     .pages
-    .filter(page => Directory.is(page.path))
+    .filter(_.isDirectory)
     .filter(_.path.path.length > 1)
     .filter(_.path.path.init.init == path.path.init)
     .sortBy(_.title)
 
   private lazy val pages: List[Page] = site
     .pages
-    .filterNot(page => Directory.is(page.path))
-    //    .filter(_.path.path.length > 0)
+    .filterNot(_.isDirectory)
     .filter(_.path.path.init == path.path.init)
     .sortBy(_.title)
 
@@ -53,10 +48,10 @@ object Directory:
   def addParentDirectories(site: Site): Unit =
     site.pages.foreach(_.parent)
 
-  def parent(site: Site, path: Path): Option[Directory] =
+  def parent(site: Site, page: Page): Option[Directory] =
     val parentDirectory: Option[Seq[String]] =
-      if Directory.is(path) && path.path.length > 1 then Some(path.path.init.init)
-      else if !Directory.is(path) && path.path.nonEmpty then Some(path.path.init)
+      if page.isDirectory && page.path.path.length > 1 then Some(page.path.path.init.init)
+      else if !page.isDirectory && page.path.path.nonEmpty then Some(page.path.path.init)
       else None
     parentDirectory.map: parentDirectory =>
       val parentPath: Path = Path(parentDirectory.appended(Directory.fileName) *).html

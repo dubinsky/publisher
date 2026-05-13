@@ -37,12 +37,6 @@ final case class Path(
     else if path.length == 1 then File(directory, path.head + extensionString)
     else file(File(directory, path.head), path.tail)
 
-  def startsWith(names: List[String]): Boolean = path.take(names.length) == names
-
-  def is(path: Path, isAbsolute: Boolean): Boolean =
-    path.extension.fold(true)(extension.contains) &&
-    path.path == this.path.takeRight((if isAbsolute then this.path else path.path).length)
-
 object Path:
   val root: Path = new Path(Seq.empty, None)
   

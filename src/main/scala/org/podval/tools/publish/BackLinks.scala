@@ -15,10 +15,17 @@ final class BackLinks:
     .sortBy(_._1.title)
 
 object BackLinks:
+  final class Context(
+    val url: String,
+    val before: String,
+    val it: String,
+    val after: String
+  )
+
   final class BackLink(
     val to: Link,
     val from: MarkupPage,
     val transclude: Boolean,
     val kind: Option[String],
-    val context: Html.Element
+    val context: Context
   )

@@ -11,11 +11,13 @@ final class FontAwesome extends Html.JSLibrary:
 object FontAwesome:
   import zio.blocks.html.*
 
+  val file = Icon("file", Regular)
   val folder = Icon("folder", Regular)
   val note = Icon("note-sticky", Regular)
   val envelope = Icon("envelope", Regular)
   val tag = Icon("tag", Solid)
   val tags = Icon("tags", Solid)
+  val list = Icon("list", Solid)
   val errors = Icon("circle-xmark", Regular)
   val arrowUp = Icon("arrow-up", Solid)
   val arrowLeft = Icon("arrow-left", Solid)
@@ -46,7 +48,7 @@ object FontAwesome:
 
   object Style:
     private val all: Set[Style] = Set(Solid, Regular, Brands)
-    
+
     def codec: YamlCodec[Style] = new YamlCodec[Style]:
       def encodeValue(style: Style): Yaml = Yaml.Scalar(style.name)
 

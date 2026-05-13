@@ -20,7 +20,14 @@ abstract class Page(
 
     s"${getClass.getSimpleName} $path$source"
 
-  final lazy val parent: Option[Directory] = Directory.parent(site, path)
+  final def isDirectory: Boolean = Directory.is(path)
+  
+  final def fileName: String = if !isDirectory then path.fileName else
+    if path.path.length > 1
+    then path.path.init.last
+    else path.fileName // "index"
+
+  final lazy val parent: Option[Directory] = Directory.parent(site, this)
   
   final protected def targetFile: File = path.file(site.targetDirectory)
 
@@ -28,6 +35,10 @@ abstract class Page(
 
   def title: String
 
+  def aliases: List[String]
+
+  def icon: FontAwesome.Icon
+  
   def write(): Unit
 
   def resolveBlock(id: String): Option[Link.ToBlock]
@@ -46,8 +57,8 @@ object Page:
     def xmlContent: Xml.Element
 
   trait WithHtmlContent extends WithContent:
-    final override def content: String = XmlWriter.htmlWriter.render(htmlContent(this))
-    def htmlContent(page: Page): Html.Element
+    final override def content: String = XmlWriter.htmlWriter.render(htmlContent)
+    def htmlContent: Html.Element
 
   sealed abstract class Fragment(val id: String)
 
@@ -56,7 +67,5 @@ object Page:
   final class Section(
     id: String,
     val title: String,
-    val level: Int,
     val sections: Seq[Section]
-  ) extends Fragment(id):
-    def withSections(sections: Seq[Section]): Section = Section(id, title, level, sections)
+  ) extends Fragment(id)

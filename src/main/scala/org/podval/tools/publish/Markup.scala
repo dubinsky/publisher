@@ -27,6 +27,8 @@ abstract class Markup derives CanEqual:
 
   def isSectionElement(element: Xml.Element): Boolean
 
+  def getSectionTitle(element: Xml.Element): Option[String]
+
   def getSections(element: Xml.Element, site: Site, sourcePath: Path): Seq[Page.Section]
 
   // This is where TEI link elements like `persName` get converted into HTML `a` elements

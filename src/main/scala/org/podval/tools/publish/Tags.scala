@@ -34,7 +34,7 @@ final class Tags(
       ul(tagsAll.map(tag =>
         li(
           h3(className := "page-tag", id := Xml.Id.toId(tag), tag),
-          Minima.list(withTag(tag), "tag-pages-list", "post-link")
+          Minima.pageList(withTag(tag), cls = Some("post-link"))
         )
       ))
     )
