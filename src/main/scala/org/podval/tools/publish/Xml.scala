@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
 import zio.blocks.chunk.Chunk
-import zio.blocks.schema.xml.{Xml as XML, XmlBuilder, XmlName}
+import zio.blocks.schema.xml.{Xml as XML, XmlCodecError, XmlBuilder, XmlName, XmlReader}
 
 object Xml extends XmlAst:
   override type Xml = XML
@@ -43,7 +43,8 @@ object Xml extends XmlAst:
     case XML.CData(value) => Some(value)
     case _ => None
 
-  def parse(content: String): Either[zio.blocks.schema.xml.XmlCodecError, Xml] =
-    try Right(zio.blocks.schema.xml.XmlReader.read(content))
-    catch case e: zio.blocks.schema.xml.XmlCodecError => Left(e)
-
+  private val useSTaXParserInsteadOfZIOBlocksXML: Boolean = true
+  def parse(content: String): Either[Throwable, Xml] =
+    if useSTaXParserInsteadOfZIOBlocksXML then XmlParser.parse(content) else
+      try Right(XmlReader.read(content))
+      catch case e: XmlCodecError => Left(e)

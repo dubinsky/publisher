@@ -285,6 +285,51 @@ See that the following renders as is:
 val escaped = userInput.replace("<", "&lt;").replace(">", "&gt;")
 ----
 
+On May 12, 2026, while attempting to add FlexMark extensions "Footnotes" and "GFM Task List", I discovered that ZIO Blocks XML
+parser chokes on HTML entities like  `&nbsp;`, which the Task List extension
+outputs, and alone `&#8617;` ("right arrow curling left emoji")
+which the Footnote extension does.
+There is no way to turn off entity parsing in the ZIO Blocks XML parser.
+
+I wrote an adaptor that uses StAX XML parse built into the JDK
+and produces ZIO Block XML AST. It takes less than a 100 lines
+of code.
+TODO share with the ZIO Blocks people.
+
+StAX XML parser, just like the ZIO Blocks XML parser,
+does not recognize HTML entities - but it can be configured
+to not expand the entities, and instead deliver them via StAX:
+
+[source, scala]
+----
+val factory: XMLInputFactory = XMLInputFactory.newInstance
+factory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, false)
+----
+... except the entities get delivered through a dedicated event,
+`EntityReference`, not as `Characters`...
+
+With the real XML parser my fenced code blocks get mangled;
+setting another property took care of that:
+
+[source, scala]
+----
+factory.setProperty(XMLInputFactory.IS_COALESCING, true)
+----
+
+... but counter-acted the one that parses the entities!
+
+So, I need to coalesce the characters myself,
+and incorporate entities into the result!
+
+
+Using the real XML parser, I discovered that the custom `404.html` file that I used on my personal website for the last two
+years, and which I found when originally setting up Jekyll,
+was not valid XML/HTML:
+it has two root elements (`<style>` and `<div>`)!
+It is possible that Jekyll's parser does the right thing,
+but ZIO Blocks XML parser parses the first root element and silently
+ignores the rest, which is _definitely_ not the right thing.
+
 === HTML
 
 === Git

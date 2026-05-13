@@ -56,6 +56,7 @@ object HtmlLike:
     override val extension: String = "html"
     override val additionalExtensions: Set[String] = Set.empty
 
-    override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] = Xml.parse(content) match
-      case Right(xml) => Right(Xml.asElement(xml).get)
-      case Left(e) => Left(PageError.Parsing(sourcePath, "HTML parsing error", Some(e)))
+    override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] =
+      Xml.parse(content) match
+        case Right(xml) => Right(Xml.asElement(xml).get)
+        case Left(e) => Left(PageError.Parsing(sourcePath, "HTML parsing error", Some(e)))

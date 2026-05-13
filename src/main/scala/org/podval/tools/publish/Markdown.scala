@@ -17,10 +17,10 @@ object Markdown extends HtmlLike:
   override val additionalExtensions: Set[String] = Set.empty
 
   private val extensionsCommon: List[Parser.ParserExtension & HtmlRenderer.HtmlRendererExtension] = List(
-//    FootnoteExtension.create, // TODO inserts &#8617; "right arrow curling left emoji" into output
+//    FootnoteExtension.create,
     StrikethroughSubscriptExtension.create,
     TablesExtension.create,
-//    TaskListExtension.create // TODO inserts `&nbsp;` into output
+    TaskListExtension.create
   )
 
   private val extensionsParserOnly: List[Parser.ParserExtension] = List(
@@ -35,11 +35,8 @@ object Markdown extends HtmlLike:
   private val extensionsRenderer: List[HtmlRenderer.HtmlRendererExtension] = extensionsCommon ++ extensionsRendererOnly
 
   private val options: MutableDataSet = new MutableDataSet
-//  options.set(WikiLinkExtension.ALLOW_ANCHORS, true)
-//  options.set(WikiLinkExtension.DISABLE_RENDERING, true)
+//  options.set(Parser.FENCED_CODE_CONTENT_BLOCK, true)
 
-//    options.set(Parser.HTML_BLOCK_DEEP_PARSER, true)
-//    options.set(Parser.HTML_BLOCK_DEEP_PARSE_NON_BLOCK, true)
 
   private val parser: Parser = Parser
     .builder(options)
@@ -55,16 +52,18 @@ object Markdown extends HtmlLike:
   def parse(content: String): Document = parser.parse(content)
   def parseAndRender(content: String): String = renderer.render(parse(content))
 
-  def main(args: Array[String]): Unit = println(parseAndRender(
-    s"""See [^footnote] for an example
-       |
-       |sxdafsadfadsf
-       |
-       |[^footnote]: this is a footnote
-       |""".stripMargin
-  ))
-
   // Wrap Markdown rendered as HTML in a 'div' and parse.
   override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] =
     HtmlLike.Html.parse(sourcePath, s"<div>${parseAndRender(content)}</div>")
 
+  def main(args: Array[String]): Unit =
+    val string =
+       """<div>
+         |  sxdfsf
+         |  &nbsp;
+         |</div>
+         |""".stripMargin
+
+//    println(parseAndRender(string))
+//    println(XmlParser.parse(parseAndRender(string)).toOption.get)
+    println(XmlParser.parse(string).toOption.get)
