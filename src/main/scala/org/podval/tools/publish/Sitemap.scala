@@ -1,5 +1,7 @@
 package org.podval.tools.publish
 
+import org.podval.xml.Xml
+
 object Sitemap:
   val path: Path = Path("sitemap").withExtension("xml")
   

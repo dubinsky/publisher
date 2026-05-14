@@ -1,5 +1,6 @@
 package org.podval.tools.publish
 
+import org.podval.xml.{Xml, XmlAst, XmlParser}
 import zio.blocks.chunk.Chunk
 import scala.annotation.tailrec
 import Page.Section
@@ -84,6 +85,6 @@ object HtmlLike:
     override val additionalExtensions: Set[String] = Set.empty
 
     override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] =
-      Xml.parse(content) match
+      XmlParser.parse(content) match
         case Right(xml) => Right(Xml.asElement(xml).get)
         case Left(e) => Left(PageError.Parsing(sourcePath, "HTML parsing error", Some(e)))

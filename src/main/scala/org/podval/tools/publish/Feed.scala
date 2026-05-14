@@ -1,5 +1,7 @@
 package org.podval.tools.publish
 
+import org.podval.xml.Xml
+
 object Feed:
   val path: Path = Path("feed").withExtension("xml")
   

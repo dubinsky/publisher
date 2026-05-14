@@ -1,6 +1,7 @@
 package org.podval.tools.publish
 
 import org.podval.tools.publish.PageError
+import org.podval.xml.Xml
 import scala.jdk.CollectionConverters.SeqHasAsJava
 import com.vladsch.flexmark.ext.autolink.AutolinkExtension
 import com.vladsch.flexmark.ext.footnotes.FootnoteExtension

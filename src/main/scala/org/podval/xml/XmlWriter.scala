@@ -1,5 +1,6 @@
-package org.podval.tools.publish
+package org.podval.xml
 
+import org.podval.xml.XmlAst
 import org.typelevel.paiges.Doc
 import zio.blocks.chunk.Chunk
 
@@ -97,12 +98,16 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
     val resultNew: List[xml.Xml] =
       if atoms.isEmpty
       then result
-      else result ++ processText(Seq.empty, Strings.squashBigWhitespace(atoms.map(atom => xml.asAtom(atom).get).mkString("")))
+      else result ++ processText(Seq.empty, squashBigWhitespace(atoms.map(atom => xml.asAtom(atom).get).mkString("")))
 
     tail match 
       case Nil => resultNew
       case n :: ns => atomize(resultNew :+ n, ns)
 
+  private def squashBigWhitespace(what: String): String = what
+    .replace('\n', ' ')
+    .replace('\t', ' ')
+  
   @scala.annotation.tailrec
   private def processText(result: Seq[xml.Xml], text: String): Seq[xml.Xml] = if text.isEmpty then result else
     val (spaces: String, tail: String) = text.span(_ == ' ')

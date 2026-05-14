@@ -1,5 +1,6 @@
 package org.podval.tools.publish
 
+import org.podval.xml.{Html, Xml}
 import zio.blocks.html.*
 
 final class Tags(

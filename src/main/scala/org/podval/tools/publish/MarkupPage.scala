@@ -1,5 +1,6 @@
 package org.podval.tools.publish
 
+import org.podval.xml.{Html, Xml}
 import scala.ref.SoftReference
 import scala.reflect.TypeTest
 import java.time.LocalDate

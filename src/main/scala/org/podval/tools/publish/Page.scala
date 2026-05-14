@@ -1,5 +1,6 @@
 package org.podval.tools.publish
 
+import org.podval.xml.{Html, Xml, XmlWriter}
 import java.io.File
 
 abstract class Page(

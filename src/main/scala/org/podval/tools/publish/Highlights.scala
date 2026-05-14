@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
+import org.podval.xml.Html
 import zio.blocks.html.*
-import zio.blocks.chunk.Chunk
 
 object Highlights:
   val version = "11.11.1"

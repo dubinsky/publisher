@@ -1,7 +1,7 @@
-package org.podval.tools.publish
+package org.podval.xml
 
 import zio.blocks.chunk.Chunk
-import zio.blocks.schema.xml.{Xml as XML, XmlBuilder, XmlName}
+import zio.blocks.schema.xml.{XmlBuilder, XmlName, Xml as XML}
 
 object Xml extends XmlAst:
   override type Xml = XML
@@ -42,8 +42,6 @@ object Xml extends XmlAst:
     case XML.Text(value) => Some(value)
     case XML.CData(value) => Some(value)
     case _ => None
-
-  def parse(content: String): Either[Throwable, Xml] = XmlParser.parse(content)
 
   // Was with the ZIO Blocks XML parser
 //  def parse(content: String): Either[Throwable, Xml] =

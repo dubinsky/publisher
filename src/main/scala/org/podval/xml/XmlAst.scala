@@ -1,4 +1,4 @@
-package org.podval.tools.publish
+package org.podval.xml
 
 import zio.blocks.chunk.Chunk
 
@@ -82,7 +82,6 @@ abstract class XmlAst:
     .flatMap(asElement)
     .flatMap(element => f(element))
 
-  // TODO extract and make AST-independent...
   sealed abstract class Elem(val elementName: String):
     def is(element: Element): Boolean = qName(element) == elementName
 
@@ -120,20 +119,11 @@ abstract class XmlAst:
       then element
       else set(element, list.appended(name))
 
-  abstract class ClassName(name: String):
+  abstract class ClassName(val name: String):
     final def add(element: Element): Element = ClassName.add(element, name)
     final def has(element: Element): Boolean = ClassName.has(element, name)
 
-  abstract class ClassNamePrefix(prefix: String):
+  abstract class ClassNamePrefix(val prefix: String):
     final def add(element: Element, name: String): Element = ClassName.add(element, s"$prefix-$name")
     final def get(element: Element): List[String] = ClassName.getStartsWith(element, prefix)
-
-  object InternalLinkClass extends ClassName("internal-link")
-  object WikiLinkClass extends ClassName("wiki-link")
-  object TranscludeClass extends ClassName("transclude")
-  object WikiBlockClass extends ClassName("wiki-block")
-
-  // TEI org/person/place, facsimile, etc.
-  object LinkKindClassPrefix extends ClassNamePrefix("ref-kind")
-
 

@@ -1,12 +1,26 @@
 package org.podval.tools.publish
 
+import org.podval.xml.{Html, Xml}
 import zio.blocks.chunk.Chunk
 import zio.blocks.html.*
-import java.net.{URI, URISyntaxException}
 import scala.annotation.tailrec
+import java.net.{URI, URISyntaxException}
 import Page.{Block, Section}
+import PageMarkup.{InternalLinkClass, LinkKindClassPrefix, TranscludeClass, TranscludeClassHtml, WikiBlockClass,
+  WikiLinkClass, WikiLinkClassHtml}
 
 object PageMarkup:
+  object InternalLinkClass extends Xml.ClassName("internal-link")
+  object WikiLinkClass extends Xml.ClassName("wiki-link")
+  object WikiLinkClassHtml extends Html.ClassName(WikiLinkClass.name)
+  object TranscludeClass extends Xml.ClassName("transclude")
+  object TranscludeClassHtml extends Html.ClassName(TranscludeClass.name)
+  object WikiBlockClass extends Xml.ClassName("wiki-block")
+
+  // TEI org/person/place, facsimile, etc.
+  object LinkKindClassPrefix extends Xml.ClassNamePrefix("ref-kind")
+
+
   private def isKramdownTocMarker(element: Html.Element): Boolean =
     Html.qName(element) == "ul" &&
     Html.children(element).length == 1 &&
@@ -69,7 +83,7 @@ final class PageMarkup(
 
   private lazy val blocks: Seq[Block] = if !markup.recognizeBlocks then Seq.empty else
     Xml.gather(xml, markup.stop(Xml), element =>
-      if !Xml.WikiBlockClass.has(element) then None else Xml.Id.get(element) match
+      if !WikiBlockClass.has(element) then None else Xml.Id.get(element) match
         case None => PageError.NoId(sourcePath, s"Defect: No id on block $element").report(site)
         case Some(id) => Some(Block(id))
     )
@@ -121,7 +135,7 @@ final class PageMarkup(
             Xml.Id.get(result) match
               case Some(idExisting) =>
                 PageError.NoId(sourcePath, s"Block id '$id' conflicts with existing id '$idExisting'").report(site, result)
-              case None => Xml.WikiBlockClass.add(Xml.Id.set(result, id))
+              case None => WikiBlockClass.add(Xml.Id.set(result, id))
 
   private def convertWikiLinks(element: Xml.Element): Xml.Element =
     if !markup.recognizeWikiLinks then element else Xml.setChildren(element, Xml.children(element).flatMap(xml =>
@@ -154,8 +168,8 @@ final class PageMarkup(
       val result: Xml.Element =
         var result: Xml.Element = Xml.element(Xml.A.elementName)
         result = Xml.setAttribute(result, Html.Href.attributeName, ref.trim)
-        result = Xml.WikiLinkClass.add(result)
-        if transclude then result = Xml.TranscludeClass.add(result)
+        result = WikiLinkClass.add(result)
+        if transclude then result = TranscludeClass.add(result)
         textOpt.map(_.trim).filterNot(_.isEmpty).foreach(text => result = Xml.setText(result, text))
         result
 
@@ -179,21 +193,21 @@ final class PageMarkup(
           // TODO verify that external link is not broken if the Site is so configured
           element
         else
-          val result: Xml.Element = Xml.InternalLinkClass.add(element)
+          val result: Xml.Element = InternalLinkClass.add(element)
           if Xml.Id.get(result).isDefined
           then result
           else Xml.Id.set(result, generateId)
 
   def backLinks(page: MarkupPage): Seq[BackLinks.BackLink] = Xml.gatherWithParents(xml, markup.stop(Xml), (element, parents) =>
-    if !Xml.A.is(element) || !Xml.InternalLinkClass.has(element) then None else
+    if !Xml.A.is(element) || !InternalLinkClass.has(element) then None else
       for
         ref <- Xml.Href.get(element)
         linkTo <- Link.resolve(ref, page)
       yield BackLinks.BackLink(
         to = linkTo,
         from = page,
-        transclude = Xml.TranscludeClass.has(element),
-        kind = Xml.LinkKindClassPrefix.get(element).headOption,
+        transclude = TranscludeClass.has(element),
+        kind = LinkKindClassPrefix.get(element).headOption,
         context = context(element, parents, page)
       )
     )
@@ -236,7 +250,7 @@ final class PageMarkup(
     )
 
   private def resolveInternalLinks(element: Xml.Element, page: Page): Xml.Element =
-    if !Xml.A.is(element) || !Xml.InternalLinkClass.has(element) then element else
+    if !Xml.A.is(element) || !InternalLinkClass.has(element) then element else
       Xml.Href.get(element).fold(element)(ref => Link.resolve(ref, page) match
       case None =>
         PageError.Unresolved(sourcePath, s"unresolved internal link ref='$ref': $element}'").report(site, element)
@@ -253,7 +267,7 @@ final class PageMarkup(
   // TODO FlexMark inlines image links for the ![]() references - but does not process image sizes...
   private def embed(element: Html.Element): Html.Element = if !Html.A.is(element) then element else
     Html.Href.get(element).fold(element): ref =>
-      if !Html.TranscludeClass.has(element) then element else
+      if !TranscludeClassHtml.has(element) then element else
         val embedded: Option[Html.Element] = Files.nameAndExtension(ref)._2.fold(None): extension =>
           if Files.imageExtensions.contains(extension) then
             val (widthOpt: Option[Int], heightOpt: Option[Int]) =
@@ -282,7 +296,7 @@ final class PageMarkup(
   // also, surround the text with explicit [[...]] instead of adding them in CSS.
   private def restoreWikiLinks(element: Html.Element): Html.Element =
     // TODO if internal non-wiki links can be empty, use InternalLinkClass instead?
-    if !Html.A.is(element) || !Html.WikiLinkClass.has(element) then element else
+    if !Html.A.is(element) || !WikiLinkClassHtml.has(element) then element else
       val text = Html.toStringOpt(element).orElse(Html.Href.get(element)).getOrElse("EMPTY LINK")
       Html.setText(element, s"[[$text]]")
 

@@ -1,5 +1,6 @@
 package org.podval.tools.publish
 
+import org.podval.xml.Html
 import zio.blocks.html.*
 
 object MathJax extends Html.JSLibrary:

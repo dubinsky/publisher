@@ -1,8 +1,9 @@
 package org.podval.tools.publish
 
+import org.podval.xml.Xml
+import scala.reflect.TypeTest
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
-import scala.reflect.TypeTest
 import java.io.File
 
 final class Site(

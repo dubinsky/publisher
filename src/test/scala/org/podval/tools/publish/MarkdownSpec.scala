@@ -1,5 +1,6 @@
 package org.podval.tools.publish
 
+import org.podval.xml.{Xml, XmlWriter}
 import zio.Scope
 import zio.test.*
 

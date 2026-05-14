@@ -1,5 +1,7 @@
 package org.podval.tools.publish
 
+import org.podval.xml.{Xml, XmlAst}
+
 object Markup:
   val all: List[Markup] = List(
     Markdown,

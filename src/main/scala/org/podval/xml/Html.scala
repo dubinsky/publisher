@@ -1,4 +1,4 @@
-package org.podval.tools.publish
+package org.podval.xml
 
 import zio.blocks.chunk.Chunk
 import zio.blocks.html.Dom as XML

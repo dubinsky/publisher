@@ -1,4 +1,4 @@
-package org.podval.tools.publish
+package org.podval.xml
 
 import zio.blocks.chunk.Chunk
 import zio.blocks.schema.xml.{Xml, XmlName}
@@ -11,7 +11,7 @@ import javax.xml.stream.events.{Attribute, Characters, Comment, EndElement, Enti
   StartElement}
 
 object XmlParser:
-  def parse(content: String): Either[Throwable, Xml.Element] =
+  def parse(content: String): Either[XMLStreamException, Xml.Element] =
     try Right(parseInternal(content))
     catch case e: XMLStreamException => Left(e)
 
