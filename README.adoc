@@ -61,6 +61,19 @@ Write about all the plugins I used:
 [#future]
 == Future
 
+=== Title
+
+Match pages by explicit titles too.
+
+For documents that have titles in the body and not in front matter (like in TEI), transplant them into the layout-appropriate place.
+
+=== Pages
+- file named after a directory is its index!
+- handle categories; they can be wiki links?!
+- auto-create category pages
+- auto-create tag pages
+- handle permalinks and multi-name redirects
+
 === Transclusion
 Sort the pages in transclusion order, extract the sections and block,  transclude, and style the transclusions
 
@@ -349,20 +362,11 @@ ignores the rest, which is _definitely_ not the right thing.
 [#todo]
 == TODO
 
-=== Pages
-- file named after a directory is its index!
-- surface resolved page alias, so that it, and not the title, gets displayed
-- handle categories; they can be wiki links?!
-- auto-create category pages
-- auto-create tag pages
-- handle permalinks and multi-name redirects
-
-=== CSS and HTML
+=== CSS
 - unify approach to producing horizontal lines: `<hr>` or CSS border
 - escape URLs etc.?
 - alias languages unknown to Highlights.js to known ones - or to autodetect
 - style code blocks so that they do not break up into stripes when not recognized by Highlights.js
-- for documents that have titles in the body and not in front matter (like in TEI), transplant them into the layout-appropriate place
 - remove unneeded classes
 - unify and clean up the CSS
 
