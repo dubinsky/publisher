@@ -1,4 +1,4 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.util
 
 import zio.blocks.schema.yaml.{Yaml, YamlCodec}
 import java.time.{LocalDate, LocalDateTime, OffsetDateTime}

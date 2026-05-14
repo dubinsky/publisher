@@ -126,4 +126,3 @@ abstract class XmlAst:
   abstract class ClassNamePrefix(val prefix: String):
     final def add(element: Element, name: String): Element = ClassName.add(element, s"$prefix-$name")
     final def get(element: Element): List[String] = ClassName.getStartsWith(element, prefix)
-

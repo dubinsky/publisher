@@ -8,6 +8,8 @@ object Html extends XmlAst:
   override type Xml = XML
   override type Element = XML.Element
 
+  val writer: XmlWriter[Html.type] = XmlWriter(Html)(XmlWriter.htmlWriterConfig)
+
   override def asElement(xml: Xml): Option[Element] = xml match
     case element: XML.Element => Some(element)
     case _ => None
@@ -84,19 +86,10 @@ object Html extends XmlAst:
     }
   )
 
-  // for convenience
-
-  abstract class JSLibrary:
-    def head: List[Html.Element]
-    def body: List[Html.Element]
-
-  def stylesheet(
-    hrefString: String,
-    idOpt: Option[String] = None
-  ): Html.Element =
+  def stylesheet(ref: String, idOpt: Option[String] = None): Element =
     import zio.blocks.html.*
     link(
       rel := "stylesheet",
-      href := hrefString,
+      href := ref,
       idOpt.map(id := _)
     )

@@ -1,4 +1,4 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.config
 
 sealed abstract class SocialLink(
   val title: String,

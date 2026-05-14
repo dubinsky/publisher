@@ -1,5 +1,6 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.config
 
+import org.podval.tools.publish.util.Files
 import org.slf4j.{Logger, LoggerFactory}
 import zio.blocks.schema.Schema
 import zio.blocks.schema.yaml.{YamlCodec, YamlFormat}
@@ -47,6 +48,12 @@ final class Config(
       Config.special.contains(name) ||
       Config.specialStartsWith.exists(name.startsWith)
 
+  def socialLinks: Seq[SocialLink] = Seq(
+    social.github.map(SocialLink.GitHub(_)),
+    social.twitter.map(SocialLink.Twitter(_)),
+    social.linkedin.map(SocialLink.LinkedIn(_))
+  ).flatten
+  
 object Config:
   final class Social(
     val github: Option[String] = None,

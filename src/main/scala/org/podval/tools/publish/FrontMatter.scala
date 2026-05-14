@@ -1,5 +1,6 @@
 package org.podval.tools.publish
 
+import org.podval.tools.publish.util.{Date, Icon}
 import zio.blocks.chunk.Chunk
 import zio.blocks.schema.{Schema, SchemaError}
 import zio.blocks.schema.yaml.{Yaml, YamlCodec, YamlFormat, YamlReader, YamlWriter}
@@ -17,7 +18,7 @@ final case class FrontMatter(
   aliases: List[String] = List.empty,
   permalink: Option[String] = None,
   date: Option[Date] = None,
-  icon: Option[FontAwesome.Icon] = None,
+  icon: Option[Icon] = None,
   modified_time: Option[Date] = None,
   headerPage: Option[FrontMatter.HeaderPage] = None
 ):
@@ -74,7 +75,7 @@ object FrontMatter:
   private val codec: YamlCodec[FrontMatter] = schema
     .deriving(YamlFormat.deriver)
     .instance(TypeId.of[Date], Date.codec)
-    .instance(TypeId.of[FontAwesome.Style], FontAwesome.Style.codec)
+    .instance(TypeId.of[Icon.Style], Icon.Style.codec)
     .derive
 
   def parse(sourcePath: Path, input: String): (Either[PageError, FrontMatter], String) = parse(input) match

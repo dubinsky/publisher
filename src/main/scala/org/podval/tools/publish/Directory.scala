@@ -1,5 +1,6 @@
 package org.podval.tools.publish
 
+import org.podval.tools.publish.util.Icon
 import org.podval.xml.Html
 import zio.blocks.html.*
 
@@ -13,11 +14,13 @@ final class Directory(
   path,
   frontMatter,
   source
-) with MarkupPage.BaseLayout:
-  override def iconDefault: FontAwesome.Icon = FontAwesome.folder
+):
+  override def isSynthetic: Boolean = true
+
+  override def iconDefault: Icon = Icon.folder
 
   override protected def syntheticContent: Option[Html.Element] = Some:
-    div(className := "directory", Minima.pageList(directories ++ pages))
+    div(className := "directory", Page.pageList(directories ++ pages))
 
   def prev(page: Page): Option[Page] = listFor(page).takeWhile(_ != page).reverse.headOption
   def next(page: Page): Option[Page] = listFor(page).dropWhile(_ != page).dropWhile(_ == page).headOption

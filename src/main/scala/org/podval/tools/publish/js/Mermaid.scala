@@ -1,9 +1,9 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.js
 
 import org.podval.xml.Html
 import zio.blocks.html.*
 
-final class Mermaid extends Html.JSLibrary:
+object Mermaid extends JSLibrary:
   override def head: List[Html.Element] = List.empty
 
   override def body: List[Html.Element] = List(

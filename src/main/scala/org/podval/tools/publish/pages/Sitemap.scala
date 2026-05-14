@@ -1,14 +1,13 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.pages
 
+import org.podval.tools.publish.{Page, Path, Site}
 import org.podval.xml.Xml
 
 object Sitemap:
   val path: Path = Path("sitemap").withExtension("xml")
   
 // TODO site first
-final class Sitemap(
-  site: Site
-) extends Asset.SyntheticXml(
+final class Sitemap(site: Site) extends Page.SyntheticXmlAsset(
   site,
   Sitemap.path
 ):

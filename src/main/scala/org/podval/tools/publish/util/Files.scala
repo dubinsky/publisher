@@ -1,4 +1,4 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.util
 
 import java.io.File
 import java.net.URI

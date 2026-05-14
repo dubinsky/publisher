@@ -7,6 +7,8 @@ object Xml extends XmlAst:
   override type Xml = XML
   override type Element = XML.Element
 
+  val writer: XmlWriter[Xml.type] = XmlWriter(Xml)(XmlWriter.htmlWriterConfig)
+
   override def asElement(xml: Xml): Option[Element] = xml match
     case element: XML.Element => Some(element)
     case _ => None

@@ -1,5 +1,8 @@
 package org.podval.tools.publish
 
+import org.podval.tools.publish.js
+import org.podval.tools.publish.pages.Feed
+import org.podval.tools.publish.util.{Date, Icon}
 import org.podval.xml.Html
 import zio.blocks.html.*
 
@@ -10,8 +13,6 @@ object Minima:
     markupContent: Option[Html.Element],
     syntheticContent: Option[Html.Element]
   ): Html.Element =
-    val isBaseLayout: Boolean = page.isInstanceOf[MarkupPage.BaseLayout]
-
     def getLanguages(element: Html.Element): Seq[String] =
       if Html.Code.is(element)
       then Html.ClassName.getStartsWith(element, "language")
@@ -22,12 +23,12 @@ object Minima:
 
     val content: Seq[Html.Element] = Seq(markupContent, syntheticContent).flatten
 
-    val libraries: List[Html.JSLibrary] = List(
-      Option.when(languagesToHighlight.nonEmpty)(Highlights(languages)),
-      Option.when(page.math)(MathJax),
-      Some(FontAwesome()),
-      Option.when(languages.contains("mermaid"))(Mermaid()),
-      page.site.googleAnalytics.map(GoogleAnalytics(_))
+    val libraries: List[js.JSLibrary] = List(
+      Option.when(languagesToHighlight.nonEmpty)(js.Highlights(languages)),
+      Option.when(page.math)(js.MathJax),
+      Some(js.FontAwesome),
+      Option.when(languages.contains("mermaid"))(js.Mermaid),
+      page.site.googleAnalytics.map(js.GoogleAnalytics(_))
     ).flatten
 
     html(lang := page.lang,
@@ -40,12 +41,12 @@ object Minima:
               header(className := "post-header",
                 postPath(page),
                 h1(className := "post-title p-name", itemProp := "name headline", page.title),
-                Option.when(!isBaseLayout)(articleMeta(page))
+                Option.when(!page.isSynthetic)(articleMeta(page))
               ),
               div(className := "post-content e-content", itemProp := "articleBody", content),
               a(className := "u-url", href := page.path.toString, hidden := true)
             ),
-            backLinksList(isBaseLayout, page.site.backLinks(page))
+            backLinksList(page.isSynthetic, page.site.backLinks(page))
           ),
         ),
         footerHtml(page.site),
@@ -60,7 +61,7 @@ object Minima:
 
     val pathFull: Seq[MarkupPage] = parents(page)
     val path: Seq[MarkupPage] = if pathFull.isEmpty then pathFull else pathFull.tail
-    span(className := "post-path", path.map(page => span("/", pageRef(page, withIcon = false))))
+    span(className := "post-path", path.map(page => span("/", page.ref(withIcon = false))))
 
   private def articleMeta(page: MarkupPage): Html.Element =
     div(className := "post-meta",
@@ -104,11 +105,10 @@ object Minima:
         hr,
         h3("Backlinks"),
         ul(backLinks.map((from, links) =>
-          val url = Link(from).url
           li(
             details(
               summary(
-                pageRef(from),
+                from.ref(),
                 span(className := "backlinks-count", links.length)
               ),
               ul(className := "backlinks-list", links.map(link =>
@@ -117,7 +117,7 @@ object Minima:
                   a(
                     href := context.url,
                     context.before,
-                    span(className := "backlink", context.it),
+                    span(className := "backlink", context.element),
                     context.after
                   )
                 )
@@ -130,7 +130,7 @@ object Minima:
   // TODO unfold
   private def headHtml(
     page: MarkupPage,
-    libraries: List[Html.JSLibrary]
+    libraries: List[js.JSLibrary]
   ): Html.Element =
     head(
       meta(charset := "utf-8"),
@@ -158,16 +158,16 @@ object Minima:
           ),
           div(className := "nav-items",
             page.site.headerPages.map(headerPage =>
-              pageRef(headerPage.page)
+              headerPage.page.ref()
             ),
             page.parent.flatMap(parent => Option.when(parent.parent.isDefined)(
-              pageRef(parent, cls = Some("nav-item"), icon = Some(FontAwesome.arrowUp), withTitle = false)
+              parent.ref(cls = Some("nav-item"), icon = Some(Icon.arrowUp), withTitle = false)
             )),
             page.parent.flatMap(_.prev(page)).collect { case page: MarkupPage => page } .map(prev =>
-              pageRef(prev, cls = Some("nav-item"), icon = Some(FontAwesome.arrowLeft), withTitle = false)
+              prev.ref(cls = Some("nav-item"), icon = Some(Icon.arrowLeft), withTitle = false)
             ),
             page.parent.flatMap(_.next(page)).collect { case page: MarkupPage => page } .map(next =>
-              pageRef(next, cls = Some("nav-item"), icon = Some(FontAwesome.arrowRight), withTitle = false)
+              next.ref(cls = Some("nav-item"), icon = Some(Icon.arrowRight), withTitle = false)
             )
           )
         )
@@ -191,7 +191,7 @@ object Minima:
               ul(className := "social-media-list", site.socialLinks.map(social =>
                 li(
                   a(rel := "me", href := social.href, target := "_blank", titleAttr := social.title,
-                    FontAwesome.brand(social.icon).htmlSpan,
+                    Icon.brand(social.icon).htmlSpan,
                     span(className := "username", social.userName)
                   )
                 )
@@ -202,7 +202,7 @@ object Minima:
             p(site.description),
             p(
               a(href := Feed.path.toString,
-                FontAwesome.rss.htmlSpan,
+                Icon.rss.htmlSpan,
                 span(className := "rss-feed", "RSS feed")
               )
             )
@@ -210,37 +210,3 @@ object Minima:
         )
       )
     )
-
-  def pageList(pages: Seq[Page], cls: Option[String] = None): Html.Element = ul(
-    className := "page-list",
-    pages.map(page => li(pageRef(page, cls = cls)))
-  )
-
-  def pageRef(
-    page: Page,
-    icon: Option[FontAwesome.Icon] = None,
-    withTitle: Boolean = true,
-    withIcon: Boolean = true,
-    cls: Option[String] = None
-  ): Html.Element =
-    val pageLink: Link = Link(page)
-    a(
-      cls.map(cls => className := cls),
-      href := pageLink.url,
-      Option.when(withIcon)(icon.getOrElse(page.icon).htmlSpan),
-      Option.when(withTitle)(pageLink.title)
-    )
-
-  def toc(sections: Seq[Page.Section]): Html.Element =
-    div(className := "toc",
-      h3("Table of Contents"),
-      tocSections(sections)
-    )
-
-  private def tocSections(sections: Seq[Page.Section]): Html.Element =
-    ul(sections.map(section =>
-      li(
-        a(href := s"#${section.id}", section.title),
-        Option.when(section.sections.nonEmpty)(tocSections(section.sections))
-      )
-    ))

@@ -1,5 +1,7 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.pages
 
+import org.podval.tools.publish.util.Icon
+import org.podval.tools.publish.{FrontMatter, MarkupPage, Page, Path, Site}
 import org.podval.xml.{Html, Xml}
 import zio.blocks.html.*
 
@@ -13,8 +15,10 @@ final class Tags(
   path,
   frontMatter,
   source
-) with MarkupPage.BaseLayout:
-  override def iconDefault: FontAwesome.Icon = FontAwesome.tags
+):
+  override def isSynthetic: Boolean = true
+
+  override def iconDefault: Icon = Icon.tags
 
   private def tagsAll: List[String] = site.markupPages.flatMap(_.tags).distinct.sorted
 
@@ -23,7 +27,7 @@ final class Tags(
   def tagRef(tag: String): Html.Element = a(
     className := "page-tag",
     href := s"$path#${Xml.Id.toId(tag)}",
-    FontAwesome.tag.htmlSpan,
+    Icon.tag.htmlSpan,
     tag
   )
 
@@ -35,7 +39,7 @@ final class Tags(
       ul(tagsAll.map(tag =>
         li(
           h3(className := "page-tag", id := Xml.Id.toId(tag), tag),
-          Minima.pageList(withTag(tag), cls = Some("post-link"))
+          Page.pageList(withTag(tag), cls = Some("post-link"))
         )
       ))
     )

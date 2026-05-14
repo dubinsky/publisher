@@ -1,4 +1,4 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.util
 
 object Strings:
   def split(what: String, on: Char): (String, Option[String]) = what.lastIndexOf(on) match

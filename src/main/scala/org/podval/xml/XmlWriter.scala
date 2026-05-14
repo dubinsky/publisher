@@ -218,9 +218,6 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
   private def isWhitespace(node: xml.Xml): Boolean = xml.asAtom(node).fold(false)(_.trim.isEmpty)
 
 object XmlWriter:
-  val xmlWriter: XmlWriter[Xml.type] = XmlWriter(Xml)(htmlWriterConfig)
-  val htmlWriter: XmlWriter[Html.type] = XmlWriter(Html)(htmlWriterConfig)
-
   // The only way I found to not let Paiges screw up indentation in the <pre><code>..</code></pre> blocks
   // is to give it the whole block as one unbreakable text, and for that I need to hide newlines from it -
   // and then restore them in render()...
@@ -242,7 +239,7 @@ object XmlWriter:
     def break(name: String): Boolean
     def preformat(name: String): Boolean
 
-  private def htmlWriterConfig: Config = new Config:
+  def htmlWriterConfig: Config = new Config:
     override def selfClose(name: String): Boolean = Set("br", "hr", "meta", "link", "img", "input").contains(name)
     override def stack(name: String): Boolean = Set("nav", "header", "main", "div").contains(name)
     override def unStack(name: String): Boolean = false

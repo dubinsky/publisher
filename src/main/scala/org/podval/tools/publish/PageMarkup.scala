@@ -1,5 +1,6 @@
 package org.podval.tools.publish
 
+import org.podval.tools.publish.util.{Files, Strings}
 import org.podval.xml.{Html, Xml}
 import zio.blocks.chunk.Chunk
 import zio.blocks.html.*
@@ -10,6 +11,9 @@ import PageMarkup.{InternalLinkClass, LinkKindClassPrefix, TranscludeClass, Tran
   WikiLinkClass, WikiLinkClassHtml}
 
 object PageMarkup:
+  // TEI org/person/place, facsimile, etc.
+  object LinkKindClassPrefix extends Xml.ClassNamePrefix("ref-kind")
+
   object InternalLinkClass extends Xml.ClassName("internal-link")
   object WikiLinkClass extends Xml.ClassName("wiki-link")
   object WikiLinkClassHtml extends Html.ClassName(WikiLinkClass.name)
@@ -17,18 +21,13 @@ object PageMarkup:
   object TranscludeClassHtml extends Html.ClassName(TranscludeClass.name)
   object WikiBlockClass extends Xml.ClassName("wiki-block")
 
-  // TEI org/person/place, facsimile, etc.
-  object LinkKindClassPrefix extends Xml.ClassNamePrefix("ref-kind")
-
-
   private def isKramdownTocMarker(element: Html.Element): Boolean =
-    Html.qName(element) == "ul" &&
-    Html.children(element).length == 1 &&
-    Html.asElement(Html.children(element).head).fold(false): child =>
-      Html.qName(child) == "li" &&
-      Html.children(child).length == 1 &&
-      Html.asText(Html.children(child).head).fold(false): text =>
-        text.endsWith("{:toc}")
+    Html.qName(element) == "ul" && Html.children(element).exists: node =>
+      Html.asElement(node).fold(false): child =>
+        Html.qName(child) == "li" &&
+        Html.children(child).length == 1 &&
+        Html.asText(Html.children(child).head).fold(false): text =>
+          text.endsWith("{:toc}")
 
 final class PageMarkup(
   source: MarkupPage.Source,
@@ -198,56 +197,56 @@ final class PageMarkup(
           then result
           else Xml.Id.set(result, generateId)
 
-  def backLinks(page: MarkupPage): Seq[BackLinks.BackLink] = Xml.gatherWithParents(xml, markup.stop(Xml), (element, parents) =>
-    if !Xml.A.is(element) || !InternalLinkClass.has(element) then None else
-      for
-        ref <- Xml.Href.get(element)
-        linkTo <- Link.resolve(ref, page)
-      yield BackLinks.BackLink(
-        to = linkTo,
-        from = page,
-        transclude = TranscludeClass.has(element),
-        kind = LinkKindClassPrefix.get(element).headOption,
-        context = context(element, parents, page)
-      )
-    )
+  def backLinks(page: MarkupPage): Seq[BackLinks.BackLink] = Xml.gatherWithParents(
+    element = xml,
+    stop = markup.stop(Xml),
+    gatherElement = backLink(_, _, page)
+  )
 
   // Note: Obsidian expands the context to the source level, which is good for searching - but doesn't look great
   // when there are non-wiki links in there;
   // I am going with just text, so the non-wiki links are not going to be visible...
   // Note: I can widen the context by going after grandparent etc. if it is too short - but Obsidian does not seem to do it...
+  private def backLink(element: Xml.Element, parents: Seq[Xml.Element], from: MarkupPage): Option[BackLinks.BackLink] =
+    if !Xml.A.is(element) || !InternalLinkClass.has(element) then None else
+      for
+        ref <- Xml.Href.get(element)
+        to <- Link.resolve(ref, from)
+      yield
+        val toFrom: Link = Link(from, fragment = from.resolveId(Xml.Id.get(element).get), intrapage = false)
+        val (before: Chunk[Xml.Xml], tail) = Xml.children(parents.head).span(Xml.asElement(_).fold(true)(_ ne element))
+        val after: Chunk[Xml.Xml] = tail.tail
+
+        BackLinks.BackLink(
+          to = to,
+          from = from,
+          transclude = TranscludeClass.has(element),
+          kind = LinkKindClassPrefix.get(element).headOption,
+          context = BackLinks.Context(
+            url = toFrom.url,
+            before = childrenText(before, isBefore = true),
+            element = elementText(element),
+            after = childrenText(after, isBefore = false)
+          )
+        )
+
+  private def elementText(element: Xml.Element): String =
+    Html.toString(Html.transform(Html.fromXml(element), markup.stop(Html), restoreWikiLinks))
+
+  private def childrenText(children: Chunk[Xml.Xml], isBefore: Boolean): String =
+    shortenContext(isBefore, elementText(Xml.setChildren(Xml.element("dummy"), children)))
+
   private val contextLengthHalf: Int = 60
+
   private def shortenContext(isBefore: Boolean, string: String): String =
-    if string.length <= contextLengthHalf then string else
-      if isBefore then
-        val result = string.substring(string.length-contextLengthHalf)
-        val prefix = /*if result.startsWith(" ") then "" else*/ "..."
-        prefix + result.trim
-      else
-        val result = string.substring(0, contextLengthHalf)
-        val suffix = /*if result.endsWith(" ") then "" else*/ "..."
-        result.trim + suffix
-
-  private def context(
-    focus: Xml.Element,
-    parents: Seq[Xml.Element],
-    page: Page
-  ): BackLinks.Context =
-    def elementText(element: Xml.Element): String =
-      Html.toString(Html.transform(Html.fromXml(element), markup.stop(Html), restoreWikiLinks))
-
-    def childrenText(children: Chunk[Xml.Xml], isBefore: Boolean): String =
-      shortenContext(isBefore, elementText(Xml.setChildren(Xml.element("dummy"), children)))
-
-    val (before: Chunk[Xml.Xml], tail) = Xml.children(parents.head).span(Xml.asElement(_).fold(true)(_ ne focus))
-    val it: Xml.Element = Xml.asElement(tail.head).get
-
-    BackLinks.Context(
-      url = Link.resolveId(page, Xml.Id.get(it).get).url,
-      before = childrenText(before, isBefore = true),
-      it = elementText(it),
-      after = childrenText(tail.tail, isBefore = false)
-    )
+    if string.length <= contextLengthHalf then string else if isBefore then
+      val result = string.substring(string.length - contextLengthHalf)
+      val prefix = /*if result.startsWith(" ") then "" else*/ "..."
+      prefix + result.trim
+    else
+      val result = string.substring(0, contextLengthHalf)
+      val suffix = /*if result.endsWith(" ") then "" else*/ "..."
+      result.trim + suffix
 
   private def resolveInternalLinks(element: Xml.Element, page: Page): Xml.Element =
     if !Xml.A.is(element) || !InternalLinkClass.has(element) then element else
@@ -301,5 +300,18 @@ final class PageMarkup(
       Html.setText(element, s"[[$text]]")
 
   private def addToc(element: Html.Element): Html.Element =
-    if !PageMarkup.isKramdownTocMarker(element) then element else Minima.toc(sections)
+    if !PageMarkup.isKramdownTocMarker(element) then element else
+      div(className := "toc",
+        h3("Table of Contents"),
+        tocSections(sections)
+      )
+
+  private def tocSections(sections: Seq[Page.Section]): Html.Element =
+    ul(sections.map(section =>
+      li(
+        a(href := s"#${section.id}", section.title),
+        Option.when(section.sections.nonEmpty)(tocSections(section.sections))
+      )
+    ))
+
 

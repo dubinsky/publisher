@@ -1,13 +1,12 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.pages
 
+import org.podval.tools.publish.{Page, Path, Site}
 import org.podval.xml.Xml
 
 object Feed:
   val path: Path = Path("feed").withExtension("xml")
   
-final class Feed(
-  site: Site
-) extends Asset.SyntheticXml(
+final class Feed(site: Site) extends Page.SyntheticXmlAsset(
   site,
   Feed.path
 ):

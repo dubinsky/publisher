@@ -1,5 +1,6 @@
 package org.podval.tools.publish
 
+import org.podval.tools.publish.util.{Date, Icon}
 import org.podval.xml.{Html, Xml}
 import scala.ref.SoftReference
 import scala.reflect.TypeTest
@@ -14,17 +15,19 @@ open class MarkupPage(
   site,
   path
 ) with Page.WithHtmlContent:
+  def isSynthetic: Boolean = false
+
   final def tags: List[String] = frontMatter.tags
   final def author: String = frontMatter.author.getOrElse(site.author)
   final def lang: String = frontMatter.lang.getOrElse(site.lang)
   final def math: Boolean = frontMatter.math
-  final override def icon: FontAwesome.Icon = frontMatter.icon.getOrElse(iconDefault)
-  def iconDefault: FontAwesome.Icon = if isPost then FontAwesome.envelope else FontAwesome.note
+  final override def icon: Icon = frontMatter.icon.getOrElse(iconDefault)
+  def iconDefault: Icon = if isPost then Icon.envelope else Icon.note
 
-  final lazy val headerPage: Option[Site.HeaderPage] = frontMatter
+  final lazy val headerPage: Option[HeaderPage] = frontMatter
     .headerPage
     .filter(_.include)
-    .map(headerPage => Site.HeaderPage(
+    .map(headerPage => HeaderPage(
       page = this,
       priority = headerPage.priority.getOrElse(0)
     ))
@@ -65,8 +68,6 @@ open class MarkupPage(
   protected def syntheticContent: Option[Html.Element] = None
 
 object MarkupPage:
-  trait BaseLayout extends MarkupPage
-
   final class Source(
     val markup: Markup,
     val site: Site,

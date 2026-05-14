@@ -1,4 +1,4 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.util
 
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.errors.GitAPIException
@@ -7,8 +7,7 @@ import org.eclipse.jgit.lib.{Constants, Repository}
 import org.eclipse.jgit.revwalk.{FollowFilter, RevCommit, RevWalk}
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 
-import java.io.File
-import java.io.IOException
+import java.io.{File, IOException}
 import java.util.Date
 
 final class Git(rootDirectory: File):
@@ -23,8 +22,8 @@ final class Git(rootDirectory: File):
 //        val lastCommit: RevCommit = revWalk.iterator.next
 //        // Get commit time (seconds since epoch)
 //        val commitTime: Int = lastCommit.getCommitTime
-    
-        
+
+
 //    try (Git git = Git.open(repoDir)) {
 //      Iterable < RevCommit > commits = git.log()
 //        .addPath(filePath)

@@ -1,4 +1,4 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.util
 
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
@@ -7,8 +7,9 @@ import ch.qos.logback.core.ConsoleAppender
 import ch.qos.logback.core.encoder.Encoder
 import ch.qos.logback.core.status.InfoStatus
 import net.logstash.logback.encoder.LogstashEncoder
-import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
+import org.slf4j.{Logger, LoggerFactory}
+
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
 object Logging:

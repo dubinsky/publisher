@@ -1,5 +1,7 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.pages
 
+import org.podval.tools.publish.util.Icon
+import org.podval.tools.publish.{FrontMatter, MarkupPage, Path, Site}
 import org.podval.xml.Html
 import zio.blocks.html.*
 
@@ -14,7 +16,7 @@ final class Errors(
   frontMatter,
   source,
 ):
-  override def iconDefault: FontAwesome.Icon = FontAwesome.errors
+  override def iconDefault: Icon = Icon.errors
 
   override protected def syntheticContent: Option[Html.Element] = Some:
     div(className := "site-errors", id := "site-errors")

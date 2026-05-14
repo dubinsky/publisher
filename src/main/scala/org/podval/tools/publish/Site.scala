@@ -1,9 +1,14 @@
 package org.podval.tools.publish
 
+import org.podval.tools.publish.config.{Config, SocialLink}
+import org.podval.tools.publish.pages.*
+import org.podval.tools.publish.util.{Files, Logging}
 import org.podval.xml.Xml
+
 import scala.reflect.TypeTest
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.event.Level
+
 import java.io.File
 
 final class Site(
@@ -35,6 +40,7 @@ final class Site(
   def email: String = config.email
   def lang: String = config.lang.getOrElse("en")
   def googleAnalytics: Option[String] = Option.when(production)(config.googleAnalytics).flatten
+  val socialLinks: Seq[SocialLink] = config.socialLinks
 
   private var pagesVar: List[Page] = List.empty
   def pages: List[Page] = pagesVar
@@ -79,16 +85,16 @@ final class Site(
 
   def generate(): Unit =
     // Wipe out output directory
-    Files.deleteDirectory(config.targetDirectory)
+    Files.deleteDirectory(targetDirectory)
 
     // Write embedded resources
-    writePages(Site.resourcesList.map(Asset.Embedded(this, _)))
+    writePages(Site.resourcesList.map(Page.EmbeddedAsset(this, _)))
 
     // Write synthetic assets
     writePages(List(Sitemap(this), Robots(this), Feed(this)))
 
     // Read and add pages
-    pagesVar = pagesVar.appendedAll(directoryPages(Seq.empty, config.sourceDirectory))
+    pagesVar = pagesVar.appendedAll(directoryPages(Seq.empty, sourceDirectory))
 
     // Add automatic pages
     pageMakers.collect { case autoMaker: MarkupPage.AutoMaker[?] => autoMaker }.foreach(_.get(this))
@@ -138,7 +144,7 @@ final class Site(
     val sourcePath: Path = Path(directoryPath :+ name, extension)
 
     val page: Page = sourcePath.extension.flatMap(extension => Markup.all.find(_.isExtension(extension))) match
-      case None => Asset.WithSource(site = this, path = sourcePath)
+      case None => Page.AssetWithSource(site = this, path = sourcePath)
 
       case Some(markup) =>
         val (frontMatter: FrontMatter, xml: Xml.Element) = parseMarkup(sourcePath, markup)
@@ -180,21 +186,10 @@ final class Site(
   private val backLinks: BackLinks = BackLinks()
   def backLinks(page: Page): Seq[(MarkupPage, List[BackLinks.BackLink])] = backLinks.backLinks(page)
 
-  val socialLinks: Seq[SocialLink] = Seq(
-    config.social.github.map(SocialLink.GitHub(_)),
-    config.social.twitter.map(SocialLink.Twitter(_)),
-    config.social.linkedin.map(SocialLink.LinkedIn(_))
-  ).flatten
-
-  lazy val headerPages: List[Site.HeaderPage] = markupPages.flatMap(_.headerPage).sortBy(_.priority)
+  lazy val headerPages: List[HeaderPage] = markupPages.flatMap(_.headerPage).sortBy(_.priority)
 
 object Site:
-  final class HeaderPage(
-    val page: MarkupPage,
-    val priority: Int
-  )
-
-  def main(args: Array[String]): Unit = Cli.main(Array(
+  def main(args: Array[String]): Unit = org.podval.tools.publish.config.Cli.main(Array(
     "--log-level=INFO",
 //    "--treat-errors-as-warnings=true",
     "/home/dub/Podval/dub.podval.org"

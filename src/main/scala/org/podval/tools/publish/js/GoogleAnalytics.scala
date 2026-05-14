@@ -1,9 +1,11 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.js
 
 import org.podval.xml.Html
 import zio.blocks.html.*
 
-final class GoogleAnalytics(id: String) extends Html.JSLibrary:
+final class GoogleAnalytics(id: String) extends JSLibrary:
+  override def body: List[Html.Element] = List.empty
+
   override def head: List[Html.Element] = List(
     script().externalJs(s"https://www.googletagmanager.com/gtag/js?id=$id"),
     script().inlineJs(
@@ -14,5 +16,4 @@ final class GoogleAnalytics(id: String) extends Html.JSLibrary:
           |""".stripMargin
     )
   )
-
-  override def body: List[Html.Element] = List.empty
+  

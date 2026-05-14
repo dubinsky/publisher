@@ -1,5 +1,6 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.config
 
+import org.podval.tools.publish.Site
 import org.slf4j.event.Level
 
 object  Cli:

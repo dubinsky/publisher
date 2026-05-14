@@ -1,5 +1,7 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.pages
 
+import org.podval.tools.publish.util.Icon
+import org.podval.tools.publish.{FrontMatter, MarkupPage, Path, Site}
 import org.podval.xml.Html
 import zio.blocks.html.*
 
@@ -13,8 +15,10 @@ final class Posts(
   path,
   frontMatter,
   source
-) with MarkupPage.BaseLayout:
-  override def iconDefault: FontAwesome.Icon = FontAwesome.envelope
+):
+  override def isSynthetic: Boolean = true
+
+  override def iconDefault: Icon = Icon.envelope
 
   override protected def syntheticContent: Option[Html.Element] = Some:
     div(className := "home",
@@ -23,7 +27,7 @@ final class Posts(
       ul(className := "post-list", site.markupPages.filter(_.isPost).sortBy(_.date).reverse.map(post =>
         li(
           span(className := "post-meta", post.date.map(_.toShortString).getOrElse("")),
-          h3(className := "post-link", Minima.pageRef(post))
+          h3(className := "post-link", post.ref())
           // {%- if site.minima.show_excerpts -%} {{ post.excerpt }} {%- endif -%} // TODO unify with feed.xml
         )
       ))

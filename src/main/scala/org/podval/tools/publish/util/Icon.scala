@@ -1,17 +1,14 @@
-package org.podval.tools.publish
+package org.podval.tools.publish.util
 
 import org.podval.xml.Html
+import zio.blocks.html.*
 import zio.blocks.schema.yaml.{Yaml, YamlCodec}
 
-final class FontAwesome extends Html.JSLibrary:
-  val version: String = "7.0.0"
-  private val cdn: String = s"https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@$version"
-  override val head: List[Html.Element] = List(Html.stylesheet(s"$cdn/css/all.min.css", idOpt = Some("fa-stylesheet")))
-  override def body: List[Html.Element] = List.empty
+final class Icon(val name: String, val style: Icon.Style):
+  /* TODO! that did not work: className += s"fa-$name"*/
+  def htmlSpan: Html.Element = span(className := s"icon-span ${style.classNames} fa-$name")
 
-object FontAwesome:
-  import zio.blocks.html.*
-
+object Icon:
   val file = Icon("file", Regular)
   val folder = Icon("folder", Regular)
   val note = Icon("note-sticky", Regular)
@@ -26,10 +23,6 @@ object FontAwesome:
   val rss = Icon("rss", Solid)
   def brand(name: String) = Icon(name, Brands)
 
-  final class Icon(val name: String, val style: Style):
-    /* TODO! that did not work: className += s"fa-$name"*/
-    def htmlSpan: Html.Element = span(className := s"icon-span ${style.classNames} fa-$name")
-  
   sealed abstract class Style:
     final def classNames: String = s"grey $additions fa-$name"
     def name: String
