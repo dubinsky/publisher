@@ -362,6 +362,12 @@ ignores the rest, which is _definitely_ not the right thing.
 [#todo]
 == TODO
 
+=== XML Writer
+
+Rewrite to make sure that text abutting an element does not get separated from it.
+
+Unify `Maerkup.stop` and `XmlWriter.protected`
+
 === CSS
 - unify approach to producing horizontal lines: `<hr>` or CSS border
 - escape URLs etc.?
@@ -376,6 +382,11 @@ ignores the rest, which is _definitely_ not the right thing.
 - recognize more audio/image types; is there some registry available?
 - treat `<img>` as a link element also?
 
+=== JS Libraries
+- unify the CDNs used
+- unify the approach to what goes into the head and what - into the body
+- do I need `defer` and/or `async` attributes on my `script` tags?
+
 === HTML and XML
 - verify that I use `BooleanAttribute` and `BooleanValue` correctly
 - if I need prefixed names like `tei:p`, ask ZIO Blocks people to allow them in HTML
@@ -385,11 +396,6 @@ ignores the rest, which is _definitely_ not the right thing.
 - exclude files excluded by `.gitignore`
 - retrieve Git creation/modification dates using JGit
 - ask Obsidian developers to make file moves visible to Git if the vault is a Git repository
-
-=== JS Libraries
-- unify the CDNs used
-- unify the approach to what goes into the head and what - into the body
-- do I need `defer` and/or `async` attributes on my `script` tags?
 
 === Errors
 - introduce a notion of warning

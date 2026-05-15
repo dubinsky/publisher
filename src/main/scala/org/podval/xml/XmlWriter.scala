@@ -33,7 +33,10 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
         Doc.text(s"$name=") + Doc.lineOrEmpty + Doc.text(Strings.quote(encodeXmlSpecials(value)))
       ))
 
-    val nodes: List[xml.Xml] = atomize(List.empty, xml.children(element).toList)
+    val nodes: List[xml.Xml] =
+      atomize(List.empty, xml.children(element).toList)
+//      xml.children(element).toList
+
     val chunks: Seq[Seq[xml.Xml]] = chunkify(Seq.empty, List.empty, nodes, flush = false)
     val noText: Boolean = chunks.forall(_.forall(node => xml.asAtom(node).isEmpty))
     val whitespaceLeft: Boolean = nodes.headOption.exists(isWhitespace)
@@ -107,7 +110,7 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
   private def squashBigWhitespace(what: String): String = what
     .replace('\n', ' ')
     .replace('\t', ' ')
-  
+
   @scala.annotation.tailrec
   private def processText(result: Seq[xml.Xml], text: String): Seq[xml.Xml] = if text.isEmpty then result else
     val (spaces: String, tail: String) = text.span(_ == ' ')

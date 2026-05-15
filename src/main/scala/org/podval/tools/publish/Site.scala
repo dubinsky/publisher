@@ -148,7 +148,7 @@ final class Site(
 
       case Some(markup) =>
         val (frontMatter: FrontMatter, xml: Xml.Element) = parseMarkup(sourcePath, markup)
-        val source: MarkupPage.Source = MarkupPage.Source(markup, this, sourcePath)
+        val source: MarkupSource = MarkupSource(markup, this, sourcePath)
         source.cache(xml)
 
         pageMakers

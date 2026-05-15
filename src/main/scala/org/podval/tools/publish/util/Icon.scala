@@ -10,6 +10,7 @@ final class Icon(val name: String, val style: Icon.Style):
 
 object Icon:
   val file = Icon("file", Regular)
+  val key = Icon("key", Solid)
   val folder = Icon("folder", Regular)
   val note = Icon("note-sticky", Regular)
   val envelope = Icon("envelope", Regular)

@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
-import org.podval.tools.publish.util.{Files, Icon}
-import org.podval.xml.{Html, Xml, XmlWriter}
+import org.podval.tools.publish.util.{Files, Icon, Media}
+import org.podval.xml.{Html, Xml}
 import zio.blocks.html.*
 import java.io.File
 
@@ -94,10 +94,11 @@ object Page:
     def htmlContent: Html.Element
 
   sealed abstract class Asset(site: Site, path: Path) extends Page(site: Site, path: Path):
+    final override def icon: Icon = Media.icon(path.extension).getOrElse(Icon.file)
+
     final override def sourcePathOpt: Option[Path] = None
     final override def title: String = path.fileNameWithNonHtmlExtension
     final override def aliases: List[String] = List.empty
-    final override def icon: Icon = Icon.file
     final override def resolveBlock(id: String): Option[Link.ToBlock] = None
     final override def resolveSection(names: Seq[String]): Option[Link.ToSection] = None
     final override def resolveId(id: String): Option[Link.ToId] = None

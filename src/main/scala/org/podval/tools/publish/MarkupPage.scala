@@ -1,8 +1,7 @@
 package org.podval.tools.publish
 
 import org.podval.tools.publish.util.{Date, Icon}
-import org.podval.xml.{Html, Xml}
-import scala.ref.SoftReference
+import org.podval.xml.Html
 import scala.reflect.TypeTest
 import java.time.LocalDate
 
@@ -10,7 +9,7 @@ open class MarkupPage(
   site: Site,
   path: Path,
   frontMatter: FrontMatter,
-  source: Option[MarkupPage.Source]
+  source: Option[MarkupSource]
 ) extends Page(
   site,
   path
@@ -68,25 +67,8 @@ open class MarkupPage(
   protected def syntheticContent: Option[Html.Element] = None
 
 object MarkupPage:
-  final class Source(
-    val markup: Markup,
-    val site: Site,
-    val sourcePath: Path
-  ):
-    private var cachedVar: Option[SoftReference[PageMarkup]] = None
-    private def cache(cached: PageMarkup): Unit = cachedVar = Some(SoftReference(cached))
-
-    def cache(xml: Xml.Element): Unit = cache(PageMarkup(this, xml))
-
-    def cached: PageMarkup = cachedVar.get.get.getOrElse:
-      site.log.warn(s"Re-reading evicted PageMarkup: $sourcePath")
-      val (frontMatter: FrontMatter, xml: Xml.Element) = site.parseMarkup(sourcePath, markup)
-      val cached: PageMarkup = PageMarkup(this, xml)
-      cache(cached)
-      cached
-
   abstract class Maker[P <: MarkupPage](
-    make: (site: Site, path: Path, frontMatter: FrontMatter, source: Option[Source]) => P
+    make: (site: Site, path: Path, frontMatter: FrontMatter, source: Option[MarkupSource]) => P
   ):
     def path(sourcePath: Path): Option[Path]
 
@@ -95,7 +77,7 @@ object MarkupPage:
     final def withSource(
       site: Site,
       frontMatter: FrontMatter,
-      source: Source
+      source: MarkupSource
     ): Option[P] = path(source.sourcePath).map(path => make(
       site,
       path.html,
@@ -108,7 +90,7 @@ object MarkupPage:
 
   abstract class AutoMaker[P <: MarkupPage](
     path: Path,
-    make: (site: Site, path: Path, frontMatter: FrontMatter, source: Option[Source]) => P,
+    make: (site: Site, path: Path, frontMatter: FrontMatter, source: Option[MarkupSource]) => P,
     override val frontMatterDefault: FrontMatter
   )(using TypeTest[MarkupPage, P]) extends Maker[P](make):
     final override def path(sourcePath: Path): Option[Path] = Option.when(sourcePath.html == path)(sourcePath)

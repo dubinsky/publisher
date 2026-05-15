@@ -8,7 +8,7 @@ final class Directory(
   site: Site,
   path: Path,
   frontMatter: FrontMatter,
-  source: Option[MarkupPage.Source]
+  source: Option[MarkupSource]
 ) extends MarkupPage(
   site,
   path,

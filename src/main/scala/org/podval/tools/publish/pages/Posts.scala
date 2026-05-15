@@ -1,7 +1,7 @@
 package org.podval.tools.publish.pages
 
 import org.podval.tools.publish.util.Icon
-import org.podval.tools.publish.{FrontMatter, MarkupPage, Path, Site}
+import org.podval.tools.publish.{FrontMatter, MarkupPage, MarkupSource, Path, Site}
 import org.podval.xml.Html
 import zio.blocks.html.*
 
@@ -9,7 +9,7 @@ final class Posts(
   site: Site,
   path: Path,
   frontMatter: FrontMatter,
-  source: Option[MarkupPage.Source]
+  source: Option[MarkupSource]
 ) extends MarkupPage(
   site,
   path,
