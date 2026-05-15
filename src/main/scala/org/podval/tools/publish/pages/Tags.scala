@@ -5,6 +5,9 @@ import org.podval.tools.publish.{FrontMatter, MarkupPage, MarkupSource, Page, Pa
 import org.podval.xml.{Html, Xml}
 import zio.blocks.html.*
 
+object Tags:
+  object Maker extends MarkupPage.AutoMaker[Tags](Path("tags").html, Tags.apply)
+
 final class Tags(
   site: Site,
   path: Path,
@@ -16,9 +19,11 @@ final class Tags(
   frontMatter,
   source
 ):
-  override def isSynthetic: Boolean = true
-
-  override def iconDefault: Icon = Icon.tags
+  override protected def titleDefault: String = "Tags"
+  override protected def descriptionDefault: Option[String] = Some("Pages by tags")
+  override protected def iconDefault: Icon = Icon.tags
+  override protected def headerPagePriorityDefault: Int = 2
+  override protected def langDefault: Option[String] = Some("en")
 
   private def tagsAll: List[String] = site.markupPages.flatMap(_.tags).distinct.sorted
 
@@ -31,6 +36,7 @@ final class Tags(
     tag
   )
 
+  override def isSynthetic: Boolean = true
   override protected def syntheticContent: Option[Html.Element] = Some:
     div(className := "tags",
       h2("All tags"),
@@ -43,16 +49,3 @@ final class Tags(
         )
       ))
     )
-
-object Tags:
-  object Maker extends MarkupPage.AutoMaker[Tags](
-    path = Path("tags").html,
-    make = Tags.apply,
-    frontMatterDefault = FrontMatter(
-      title = Some("Tags"),
-      description = Some("Pages by tags"),
-      lang = Some("en"),
-      //    permalink = Some(path.withoutExtension.toString)
-      headerPage = Some(FrontMatter.HeaderPage(priority = Some(2)))
-    )
-  )

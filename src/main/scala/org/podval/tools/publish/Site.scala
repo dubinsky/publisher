@@ -16,7 +16,7 @@ final class Site(
   production: Boolean,
   targetDirectoryName: String,
   includeDrafts: Boolean,
-  treatErrorsAsWarnings: Boolean,
+  val treatErrorsAsWarnings: Boolean,
   logLevel: Level = Level.INFO
 ):
   private given CanEqual[File, File] = CanEqual.derived
@@ -69,20 +69,13 @@ final class Site(
     ),
     Directory.Maker,
     Tags.Maker,
-    Errors.Maker,
+    ErrorsReport.Maker,
     Posts.Maker,
     MarkupPage.DefaultMaker
   )
-
-  private var errorsVar: List[PageError] = List.empty
-  def errors: List[PageError] = errorsVar
-
-  def reportError[R](error: PageError, result: R): R =
-    if !treatErrorsAsWarnings then throw error else
-      errorsVar = errorsVar.appended(error)
-      log.warn(error.getMessage)
-      result
-
+  
+  val errors: Errors = Errors(this)
+  
   def generate(): Unit =
     // Wipe out output directory
     Files.deleteDirectory(targetDirectory)
@@ -104,12 +97,9 @@ final class Site(
       .groupBy(_.path)
       .filter(_._2.length > 1)
       .toList
-      .foreach((path: Path, pages: List[Page]) =>
-        PageError.Duplicate(
-          path,
-          s"Duplicates for the path $path: ${pages.map(_.title).tail.mkString(", ")}"
-        ).report(this, ())
-      )
+      .foreach((path: Path, pages: List[Page]) => errors.error(PageError(
+        PageError.Duplicate, path, s"Duplicates for the path $path: ${pages.map(_.title).tail.mkString(", ")}"
+      )))
 
     // Add directory pages
     Directory.addParentDirectories(this)
@@ -154,7 +144,7 @@ final class Site(
         pageMakers
           .flatMap(_.withSource(this, frontMatter, source))
           .headOption
-          .getOrElse(throw PageError.Unmakable(sourcePath, s"Can't make the page!"))
+          .getOrElse(throw PageError(PageError.Unmakable, sourcePath, s"Can't make the page!"))
 
     log.debug(s"Read: $page")
     page
@@ -165,15 +155,18 @@ final class Site(
 
     val frontMatter: FrontMatter = frontMatterOrError match
       case Right(frontMatter) => frontMatter
-      case Left(error) => error.report(this, FrontMatter.absent)
+      case Left(error) =>
+        errors.error(error)
+        FrontMatter.absent
 
     val xml: Xml.Element = markup.parse(sourcePath, markupContent) match
       case Right(xml) => xml
       case Left(error) =>
+        errors.error(error)
         var result = Xml.element("div")
         result = Xml.ClassName.add(result, "malformed-xml")
         result = Xml.setText(result, s"Malformed XML: $error")
-        error.report(this, result)
+        result
 
     (frontMatter, xml)
 

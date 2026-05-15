@@ -26,21 +26,23 @@ object Post:
       if !isPost && !isDaily then None else
         val fileName: String = sourcePath.fileName
 
+        val errorReporter: PageError.Reporter = PageError.Reporter(sourcePath, site)
+        
         for
           date: LocalDate <-
             try
               if fileName.length < 10 then throw DateTimeParseException("Date is too short", fileName, 0)
               Some(LocalDate.parse(fileName.substring(0, 10)))
             catch case e: DateTimeParseException =>
-              PageError.FileName(sourcePath, s"Post and daily note names must start with date: $fileName", Some(e)).report(site)
+              errorReporter.error(PageError.FileName, s"Post and daily note names must start with date: $fileName", None, Some(e))
 
           title: String <-
             val titleString: String = if fileName.length <= 11 then "" else fileName.substring(11).trim
             val title: String = if titleString.nonEmpty then titleString else Directory.fileName
             if dailiesMixedWithPosts then Some(title) else if isPost && titleString.isEmpty
-            then PageError.FileName(sourcePath, s"Post must have title: $fileName").report(site)
+            then errorReporter.error(PageError.FileName, s"Post must have title: $fileName", None)
             else if isDaily && titleString.nonEmpty
-            then PageError.FileName(sourcePath, s"Daily note can not have title: $fileName").report(site)
+            then errorReporter.error(PageError.FileName, s"Daily note can not have title: $fileName", None)
             else Some(title)
         yield
           Path(

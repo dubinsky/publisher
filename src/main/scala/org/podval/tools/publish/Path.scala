@@ -7,18 +7,14 @@ final case class Path(
   extension: Option[String] = None
 ) derives CanEqual:
   def fileName: String = path.last
-  def fileNameWithNonHtmlExtension: String =
-    if extension.contains(HtmlLike.Html.extension)
-    then fileName
-    else fileName + extensionString
-  
+
   override def equals(obj: Any): Boolean = obj match
     case that: Path => this.path == that.path && this.extension == that.extension
     case _ => false
     
   override def toString: String = path.mkString("/", "/", extensionString)
 
-  private def extensionString: String = extension match
+  def extensionString: String = extension match
     case None => ""
     case Some(extension) => s".$extension"
 

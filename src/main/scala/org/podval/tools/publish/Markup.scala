@@ -57,23 +57,23 @@ abstract class Markup derives CanEqual:
 
   def getSectionTitle(element: Xml.Element): Option[String]
 
-  def getSections(element: Xml.Element, site: Site, sourcePath: Path): Seq[Page.Section]
+  def getSections(element: Xml.Element, errorReporter: PageError.Reporter): Seq[Page.Section]
 
   // This is where TEI link elements like `persName` get converted into HTML `a` elements
   def convertLinks(element: Xml.Element): Xml.Element
 
   // Note: for Markdown, this can be achieved by setting `HtmlRenderer.GENERATE_HEADER_ID`,
   // but I do it manually and uniformly for HTML, TEI etc.
-  final def setSectionId(element: Xml.Element, source: MarkupSource): Xml.Element =
+  final def setSectionId(element: Xml.Element, errorReporter: PageError.Reporter): Xml.Element =
     if !isSectionElement(element) || Xml.Id.get(element).isDefined then element else
       getSectionTitle(element) match
-        case None => PageError.NoId(source.sourcePath, s"No id nor title on $element").report(source.site, element)
+        case None => errorReporter.error(PageError.NoId, s"No id nor title on $element", element)
         case Some(title) => Xml.Id.set(element, Xml.Id.toId(title))
 
   // TODO according to the Obsidian documentation, block anchor can be added to a "structured block"
   // (e.g., a list) by putting it after the block, with empty lines before and after;
   // I'll deal with this later...
-  final def setBlockId(element: Xml.Element, source: MarkupSource): Xml.Element =
+  final def setBlockId(element: Xml.Element, errorReporter: PageError.Reporter): Xml.Element =
     if !recognizeBlocks then element else
       val children: Chunk[Xml.Xml] = Xml.children(element)
       if children.isEmpty then element else Xml.asText(children.last).fold(element): text =>
@@ -85,13 +85,13 @@ abstract class Markup derives CanEqual:
             )
             Xml.Id.get(result) match
               case Some(idExisting) =>
-                PageError.NoId(source.sourcePath, s"Block id '$id' conflicts with existing id '$idExisting'").report(source.site, result)
+                errorReporter.error(PageError.NoId, s"Block id '$id' conflicts with existing id '$idExisting'", result)
               case None => Markup.WikiBlockClass.add(Xml.Id.set(result, id))
 
-  final def getBlocks(element: Xml.Element, source: MarkupSource): Seq[Block] =
+  final def getBlocks(element: Xml.Element, errorReporter: PageError.Reporter): Seq[Block] =
     Xml.gather(element, stop(Xml), element =>
       if !Markup.WikiBlockClass.has(element) then None else Xml.Id.get(element) match
-        case None => PageError.NoId(source.sourcePath, s"Defect: No id on block $element").report(source.site)
+        case None => errorReporter.error(PageError.NoId, s"Defect: No id on block $element", None)
         case Some(id) => Some(Block(id))
     )
 
@@ -138,15 +138,16 @@ abstract class Markup derives CanEqual:
 
   final def markInternalLinks(
     element: Xml.Element,
-    source: MarkupSource,
+    errorReporter: PageError.Reporter,
+    siteUrl: String,
     idGenerator: IdGenerator
   ): Xml.Element =
     if !Xml.A.is(element) then element else
       Xml.Href.get(element).fold(element): ref =>
         val isInternal: Boolean = try
           val uri: URI = URI(ref)
-          if uri.getScheme != null && uri.getHost == source.site.url
-          then PageError.SelfLink(source.sourcePath, ref).report(source.site)
+          if uri.getScheme != null && uri.getHost == siteUrl
+          then errorReporter.error(PageError.SelfLink, ref, None)
           uri.getScheme == null
         catch case e: URISyntaxException => true
 
@@ -234,11 +235,11 @@ abstract class Markup derives CanEqual:
       val suffix = /*if result.endsWith(" ") then "" else*/ "..."
       result.trim + suffix
 
-  final def resolveInternalLinks(element: Xml.Element, page: Page, source: MarkupSource): Xml.Element =
+  final def resolveInternalLinks(element: Xml.Element, page: Page, errorReporter: PageError.Reporter): Xml.Element =
     if !Xml.A.is(element) || !Markup.InternalLinkClass.has(element) then element else
       Xml.Href.get(element).fold(element)(ref => Link.resolve(ref, page) match
         case None =>
-          PageError.Unresolved(source.sourcePath, s"unresolved internal link ref='$ref': $element}'").report(source.site, element)
+          errorReporter.error(PageError.Unresolved, s"unresolved internal link ref='$ref': $element}'", element)
           val result = Xml.ClassName.add(element, "unresolved-link")
           result
         case Some(linkTo) =>

@@ -5,21 +5,21 @@ import org.podval.xml.{Html, Xml}
 import Page.{Block, Section}
 
 final class MarkupCached(
-  source: MarkupSource,
+  markup: Markup,
+  errorReporter: PageError.Reporter,
+  siteUrl: String,
   private var xml: Xml.Element
 ):
-  private def markup: Markup = source.markup
-
   private val idGenerator: IdGenerator = IdGenerator()
 
   // Pre-process raw XML
   this.xml = Xml.transform(xml, markup.stop(Xml), element =>
     var result: Xml.Element = element
-    result = markup.setSectionId(result, source)
-    result = markup.setBlockId(result, source)
+    result = markup.setSectionId(result, errorReporter)
+    result = markup.setBlockId(result, errorReporter)
     result = markup.convertLinks(result)
     result = markup.convertWikiLinks(result)
-    result = markup.markInternalLinks(result, source, idGenerator)
+    result = markup.markInternalLinks(result, errorReporter, siteUrl, idGenerator)
     result
   )
 
@@ -27,7 +27,7 @@ final class MarkupCached(
     // Post-process XML
     val xmlResult: Xml.Element = Xml.transform(xml, markup.stop(Xml), element =>
       var result: Xml.Element = element
-      result = markup.resolveInternalLinks(result, page, source)
+      result = markup.resolveInternalLinks(result, page, errorReporter)
       result
     )
 
@@ -46,14 +46,16 @@ final class MarkupCached(
     .find(_ == id)
     .map(Link.ToId(_))
 
-  private lazy val blocks: Seq[Block] = if !markup.recognizeBlocks then Seq.empty else
-    markup.getBlocks(xml, source)
+  private lazy val blocks: Seq[Block] =
+    if !markup.recognizeBlocks
+    then Seq.empty
+    else markup.getBlocks(xml, errorReporter)
 
   def resolveBlock(id: String): Option[Link.ToBlock] = blocks
     .find(_.id == id)
     .map(Link.ToBlock(_))
 
-  private lazy val sections: Seq[Section] = markup.getSections(xml, source.site, source.sourcePath)
+  private lazy val sections: Seq[Section] = markup.getSections(xml, errorReporter)
 
   private lazy val sectionsFlat: Seq[Section] =
     def forSection(section: Section): Seq[Section] = section +: section.sections.flatMap(forSection)

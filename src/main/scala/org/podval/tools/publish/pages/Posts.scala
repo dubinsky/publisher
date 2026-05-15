@@ -5,6 +5,9 @@ import org.podval.tools.publish.{FrontMatter, MarkupPage, MarkupSource, Path, Si
 import org.podval.xml.Html
 import zio.blocks.html.*
 
+object Posts:
+  object Maker extends MarkupPage.AutoMaker[Posts](Path("posts").html, Posts.apply)
+
 final class Posts(
   site: Site,
   path: Path,
@@ -16,10 +19,13 @@ final class Posts(
   frontMatter,
   source
 ):
+  override protected def titleDefault: String = "Posts"
+  override protected def descriptionDefault: Option[String] = Some("All posts")
+  override protected def iconDefault: Icon = Icon.envelope
+  override protected def headerPagePriorityDefault: Int = 1
+  override protected def langDefault: Option[String] = Some("en")
+
   override def isSynthetic: Boolean = true
-
-  override def iconDefault: Icon = Icon.envelope
-
   override protected def syntheticContent: Option[Html.Element] = Some:
     div(className := "home",
       //      h1(className := "page-heading", page.title)
@@ -32,16 +38,3 @@ final class Posts(
         )
       ))
     )
-
-object Posts:
-  object Maker extends MarkupPage.AutoMaker[Posts](
-    path = Path("posts").html,
-    make = Posts.apply,
-    frontMatterDefault = FrontMatter(
-      title = Some("Posts"),
-      description = Some("All posts"),
-      lang = Some("en"),
-      //    permalink = Some(path.withoutExtension.toString)
-      headerPage = Some(FrontMatter.HeaderPage(priority = Some(1)))
-    )
-  )

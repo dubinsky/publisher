@@ -15,10 +15,9 @@ final class Directory(
   frontMatter,
   source
 ):
+  override protected def iconDefault: Icon = Icon.folder
+
   override def isSynthetic: Boolean = true
-
-  override def iconDefault: Icon = Icon.folder
-
   override protected def syntheticContent: Option[Html.Element] = Some:
     div(className := "directory", Page.pageList(directories ++ pages))
 

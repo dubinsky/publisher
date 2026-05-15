@@ -13,6 +13,12 @@ import zio.blocks.schema.xml.{Xml, XmlCodec}
 // instance of this class holds the undecoded element until
 // encoding, when it incorporates it into the output as-is.
 
+// To use, register `RawXml.codec` with the Codec Deriver:
+//  private val codec: XmlCodec[YOUR-CLASS] = schema
+//    .deriving(XmlFormat.deriver)
+//    .instance(TypeId.of[RawXml], RawXml.codec)
+//    .derive
+
 // I have to use a member and not a constructor parameter to hold
 // the undecoded XML tree, otherwise ZIO Block Schema deriver chokes with:
 //    Found:    zio.blocks.schema.Schema[IndexedSeq[(zio.blocks.schema.xml.XmlName, String)]]
@@ -31,13 +37,13 @@ object RawXml:
     val result = new RawXml
     result.set(element)
     result
-    
+
   def codec: XmlCodec[RawXml] = new XmlCodec[RawXml]:
     def encodeValue(rawXml: RawXml): Xml = rawXml.get
 
     def decodeValue(xml: Xml): RawXml = xml match
       case element: Xml.Element => RawXml(element)
       case _ => error("Expected an element")
-      
-    
+
+
 

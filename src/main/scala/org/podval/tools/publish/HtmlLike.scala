@@ -29,7 +29,7 @@ abstract class HtmlLike extends Markup:
 
   // Note: only sections on the top level are detected;
   // sections of levels lower than the level of the first section are not allowed.
-  final override def getSections(element: Xml.Element, site: Site, sourcePath: Path): Seq[Section] =
+  final override def getSections(element: Xml.Element, errorReporter: PageError.Reporter): Seq[Section] =
     val sectionElements: Chunk[HtmlLike.Section] = Xml
       .children(element)
       .flatMap(node => Xml.asElement(node))
@@ -39,7 +39,7 @@ abstract class HtmlLike extends Markup:
           title <- Xml.toStringOpt(element)
           id <-
             val id = Xml.Id.get(element)
-            if id.isEmpty then PageError.NoId(sourcePath, s"Defect: No id on section $element").report(site, ())
+            if id.isEmpty then errorReporter.error(PageError.NoId, s"Defect: No id on section $element", ())
             id
         yield HtmlLike.Section(
           level = level,
@@ -87,4 +87,4 @@ object HtmlLike:
     override def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element] =
       XmlParser.parse(content) match
         case Right(xml) => Right(Xml.asElement(xml).get)
-        case Left(e) => Left(PageError.Parsing(sourcePath, "HTML parsing error", Some(e)))
+        case Left(e) => Left(PageError(PageError.Parsing, sourcePath, "HTML parsing error", Some(e)))

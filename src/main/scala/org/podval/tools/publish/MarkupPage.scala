@@ -8,38 +8,21 @@ import java.time.LocalDate
 open class MarkupPage(
   site: Site,
   path: Path,
-  frontMatter: FrontMatter,
+  override val frontMatter: FrontMatter,
   source: Option[MarkupSource]
 ) extends Page(
   site,
   path
 ) with Page.WithHtmlContent:
-  def isSynthetic: Boolean = false
-
-  final def tags: List[String] = frontMatter.tags
-  final def author: String = frontMatter.author.getOrElse(site.author)
-  final def lang: String = frontMatter.lang.getOrElse(site.lang)
-  final def math: Boolean = frontMatter.math
-  final override def icon: Icon = frontMatter.icon.getOrElse(iconDefault)
-  def iconDefault: Icon = if isPost then Icon.envelope else Icon.note
-
-  final lazy val headerPage: Option[HeaderPage] = frontMatter
-    .headerPage
-    .filter(_.include)
-    .map(headerPage => HeaderPage(
-      page = this,
-      priority = headerPage.priority.getOrElse(0)
-    ))
+  override protected def iconDefault: Icon = if isPost then Icon.envelope else Icon.note
 
   private lazy val postDate: Option[LocalDate] = Post.date(path)
   final def isPost: Boolean = postDate.isDefined
   final def date: Option[Date] = postDate.map(Date.Local(_)).orElse(frontMatter.date)
   final def dateModified: Option[Date] = frontMatter.modified_time
 
-  final override def aliases: List[String] = frontMatter.aliases
-
-  final override def title: String = frontMatter.title.getOrElse:
-    if !isDirectory then path.fileNameWithNonHtmlExtension else postDate match
+  override protected def titleDefault: String =
+    if !isDirectory then super.titleDefault else postDate match
       case Some(postDate) => postDate.toString // daily note
       case None => fileName
 
@@ -64,6 +47,7 @@ open class MarkupPage(
     syntheticContent = syntheticContent
   )
 
+  def isSynthetic: Boolean = false
   protected def syntheticContent: Option[Html.Element] = None
 
 object MarkupPage:
@@ -72,8 +56,6 @@ object MarkupPage:
   ):
     def path(sourcePath: Path): Option[Path]
 
-    def frontMatterDefault: FrontMatter = FrontMatter.empty
-
     final def withSource(
       site: Site,
       frontMatter: FrontMatter,
@@ -81,8 +63,8 @@ object MarkupPage:
     ): Option[P] = path(source.sourcePath).map(path => make(
       site,
       path.html,
-      frontMatter.merge(frontMatterDefault),
-      Some(source)
+      frontMatter,
+      source = Some(source)
     ))
 
   object DefaultMaker extends Maker[MarkupPage](MarkupPage.apply):
@@ -90,8 +72,7 @@ object MarkupPage:
 
   abstract class AutoMaker[P <: MarkupPage](
     path: Path,
-    make: (site: Site, path: Path, frontMatter: FrontMatter, source: Option[MarkupSource]) => P,
-    override val frontMatterDefault: FrontMatter
+    make: (site: Site, path: Path, frontMatter: FrontMatter, source: Option[MarkupSource]) => P
   )(using TypeTest[MarkupPage, P]) extends Maker[P](make):
     final override def path(sourcePath: Path): Option[Path] = Option.when(sourcePath.html == path)(sourcePath)
 
@@ -99,6 +80,6 @@ object MarkupPage:
       make(
         site,
         path,
-        frontMatter = frontMatterDefault,
+        FrontMatter.absent,
         source = None
       )

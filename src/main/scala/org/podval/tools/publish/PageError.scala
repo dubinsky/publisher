@@ -4,26 +4,33 @@ final class PageError(
   kind: PageError.Kind,
   sourcePath: Path,
   message: String,
-  cause: Option[Throwable]
+  cause: Option[Throwable] = None
 ) extends Throwable(
   s"$kind: $message ($sourcePath) ${cause.map(_.getMessage).getOrElse("")}",
   cause.orNull
-):
-  def report[R](site: Site, result: R): R = site.reportError(this, result)
-  def report[R](site: Site): Option[R] = site.reportError(this, None)
+)
 
 object PageError:
-  sealed abstract class Kind(override val toString: String):
-    final def apply(
-      sourcePath: Path,
+  final class Reporter(
+    sourcePath: Path,
+    site: Site
+  ):
+    def error[R](
+      kind: PageError.Kind,
       message: String,
+      result: R,
       cause: Option[Throwable] = None
-    ): PageError = PageError(
-      this,
-      sourcePath,
-      message,
-      cause
-    )
+    ): R =
+      site.errors.error(PageError(
+        kind = kind,
+        sourcePath = sourcePath,
+        message = message,
+        cause = cause
+      ))
+
+      result
+
+  sealed abstract class Kind(override val toString: String)
 
   case object Parsing extends Kind("parsing")
   case object FileName extends Kind("file name")

@@ -23,16 +23,57 @@ abstract class Page(
 
     s"${getClass.getSimpleName} $path$source"
 
+  final protected def targetFile: File = path.file(site.targetDirectory)
+
   final def isDirectory: Boolean = Directory.is(path)
-
-  final def fileName: String = if !isDirectory then path.fileName else
-    if path.path.length > 1
-    then path.path.init.last
-    else path.fileName // "index"
-
+  
   final lazy val parent: Option[Directory] = Directory.parent(site, this)
   
-  final protected def targetFile: File = path.file(site.targetDirectory)
+  def sourcePathOpt: Option[Path]
+
+  def frontMatter: FrontMatter
+
+  final def aliases: List[String] = frontMatter.aliases
+  final def tags: List[String] = frontMatter.tags
+  final def author: String = frontMatter.author.getOrElse(site.author)
+  final def math: Boolean = frontMatter.math
+
+  final def title: String = frontMatter.title.getOrElse(titleDefault)
+  protected def titleDefault: String =
+    if path.extension.contains(HtmlLike.Html.extension)
+    then fileName
+    else fileName + path.extensionString
+
+  final def fileName: String = if !isDirectory then path.fileName else if path.path.length > 1
+  then path.path.init.last
+  else path.fileName // "index"
+
+  final def description: Option[String] = frontMatter.description.orElse(descriptionDefault)
+  protected def descriptionDefault: Option[String] = None
+
+  final def icon: Icon = frontMatter.icon.getOrElse(iconDefault)
+  protected def iconDefault: Icon = Media.icon(path.extension).getOrElse(Icon.file)
+  
+  final def lang: String = frontMatter.lang.orElse(langDefault).getOrElse(site.lang)
+  protected def langDefault: Option[String] = None
+  
+  final lazy val headerPage: Option[HeaderPage] = frontMatter
+    .headerPage
+    .filter(_.include)
+    .map(headerPage => HeaderPage(
+      page = this,
+      priority = headerPage.priority.getOrElse(headerPagePriorityDefault)
+    ))
+
+  protected def headerPagePriorityDefault: Int = 0
+
+  def write(): Unit
+
+  def resolveBlock(id: String): Option[Link.ToBlock]
+
+  def resolveSection(names: Seq[String]): Option[Link.ToSection]
+  
+  def resolveId(id: String): Option[Link.ToId]
 
   final def ref(
     cls: Option[String] = None,
@@ -48,22 +89,6 @@ abstract class Page(
       Option.when(withIcon)(icon.getOrElse(this.icon).htmlSpan),
       Option.when(withTitle)(pageLink.title)
     )
-
-  def sourcePathOpt: Option[Path]
-
-  def title: String
-
-  def aliases: List[String]
-
-  def icon: Icon
-
-  def write(): Unit
-
-  def resolveBlock(id: String): Option[Link.ToBlock]
-
-  def resolveSection(names: Seq[String]): Option[Link.ToSection]
-  
-  def resolveId(id: String): Option[Link.ToId]
 
 object Page:
   def pageList(pages: Seq[Page], cls: Option[String] = None): Html.Element = ul(
@@ -94,23 +119,19 @@ object Page:
     def htmlContent: Html.Element
 
   sealed abstract class Asset(site: Site, path: Path) extends Page(site: Site, path: Path):
-    final override def icon: Icon = Media.icon(path.extension).getOrElse(Icon.file)
-
-    final override def sourcePathOpt: Option[Path] = None
-    final override def title: String = path.fileNameWithNonHtmlExtension
-    final override def aliases: List[String] = List.empty
+    final override def frontMatter: FrontMatter = FrontMatter.absent
     final override def resolveBlock(id: String): Option[Link.ToBlock] = None
     final override def resolveSection(names: Seq[String]): Option[Link.ToSection] = None
     final override def resolveId(id: String): Option[Link.ToId] = None
 
   final class AssetWithSource(site: Site, path: Path) extends Asset(site, path):
+    override def sourcePathOpt: Option[Path] = Some(path)
     override def write(): Unit = Files.copy(fromFile = path.file(site.sourceDirectory), toFile = targetFile)
 
-  abstract class SyntheticAsset(site: Site, path: Path) extends Asset(site, path)
-    with WithContent
+  abstract class SyntheticAsset(site: Site, path: Path) extends Asset(site, path) with WithContent:
+    final override def sourcePathOpt: Option[Path] = None
 
-  abstract class SyntheticXmlAsset(site: Site, path: Path) extends SyntheticAsset(site, path)
-    with WithXmlContent
+  abstract class SyntheticXmlAsset(site: Site, path: Path) extends SyntheticAsset(site, path) with WithXmlContent
 
   final class EmbeddedAsset(site: Site, path: Path) extends SyntheticAsset(site, path):
     override def content: String = Files.readResource(Site.resourcesBase + path.toString)

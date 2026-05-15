@@ -22,19 +22,6 @@ final case class FrontMatter(
   modified_time: Option[Date] = None,
   headerPage: Option[FrontMatter.HeaderPage] = None
 ):
-  def merge(default: FrontMatter): FrontMatter = copy(
-    title = title.orElse(default.title),
-    description = description.orElse(default.description),
-    lang = lang.orElse(default.lang),
-    permalink = permalink.orElse(default.permalink),
-    icon = icon.orElse(default.icon),
-    headerPage = (headerPage, default.headerPage) match
-      case (None, None) => None
-      case (None, Some(headerPageDefault)) => Some(headerPageDefault)
-      case (Some(headerPage), None) => Some(headerPage)
-      case (Some(headerPage), Some(headerPageDefault)) => Some(headerPage.merge(headerPageDefault))
-  )
-
   private var extraKeys: Chunk[(Yaml, Yaml)] = Chunk.empty
 
   private var absent: Boolean = false
@@ -50,11 +37,8 @@ object FrontMatter:
   final case class HeaderPage(
     include: Boolean = false,
     priority: Option[Int] = None
-  ):
-    def merge(default: HeaderPage): HeaderPage = copy(
-      priority = priority.orElse(default.priority)
-    )
-
+  )
+  
   val empty: FrontMatter = FrontMatter()
 
   val absent: FrontMatter =
@@ -82,7 +66,7 @@ object FrontMatter:
     case (Right(frontMatter), content) =>
       (Right(frontMatter), content)
     case (Left(yamlError), content) =>
-      (Left(PageError.Parsing(sourcePath, s"Malformed FrontMatter: [$input]", Some(yamlError))), content)
+      (Left(PageError(PageError.Parsing, sourcePath, s"Malformed FrontMatter: [$input]", Some(yamlError))), content)
       
   def parse(input: String): (Either[SchemaError, FrontMatter], String) =
     val frontMatterEnd: Int = if !input.startsWith("---\n") then -1 else input.indexOf("\n---\n", 3)
