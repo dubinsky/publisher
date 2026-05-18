@@ -1,16 +1,13 @@
-package org.podval.tools.publish.pages
+package org.podval.tools.publish
 
-import org.podval.tools.publish.{Page, Path, Site}
+import org.podval.tools.publish.{Asset, Path, Site}
 import org.podval.xml.Xml
 
 object Sitemap:
   val path: Path = Path("sitemap").withExtension("xml")
   
 // TODO site first
-final class Sitemap(site: Site) extends Page.SyntheticXmlAsset(
-  site,
-  Sitemap.path
-):
+final class Sitemap(site: Site) extends Asset.SyntheticXmlAsset(site, Sitemap.path):
   override def xmlContent: Xml.Element =
     var result: Xml.Element = Xml.element("urlset")
     result = Xml.setAttribute(result, "xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance")

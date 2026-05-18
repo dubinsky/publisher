@@ -1,6 +1,6 @@
-package org.podval.tools.publish.config
+package org.podval.tools.publish
 
-import org.podval.tools.publish.util.Files
+import org.podval.tools.publish.util.{Files, ObsidianConfig}
 import org.slf4j.{Logger, LoggerFactory}
 import zio.blocks.schema.Schema
 import zio.blocks.schema.yaml.{YamlCodec, YamlFormat}

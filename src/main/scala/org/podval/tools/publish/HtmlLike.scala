@@ -3,7 +3,7 @@ package org.podval.tools.publish
 import org.podval.xml.{Xml, XmlAst, XmlParser}
 import zio.blocks.chunk.Chunk
 import scala.annotation.tailrec
-import Page.Section
+import Fragment.Section
 
 // Common for markup formats whose XML representation is actually HTML:
 // HTML itself, Markdown, and likely Re-Structured text and AsciiDoc;
@@ -56,11 +56,11 @@ abstract class HtmlLike extends Markup:
     else getSections(Seq.empty, sections.head.level, sections)
 
   @tailrec
-  private def getSections(result: Seq[Page.Section], level: Int, sections: Chunk[HtmlLike.Section]): Seq[Section] =
+  private def getSections(result: Seq[Section], level: Int, sections: Chunk[HtmlLike.Section]): Seq[Section] =
     if sections.isEmpty then result else
       val head: HtmlLike.Section = sections.head
       val (nested: Chunk[HtmlLike.Section], tail: Chunk[HtmlLike.Section]) = sections.tail.span(_.level > head.level)
-      val section: Page.Section = Page.Section(
+      val section: Section = Section(
         id = head.id,
         title = head.title,
         sections = getSections(nested)
@@ -71,7 +71,6 @@ abstract class HtmlLike extends Markup:
         level,
         tail
       )
-
 
 object HtmlLike:
   private final class Section(

@@ -1,8 +1,22 @@
 package org.podval.tools.publish
 
-final class Errors(site: Site):
+import org.podval.tools.publish.util.Icon
+import org.podval.xml.Html
+import zio.blocks.html.*
+
+final class Errors(site: Site) extends MarkupPage(site, Path("errors").html):
+  override protected def titleDefault: String = "Errors"
+  override protected def descriptionDefault: Option[String] = Some("Site errors by kind")
+  override protected def iconDefault: Icon = Icon.errors
+  override protected def headerPagePriorityDefault: Int = 9
+  override protected def langDefault: Option[String] = Some("en")
+
+  override def isSynthetic: Boolean = true
+  override protected def syntheticContent: Option[Html.Element] = Some:
+    div(className := "site-errors", id := "site-errors")
+
   private var errorsVar: List[PageError] = List.empty
-//  def errors: List[PageError] = errorsVar
+  //  def errors: List[PageError] = errorsVar
 
   def warning(error: PageError): Unit =
     errorsVar = errorsVar.appended(error)

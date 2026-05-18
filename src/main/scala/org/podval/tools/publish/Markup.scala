@@ -1,6 +1,5 @@
 package org.podval.tools.publish
 
-import org.podval.tools.publish.Page.Block
 import org.podval.tools.publish.util.{Files, IdGenerator, Media, Strings}
 import org.podval.xml.{Html, Xml, XmlAst}
 import zio.blocks.chunk.Chunk
@@ -32,7 +31,6 @@ object Markup:
         Html.asText(Html.children(child).head).fold(false): text =>
           text.endsWith("{:toc}")
 
-
 abstract class Markup derives CanEqual:
   def extension: String
 
@@ -57,7 +55,7 @@ abstract class Markup derives CanEqual:
 
   def getSectionTitle(element: Xml.Element): Option[String]
 
-  def getSections(element: Xml.Element, errorReporter: PageError.Reporter): Seq[Page.Section]
+  def getSections(element: Xml.Element, errorReporter: PageError.Reporter): Seq[Fragment.Section]
 
   // This is where TEI link elements like `persName` get converted into HTML `a` elements
   def convertLinks(element: Xml.Element): Xml.Element
@@ -88,11 +86,11 @@ abstract class Markup derives CanEqual:
                 errorReporter.error(PageError.NoId, s"Block id '$id' conflicts with existing id '$idExisting'", result)
               case None => Markup.WikiBlockClass.add(Xml.Id.set(result, id))
 
-  final def getBlocks(element: Xml.Element, errorReporter: PageError.Reporter): Seq[Block] =
+  final def getBlocks(element: Xml.Element, errorReporter: PageError.Reporter): Seq[Fragment.Block] =
     Xml.gather(element, stop(Xml), element =>
       if !Markup.WikiBlockClass.has(element) then None else Xml.Id.get(element) match
         case None => errorReporter.error(PageError.NoId, s"Defect: No id on block $element", None)
-        case Some(id) => Some(Block(id))
+        case Some(id) => Some(Fragment.Block(id))
     )
 
   final def convertWikiLinks(element: Xml.Element): Xml.Element =
@@ -257,14 +255,14 @@ abstract class Markup derives CanEqual:
       val text = Html.toStringOpt(element).orElse(Html.Href.get(element)).getOrElse("EMPTY LINK")
       Html.setText(element, s"[[$text]]")
 
-  final def addToc(element: Html.Element, sections: Seq[Page.Section]): Html.Element =
+  final def addToc(element: Html.Element, sections: Seq[Fragment.Section]): Html.Element =
     if !Markup.isKramdownTocMarker(element) then element else
       div(className := "toc",
         h3("Table of Contents"),
         tocSections(sections)
       )
 
-  private def tocSections(sections: Seq[Page.Section]): Html.Element =
+  private def tocSections(sections: Seq[Fragment.Section]): Html.Element =
     ul(sections.map(section =>
       li(
         a(href := s"#${section.id}", section.title),

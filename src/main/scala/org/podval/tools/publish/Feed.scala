@@ -1,15 +1,11 @@
-package org.podval.tools.publish.pages
+package org.podval.tools.publish
 
-import org.podval.tools.publish.{Page, Path, Site}
 import org.podval.xml.Xml
 
 object Feed:
   val path: Path = Path("feed").withExtension("xml")
   
-final class Feed(site: Site) extends Page.SyntheticXmlAsset(
-  site,
-  Feed.path
-):
+final class Feed(site: Site) extends Asset.SyntheticXmlAsset(site, Feed.path):
   override def xmlContent: Xml.Element =
     var result: Xml.Element = Xml.element("feed")
     result = Xml.setAttribute(result, "xmlns", "http://www.w3.org/2005/Atom")

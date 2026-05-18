@@ -38,7 +38,7 @@ dependencies {
 }
 
 application {
-  mainClass = 'org.podval.tools.publish.config.Cli'
+  mainClass = 'org.podval.tools.publish.Cli'
 }
 
 def isNonStable = { String version ->

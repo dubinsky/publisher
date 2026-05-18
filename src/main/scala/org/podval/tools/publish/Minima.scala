@@ -1,7 +1,6 @@
 package org.podval.tools.publish
 
 import org.podval.tools.publish.js
-import org.podval.tools.publish.pages.Feed
 import org.podval.tools.publish.util.{Date, Icon}
 import org.podval.xml.Html
 import zio.blocks.html.*
@@ -139,7 +138,7 @@ object Minima:
       // TODO {%- seo -%}: https://github.com/jekyll/jekyll-seo-tag
       title(page.title),
       libraries.flatMap(_.head),
-      Html.stylesheet(Site.mainStyleSheet, idOpt = Some("main-stylesheet")),
+      Html.stylesheet(Asset.mainStyleSheet, idOpt = Some("main-stylesheet")),
       // TODO {%- feed_meta -%}: https://github.com/jekyll/jekyll-feed
     )
 

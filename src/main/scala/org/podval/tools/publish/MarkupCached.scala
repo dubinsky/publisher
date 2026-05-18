@@ -2,12 +2,13 @@ package org.podval.tools.publish
 
 import org.podval.tools.publish.util.IdGenerator
 import org.podval.xml.{Html, Xml}
-import Page.{Block, Section}
+import Fragment.{Block, Section}
 
 final class MarkupCached(
   markup: Markup,
   errorReporter: PageError.Reporter,
   siteUrl: String,
+  val frontMatter: FrontMatter,
   private var xml: Xml.Element
 ):
   private val idGenerator: IdGenerator = IdGenerator()
@@ -41,42 +42,26 @@ final class MarkupCached(
     )
 
   private lazy val ids: Seq[String] = Xml.gather(xml, markup.stop(Xml), Xml.Id.get)
-
-  def resolveId(id: String): Option[Link.ToId] = ids
-    .find(_ == id)
-    .map(Link.ToId(_))
+  
+  def resolveId(id: String): Option[Link.ToId] = ids.find(_ == id).map(Link.ToId(_))
 
   private lazy val blocks: Seq[Block] =
     if !markup.recognizeBlocks
     then Seq.empty
     else markup.getBlocks(xml, errorReporter)
 
-  def resolveBlock(id: String): Option[Link.ToBlock] = blocks
-    .find(_.id == id)
-    .map(Link.ToBlock(_))
+  def resolveBlock(id: String): Option[Link.ToBlock] = blocks.find(_.id == id).map(Link.ToBlock(_))
 
   private lazy val sections: Seq[Section] = markup.getSections(xml, errorReporter)
-
-  private lazy val sectionsFlat: Seq[Section] =
-    def forSection(section: Section): Seq[Section] = section +: section.sections.flatMap(forSection)
-    sections.flatMap(forSection)
-
-  def resolveSection(names: Seq[String]): Option[Link.ToSection] =
-    def loop(result: Seq[Section], sections: Seq[Section], names: Seq[String]): Option[Seq[Section]] =
-      if names.isEmpty then Some(result) else sections
-        .find(section => section.title == names.head || section.id == names.head)
-        .flatMap(section => loop(
-          result = result :+ section,
-          sections = section.sections,
-          names = names.tail
-        ))
-
-    loop(
+  
+  def resolveSection(names: Seq[String]): Option[Link.ToSection] = Section
+    .resolve(
       result = Seq.empty,
-      sections = sectionsFlat,
-      names = names
+      sections = sections,
+      names = names,
+      includeNested = true
     )
-      .map(Link.ToSection(_))
+    .map(Link.ToSection(_))
 
   def backLinks(page: MarkupPage): Seq[BackLinks.BackLink] = Xml.gatherWithParents(
     element = xml,

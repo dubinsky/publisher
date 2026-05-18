@@ -1,24 +1,10 @@
-package org.podval.tools.publish.pages
+package org.podval.tools.publish
 
 import org.podval.tools.publish.util.Icon
-import org.podval.tools.publish.{FrontMatter, MarkupPage, MarkupSource, Page, Path, Site}
 import org.podval.xml.{Html, Xml}
 import zio.blocks.html.*
 
-object Tags:
-  object Maker extends MarkupPage.AutoMaker[Tags](Path("tags").html, Tags.apply)
-
-final class Tags(
-  site: Site,
-  path: Path,
-  frontMatter: FrontMatter,
-  source: Option[MarkupSource]
-) extends MarkupPage(
-  site,
-  path,
-  frontMatter,
-  source
-):
+final class Tags(site: Site) extends MarkupPage(site, Path("tags").html):
   override protected def titleDefault: String = "Tags"
   override protected def descriptionDefault: Option[String] = Some("Pages by tags")
   override protected def iconDefault: Icon = Icon.tags

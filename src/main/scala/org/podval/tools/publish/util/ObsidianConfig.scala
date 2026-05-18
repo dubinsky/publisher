@@ -1,4 +1,4 @@
-package org.podval.tools.publish.config
+package org.podval.tools.publish.util
 
 import org.podval.tools.publish.util.Files
 import zio.blocks.schema.json.{Json, JsonType}

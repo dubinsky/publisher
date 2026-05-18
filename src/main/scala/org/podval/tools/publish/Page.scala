@@ -1,7 +1,7 @@
 package org.podval.tools.publish
 
 import org.podval.tools.publish.util.{Files, Icon, Media}
-import org.podval.xml.{Html, Xml}
+import org.podval.xml.Html
 import zio.blocks.html.*
 import java.io.File
 
@@ -25,7 +25,8 @@ abstract class Page(
 
   final protected def targetFile: File = path.file(site.targetDirectory)
 
-  final def isDirectory: Boolean = Directory.is(path)
+  // TODO override in Directory
+  final def isDirectory: Boolean = this.isInstanceOf[Directory]
   
   final lazy val parent: Option[Directory] = Directory.parent(site, this)
   
@@ -44,9 +45,11 @@ abstract class Page(
     then fileName
     else fileName + path.extensionString
 
-  final def fileName: String = if !isDirectory then path.fileName else if path.path.length > 1
-  then path.path.init.last
-  else path.fileName // "index"
+  // TODO override in Directory
+  final def fileName: String = if !isDirectory then path.fileName else
+    if path.path.length > 1
+    then path.path.init.last
+    else path.fileName // "index"
 
   final def description: Option[String] = frontMatter.description.orElse(descriptionDefault)
   protected def descriptionDefault: Option[String] = None
@@ -96,42 +99,6 @@ object Page:
     pages.map(page => li(page.ref(cls = cls)))
   )
 
-  sealed abstract class Fragment(val id: String)
-
-  final class Block(id: String) extends Fragment(id)
-
-  final class Section(
-    id: String,
-    val title: String,
-    val sections: Seq[Section]
-  ) extends Fragment(id)
-
   trait WithContent extends Page:
     final override def write(): Unit = Files.write(targetFile, content)
     def content: String
-
-  trait WithXmlContent extends WithContent:
-    final override def content: String = Xml.writer.render(xmlContent)
-    def xmlContent: Xml.Element
-
-  trait WithHtmlContent extends WithContent:
-    final override def content: String = Html.writer.render(htmlContent)
-    def htmlContent: Html.Element
-
-  sealed abstract class Asset(site: Site, path: Path) extends Page(site: Site, path: Path):
-    final override def frontMatter: FrontMatter = FrontMatter.absent
-    final override def resolveBlock(id: String): Option[Link.ToBlock] = None
-    final override def resolveSection(names: Seq[String]): Option[Link.ToSection] = None
-    final override def resolveId(id: String): Option[Link.ToId] = None
-
-  final class AssetWithSource(site: Site, path: Path) extends Asset(site, path):
-    override def sourcePathOpt: Option[Path] = Some(path)
-    override def write(): Unit = Files.copy(fromFile = path.file(site.sourceDirectory), toFile = targetFile)
-
-  abstract class SyntheticAsset(site: Site, path: Path) extends Asset(site, path) with WithContent:
-    final override def sourcePathOpt: Option[Path] = None
-
-  abstract class SyntheticXmlAsset(site: Site, path: Path) extends SyntheticAsset(site, path) with WithXmlContent
-
-  final class EmbeddedAsset(site: Site, path: Path) extends SyntheticAsset(site, path):
-    override def content: String = Files.readResource(Site.resourcesBase + path.toString)

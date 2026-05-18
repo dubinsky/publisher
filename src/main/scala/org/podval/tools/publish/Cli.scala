@@ -1,4 +1,4 @@
-package org.podval.tools.publish.config
+package org.podval.tools.publish
 
 import org.podval.tools.publish.Site
 import org.slf4j.event.Level

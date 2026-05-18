@@ -4,17 +4,7 @@ import org.podval.tools.publish.util.Icon
 import org.podval.xml.Html
 import zio.blocks.html.*
 
-final class Directory(
-  site: Site,
-  path: Path,
-  frontMatter: FrontMatter,
-  source: Option[MarkupSource]
-) extends MarkupPage(
-  site,
-  path,
-  frontMatter,
-  source
-):
+final class Directory(site: Site, path: Path) extends MarkupPage(site, path):
   override protected def iconDefault: Icon = Icon.folder
 
   override def isSynthetic: Boolean = true
@@ -56,18 +46,16 @@ object Directory:
       if page.isDirectory && page.path.path.length > 1 then Some(page.path.path.init.init)
       else if !page.isDirectory && page.path.path.nonEmpty then Some(page.path.path.init)
       else None
+
     parentDirectory.map: parentDirectory =>
       val parentPath: Path = Path(parentDirectory.appended(Directory.fileName) *).html
-      site.getOrElse[Directory](parentPath):
-        val parent = Directory(
-          site,
-          parentPath,
-          frontMatter = FrontMatter.absent,
-          source = None
-        )
-        // Force insertion of the parent's parent for the newly-inserted parent
-        parent.parent
-        parent
-
-  object Maker extends MarkupPage.Maker[Directory](Directory.apply):
-    override def path(sourcePath: Path): Option[Path] = Option.when(Directory.is(sourcePath))(sourcePath)
+      site.find(parentPath)
+        .map {
+          case page: Directory => page
+          case _ => throw IllegalArgumentException(s"Not a Directory")
+        }
+        .getOrElse:
+          val parent: Directory = site.addPage(Directory(site, parentPath))
+          // Force insertion of the parent's parent for the newly-inserted parent
+          parent.parent
+          parent
