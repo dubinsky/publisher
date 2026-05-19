@@ -14,6 +14,7 @@ object Icon:
   val folder = Icon("folder", Regular)
   val note = Icon("note-sticky", Regular)
   val envelope = Icon("envelope", Regular)
+  val calendar = Icon("calendar", Regular)
   val tag = Icon("tag", Solid)
   val tags = Icon("tags", Solid)
   val list = Icon("list", Solid)

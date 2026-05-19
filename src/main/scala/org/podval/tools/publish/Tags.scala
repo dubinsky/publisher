@@ -4,7 +4,8 @@ import org.podval.tools.publish.util.Icon
 import org.podval.xml.{Html, Xml}
 import zio.blocks.html.*
 
-final class Tags(site: Site) extends MarkupPage(site, Path("tags").html):
+final class Tags(site: Site) extends MarkupPage.WithSyntheticContent(site, Path("tags").html):
+  override def isDirectory: Boolean = false
   override protected def titleDefault: String = "Tags"
   override protected def descriptionDefault: Option[String] = Some("Pages by tags")
   override protected def iconDefault: Icon = Icon.tags
@@ -22,8 +23,7 @@ final class Tags(site: Site) extends MarkupPage(site, Path("tags").html):
     tag
   )
 
-  override def isSynthetic: Boolean = true
-  override protected def syntheticContent: Option[Html.Element] = Some:
+  override protected def syntheticContent: Html.Element =
     div(className := "tags",
       h2("All tags"),
       p(tagsAll.map(tagRef)),

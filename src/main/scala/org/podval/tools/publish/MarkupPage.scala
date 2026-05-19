@@ -1,58 +1,49 @@
 package org.podval.tools.publish
 
-import org.podval.tools.publish.util.{Date, Icon}
+import org.podval.tools.publish.util.Icon
 import org.podval.xml.Html
-import java.time.LocalDate
 
-// TODO move all methods to Page?
-open class MarkupPage(
-  site: Site,
-  path: Path
-) extends Page(
-  site,
-  path
-) with Page.WithContent:
-  override protected def iconDefault: Icon = if isPost then Icon.envelope else Icon.note
+abstract class MarkupPage(site: Site, path: Path) extends Page(site, path) with Page.WithContent:
+  override protected def titleDefault: String = path.fileName
 
-  private lazy val postDate: Option[LocalDate] = Posts.date(path)
-  final def isPost: Boolean = postDate.isDefined
-  final def date: Option[Date] = postDate.map(Date.Local(_)).orElse(frontMatter.date)
-  final def dateModified: Option[Date] = frontMatter.modified_time
-
-  // TODO override in Directory
-  override protected def titleDefault: String =
-    if !isDirectory then super.titleDefault else postDate match
-      case Some(postDate) => postDate.toString // daily note
-      case None => fileName
-
-  private var source: Option[MarkupSource] = None
-  def withSource(source: MarkupSource): Unit = this.source = Some(source)
+  private var sourceVar: Option[MarkupSource] = None
+  final override protected def source: Option[MarkupSource] = sourceVar
   
-  final override def sourcePathOpt: Option[Path] =
-    source.map(_.sourcePath)
+  def withSource(
+    markup: Markup,
+    sourcePath: Path
+  ): Unit = this.sourceVar = Some(MarkupSource(
+    site = site,
+    markup = markup,
+    sourcePath = sourcePath
+  ))
 
-  final override def frontMatter: FrontMatter =
-    source.map(_.cached.frontMatter).getOrElse(FrontMatter.absent)
-    
-  final def backLinks: Seq[BackLinks.BackLink] =
-    source.map(_.cached.backLinks(this)).getOrElse(Seq.empty)
+  final override def sourcePath: Option[Path] = source.map(_.sourcePath)
 
-  final override def resolveBlock(id: String): Option[Link.ToBlock] =
-    source.flatMap(_.cached.resolveBlock(id))
-
-  final override def resolveSection(names: Seq[String]): Option[Link.ToSection] =
-    source.flatMap(_.cached.resolveSection(names))
-
-  final override def resolveId(id: String): Option[Link.ToId] =
-    source.flatMap(_.cached.resolveId(id))
+  final def backLinks: Seq[BackLinks.BackLink] = source.map(_.cached.backLinks(this)).getOrElse(Seq.empty)
 
   final override def content: String =
     val html: Html.Element = Minima.render(
       page = this,
       markupContent = source.map(_.cached.htmlContent(this)),
-      syntheticContent = syntheticContent
+      syntheticContent = syntheticContentOpt
     )
     Html.writer.render(html)
 
-  def isSynthetic: Boolean = false
-  protected def syntheticContent: Option[Html.Element] = None
+  def hasSyntheticContent: Boolean
+
+  protected def syntheticContentOpt: Option[Html.Element]
+
+object MarkupPage:
+  final class Simple(site: Site, path: Path) extends MarkupPage(site, path):
+    override protected def iconDefault: Icon = if isPost then Icon.envelope else Icon.note
+    override def isDirectory: Boolean = false
+    override def hasSyntheticContent: Boolean = false
+    override protected def syntheticContentOpt: Option[Html.Element] = None
+
+  abstract class WithSyntheticContent(site: Site, path: Path) extends MarkupPage(site, path):
+    final override def hasSyntheticContent: Boolean = true
+    final override protected def syntheticContentOpt: Option[Html.Element] = Some(syntheticContent)
+    protected def syntheticContent: Html.Element
+
+

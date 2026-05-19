@@ -4,12 +4,20 @@ import org.podval.tools.publish.util.Icon
 import org.podval.xml.Html
 import zio.blocks.html.*
 
-final class Directory(site: Site, path: Path) extends MarkupPage(site, path):
-  override protected def iconDefault: Icon = Icon.folder
+final class Directory(site: Site, path: Path) extends MarkupPage.WithSyntheticContent(site, path):
+  override def isDirectory: Boolean = true
 
-  override def isSynthetic: Boolean = true
-  override protected def syntheticContent: Option[Html.Element] = Some:
+  override protected def syntheticContent: Html.Element =
     div(className := "directory", Page.pageList(directories ++ pages))
+
+  override protected def iconDefault: Icon = if isPost then Icon.calendar else Icon.folder
+
+  override protected def titleDefault: String = postDate match
+    case Some(postDate) => postDate.toString // daily note
+    case None =>
+      if path.path.length > 1
+      then path.path.init.last
+      else path.fileName // "index"
 
   def prev(page: Page): Option[Page] = listFor(page).takeWhile(_ != page).reverse.headOption
   def next(page: Page): Option[Page] = listFor(page).dropWhile(_ != page).dropWhile(_ == page).headOption
@@ -34,9 +42,7 @@ final class Directory(site: Site, path: Path) extends MarkupPage(site, path):
 
 object Directory:
   val fileName: String = "index"
-
-  def is(path: Path): Boolean = path.fileName == Directory.fileName
-
+  
   // Implicitly force insertion of the missing `index` pages.
   def addParentDirectories(site: Site): Unit =
     site.pages.foreach(_.parent)

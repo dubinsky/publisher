@@ -9,7 +9,7 @@ import Fragment.Section
 // HTML itself, Markdown, and likely Re-Structured text and AsciiDoc;
 // pure XML markup formats like TEI and DocBook are different.
 abstract class HtmlLike extends Markup:
-  final override def recognizeWikiLinks: Boolean = true
+  final override protected def recognizeWikiLinks: Boolean = true
 
   final override def recognizeBlocks: Boolean = true
 
@@ -17,9 +17,9 @@ abstract class HtmlLike extends Markup:
 
   final override def convertLinks(element: Xml.Element): Xml.Element = element
 
-  final override def isSectionElement(element: Xml.Element): Boolean = headerLevel(element).isDefined
+  final override protected def isSectionElement(element: Xml.Element): Boolean = headerLevel(element).isDefined
 
-  final override def getSectionTitle(element: Xml.Element): Option[String] = Xml.toStringOpt(element)
+  final override protected def sectionTitle(element: Xml.Element): Option[String] = Xml.toStringOpt(element)
 
   private def headerLevel(element: Xml.Element): Option[Int] =
     val qName: String = Xml.qName(element)
@@ -29,7 +29,7 @@ abstract class HtmlLike extends Markup:
 
   // Note: only sections on the top level are detected;
   // sections of levels lower than the level of the first section are not allowed.
-  final override def getSections(element: Xml.Element, errorReporter: PageError.Reporter): Seq[Section] =
+  final override def sections(element: Xml.Element, errorReporter: PageError.Reporter): Seq[Section] =
     val sectionElements: Chunk[HtmlLike.Section] = Xml
       .children(element)
       .flatMap(node => Xml.asElement(node))

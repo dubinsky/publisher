@@ -40,12 +40,12 @@ object Minima:
               header(className := "post-header",
                 postPath(page),
                 h1(className := "post-title p-name", itemProp := "name headline", page.title),
-                Option.when(!page.isSynthetic)(articleMeta(page))
+                Option.when(!page.hasSyntheticContent)(articleMeta(page))
               ),
               div(className := "post-content e-content", itemProp := "articleBody", content),
               a(className := "u-url", href := page.path.toString, hidden := true)
             ),
-            backLinksList(page.isSynthetic, page.site.backLinks(page))
+            backLinksList(page.hasSyntheticContent, page.site.backLinks(page))
           ),
         ),
         footerHtml(page.site),

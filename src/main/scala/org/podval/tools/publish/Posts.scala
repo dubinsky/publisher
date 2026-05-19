@@ -6,15 +6,20 @@ import zio.blocks.html.*
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 
-final class Posts(site: Site) extends MarkupPage(site, Path("posts").html):
+final class Posts(
+  site: Site,
+  postsDirectoryName: String,
+  draftsDirectoryName: Option[String],
+  dailyNotesDirectoryName: Option[String]
+) extends MarkupPage.WithSyntheticContent(site, Path("posts").html):
+  override def isDirectory: Boolean = false
   override protected def titleDefault: String = "Posts"
   override protected def descriptionDefault: Option[String] = Some("All posts")
   override protected def iconDefault: Icon = Icon.envelope
   override protected def headerPagePriorityDefault: Int = 1
   override protected def langDefault: Option[String] = Some("en")
 
-  override def isSynthetic: Boolean = true
-  override protected def syntheticContent: Option[Html.Element] = Some:
+  override protected def syntheticContent: Html.Element =
     div(className := "home",
       //      h1(className := "page-heading", page.title)
       h2(className := "post-list-heading", "Posts"),
@@ -27,20 +32,7 @@ final class Posts(site: Site) extends MarkupPage(site, Path("posts").html):
       ))
     )
 
-object Posts:
-  def date(path: Path): Option[LocalDate] =
-    if path.path.length != 4 then None else
-      val dateString = s"${path.path(0)}-${path.path(1)}-${path.path(2)}"
-      try Some(LocalDate.parse(dateString))
-      catch case e: DateTimeParseException => None
-    
-  def path(
-    site: Site,
-    postsDirectoryName: String,
-    draftsDirectoryName: Option[String],
-    dailyNotesDirectoryName: Option[String],
-    sourcePath: Path
-  ): Option[Path] =
+  def path(sourcePath: Path): Option[Path] =
     def inDirectory(name: String): Boolean = sourcePath.path.head == name
 
     val isPost: Boolean = inDirectory(postsDirectoryName) || draftsDirectoryName.exists(inDirectory)
@@ -75,3 +67,10 @@ object Posts:
           f"${date.getDayOfMonth}%02d",
           title
         )
+
+object Posts:
+  def date(path: Path): Option[LocalDate] =
+    if path.path.length != 4 then None else
+      val dateString = s"${path.path(0)}-${path.path(1)}-${path.path(2)}"
+      try Some(LocalDate.parse(dateString))
+      catch case e: DateTimeParseException => None

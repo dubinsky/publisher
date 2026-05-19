@@ -46,7 +46,12 @@ final class Site(
   // Add automatic pages
   val errors: Errors = addPage(Errors(this))
   val tags: Tags = addPage(Tags(this))
-  addPage(Posts(this))
+  val posts: Posts = addPage(Posts(
+    this,
+    postsDirectoryName = config.postsDirectoryName,
+    draftsDirectoryName = config.draftsDirectoryName,
+    dailyNotesDirectoryName = config.dailyNotesDirectoryName
+  ))
 
   // TODO make a lazy val
   def markupPages: List[MarkupPage] = pages.collect { case page: MarkupPage => page }
@@ -64,10 +69,12 @@ final class Site(
     Files.deleteDirectory(targetDirectory)
 
     // Write embedded resources
-    writePages(Asset.embeddedAssets(this))
+    Asset.embeddedAssets(this).foreach(_.write())
 
     // Write synthetic assets
-    writePages(Asset.syntheticAssets(this))
+    Sitemap(this).write()
+    Robots(this).write()
+    Feed(this).write()
 
     // Scan the directories and add all source pages
     scanDirectory(Seq.empty, sourceDirectory)
@@ -90,14 +97,10 @@ final class Site(
     // TODO sort pages topologically based on transclusions
 
     // Write pages
-    writePages(pages)
+    pages.foreach(_.write())
 
     // Done
     log.info("Done!")
-
-  private def writePages(pages: List[Page]): Unit = pages.foreach: page =>
-    page.write()
-    log.debug(s"Wrote: $page")
 
   private def scanDirectory(directoryPath: Seq[String], directory: File): Unit =
     Files.requireExists(directory)
@@ -118,27 +121,19 @@ final class Site(
     val (name: String, extension: Option[String]) = Files.nameAndExtension(file.getName)
     val sourcePath: Path = Path(directoryPath :+ name, extension)
     extension.flatMap(extension => Markup.all.find(_.isExtension(extension))) match
-      case None => addPage(Asset.AssetWithSource(site = this, path = sourcePath))
+      case None =>
+        addPage(Asset.AssetWithSource(this, sourcePath))
+
       case Some(markup) =>
         val page: MarkupPage = find(sourcePath.html).getOrElse:
-          val path: Path = Posts
-            .path(
-              site = this,
-              postsDirectoryName = config.postsDirectoryName,
-              draftsDirectoryName = config.draftsDirectoryName,
-              dailyNotesDirectoryName = config.dailyNotesDirectoryName,
-              sourcePath = sourcePath
-            )
-            .getOrElse(sourcePath)
-            .html
-
+          val path: Path = posts.path(sourcePath).getOrElse(sourcePath).html
           addPage(
-            if Directory.is(path)
+            if path.fileName == Directory.fileName
             then Directory(this, path)
-            else MarkupPage(this, path)
+            else MarkupPage.Simple(this, path)
           )
 
-        page.withSource(MarkupSource(this, markup, sourcePath))
+        page.withSource(markup, sourcePath)
 
 object Site:
   def main(args: Array[String]): Unit = Cli.main(Array(
@@ -146,4 +141,3 @@ object Site:
 //    "--treat-errors-as-warnings=true",
     "/home/dub/Podval/dub.podval.org"
   ))
-

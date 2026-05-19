@@ -1,9 +1,10 @@
 package org.podval.tools.publish
 
-import org.podval.tools.publish.util.{Files, Icon, Media}
+import org.podval.tools.publish.util.{Date, Files, Icon}
 import org.podval.xml.Html
 import zio.blocks.html.*
 import java.io.File
+import java.time.LocalDate
 
 abstract class Page(
   val site: Site,
@@ -17,45 +18,54 @@ abstract class Page(
   final override def hashCode(): Int = path.hashCode()
 
   final override def toString: String =
-    val source: String = sourcePathOpt match
+    val source: String = sourcePath match
       case Some(sourcePath) if sourcePath.path != path.path  => s" ($sourcePath)"
       case _ => ""
 
     s"${getClass.getSimpleName} $path$source"
 
+  def write(): Unit
+
   final protected def targetFile: File = path.file(site.targetDirectory)
 
-  // TODO override in Directory
-  final def isDirectory: Boolean = this.isInstanceOf[Directory]
-  
   final lazy val parent: Option[Directory] = Directory.parent(site, this)
   
-  def sourcePathOpt: Option[Path]
+  def isDirectory: Boolean
 
-  def frontMatter: FrontMatter
+  protected def source: Option[MarkupSource]
+
+  def sourcePath: Option[Path]
+
+  final def resolveBlock(id: String): Option[Link.ToBlock] =
+    source.flatMap(_.cached.blocks.find(_.id == id).map(Link.ToBlock(_)))
+
+  final def resolveSection(names: Seq[String]): Option[Link.ToSection] =
+    source.flatMap(_.cached.toc.resolve(names).map(Link.ToSection(_)))
+
+  final def resolveId(id: String): Option[Link.ToId] =
+    source.flatMap(_.cached.ids.find(_ == id).map(Link.ToId(_)))
+
+  private def frontMatter: FrontMatter =
+    source.map(_.cached.frontMatter).getOrElse(FrontMatter.absent)
 
   final def aliases: List[String] = frontMatter.aliases
   final def tags: List[String] = frontMatter.tags
   final def author: String = frontMatter.author.getOrElse(site.author)
   final def math: Boolean = frontMatter.math
 
-  final def title: String = frontMatter.title.getOrElse(titleDefault)
-  protected def titleDefault: String =
-    if path.extension.contains(HtmlLike.Html.extension)
-    then fileName
-    else fileName + path.extensionString
+  final protected lazy val postDate: Option[LocalDate] = Posts.date(path)
+  final def isPost: Boolean = postDate.isDefined
+  final def date: Option[Date] = postDate.map(Date.Local(_)).orElse(frontMatter.date)
+  final def dateModified: Option[Date] = frontMatter.modified_time
 
-  // TODO override in Directory
-  final def fileName: String = if !isDirectory then path.fileName else
-    if path.path.length > 1
-    then path.path.init.last
-    else path.fileName // "index"
+  final def title: String = frontMatter.title.getOrElse(titleDefault)
+  protected def titleDefault: String
 
   final def description: Option[String] = frontMatter.description.orElse(descriptionDefault)
   protected def descriptionDefault: Option[String] = None
 
   final def icon: Icon = frontMatter.icon.getOrElse(iconDefault)
-  protected def iconDefault: Icon = Media.icon(path.extension).getOrElse(Icon.file)
+  protected def iconDefault: Icon
   
   final def lang: String = frontMatter.lang.orElse(langDefault).getOrElse(site.lang)
   protected def langDefault: Option[String] = None
@@ -69,14 +79,6 @@ abstract class Page(
     ))
 
   protected def headerPagePriorityDefault: Int = 0
-
-  def write(): Unit
-
-  def resolveBlock(id: String): Option[Link.ToBlock]
-
-  def resolveSection(names: Seq[String]): Option[Link.ToSection]
-  
-  def resolveId(id: String): Option[Link.ToId]
 
   final def ref(
     cls: Option[String] = None,
@@ -94,11 +96,11 @@ abstract class Page(
     )
 
 object Page:
+  trait WithContent extends Page:
+    final override def write(): Unit = Files.write(targetFile, content)
+    def content: String
+
   def pageList(pages: Seq[Page], cls: Option[String] = None): Html.Element = ul(
     className := "page-list",
     pages.map(page => li(page.ref(cls = cls)))
   )
-
-  trait WithContent extends Page:
-    final override def write(): Unit = Files.write(targetFile, content)
-    def content: String

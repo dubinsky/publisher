@@ -12,9 +12,11 @@ abstract class XmlAst:
     Option.when(children(element).nonEmpty)(toString(element))
 
   final def toString(xml: Xml): String = asAtom(xml)
-    .orElse(asElement(xml).map(element => children(element).map(toString).mkString(" ")))
+    .orElse(asElement(xml).map(children).map(toString))
     .getOrElse("")
 
+  final def toString(xml: Chunk[Xml]): String = xml.map(toString).mkString(" ")
+  
   def asElement(xml: Xml): Option[Element]
   def qName(element: Element): String
   def element(name: String): Element

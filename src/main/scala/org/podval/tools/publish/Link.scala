@@ -63,14 +63,14 @@ object Link:
 
   private def is(page: Page, path: Path, isAbsolute: Boolean): Option[(Page, Option[String])] =
     isPath(page, path, isAbsolute).orElse(
-      Option.when(page.sourcePathOpt.exists(isSourcePath(_, path, isAbsolute)))((page, None))
+      Option.when(page.sourcePath.exists(isSourcePath(_, path, isAbsolute)))((page, None))
     )
 
   private def isPath(page: Page, path: Path, isAbsolute: Boolean): Option[(Page, Option[String])] =
     def loop(current: Page, names: Seq[String]): Option[(Page, Option[String])] =
       val name: String = names.head
       val to: Option[(Page, Option[String])] =
-        if current.fileName == name then Some(page, None)
+        if current.path.fileName == name then Some(page, None)
         else if current.title == name then Some(page, None)
         else if current.aliases.contains(name) then Some(page, Some(name))
         else None

@@ -1,9 +1,8 @@
 package org.podval.tools.publish
 
 import org.podval.tools.publish.util.{Files, IdGenerator, Media, Strings}
-import org.podval.xml.{Html, Xml, XmlAst}
+import org.podval.xml.{Xml, XmlAst}
 import zio.blocks.chunk.Chunk
-import zio.blocks.html.*
 import java.net.{URI, URISyntaxException}
 import scala.annotation.tailrec
 
@@ -18,18 +17,8 @@ object Markup:
 
   private object InternalLinkClass extends Xml.ClassName("internal-link")
   private object WikiLinkClass extends Xml.ClassName("wiki-link")
-  private object WikiLinkClassHtml extends Html.ClassName(WikiLinkClass.name)
   private object TranscludeClass extends Xml.ClassName("transclude")
-  private object TranscludeClassHtml extends Html.ClassName(TranscludeClass.name)
   private object WikiBlockClass extends Xml.ClassName("wiki-block")
-
-  private def isKramdownTocMarker(element: Html.Element): Boolean =
-    Html.qName(element) == "ul" && Html.children(element).exists: node =>
-      Html.asElement(node).fold(false): child =>
-        Html.qName(child) == "li" &&
-        Html.children(child).length == 1 &&
-        Html.asText(Html.children(child).head).fold(false): text =>
-          text.endsWith("{:toc}")
 
 abstract class Markup derives CanEqual:
   def extension: String
@@ -44,18 +33,18 @@ abstract class Markup derives CanEqual:
 
   def parse(sourcePath: Path, content: String): Either[PageError, Xml.Element]
 
-  def recognizeWikiLinks: Boolean
+  protected def recognizeWikiLinks: Boolean
 
   def recognizeBlocks: Boolean
 
   // TODO XmlWriter should stop at the same elements!
   def stop(xml: XmlAst)(element: xml.Element): Boolean
 
-  def isSectionElement(element: Xml.Element): Boolean
+  protected def isSectionElement(element: Xml.Element): Boolean
 
-  def getSectionTitle(element: Xml.Element): Option[String]
+  protected def sectionTitle(element: Xml.Element): Option[String]
 
-  def getSections(element: Xml.Element, errorReporter: PageError.Reporter): Seq[Fragment.Section]
+  def sections(element: Xml.Element, errorReporter: PageError.Reporter): Seq[Fragment.Section]
 
   // This is where TEI link elements like `persName` get converted into HTML `a` elements
   def convertLinks(element: Xml.Element): Xml.Element
@@ -64,7 +53,7 @@ abstract class Markup derives CanEqual:
   // but I do it manually and uniformly for HTML, TEI etc.
   final def setSectionId(element: Xml.Element, errorReporter: PageError.Reporter): Xml.Element =
     if !isSectionElement(element) || Xml.Id.get(element).isDefined then element else
-      getSectionTitle(element) match
+      sectionTitle(element) match
         case None => errorReporter.error(PageError.NoId, s"No id nor title on $element", element)
         case Some(title) => Xml.Id.set(element, Xml.Id.toId(title))
 
@@ -86,7 +75,7 @@ abstract class Markup derives CanEqual:
                 errorReporter.error(PageError.NoId, s"Block id '$id' conflicts with existing id '$idExisting'", result)
               case None => Markup.WikiBlockClass.add(Xml.Id.set(result, id))
 
-  final def getBlocks(element: Xml.Element, errorReporter: PageError.Reporter): Seq[Fragment.Block] =
+  final def blocks(element: Xml.Element, errorReporter: PageError.Reporter): Seq[Fragment.Block] =
     Xml.gather(element, stop(Xml), element =>
       if !Markup.WikiBlockClass.has(element) then None else Xml.Id.get(element) match
         case None => errorReporter.error(PageError.NoId, s"Defect: No id on block $element", None)
@@ -161,23 +150,26 @@ abstract class Markup derives CanEqual:
 
   // see https://obsidian.md/help/embeds
   // TODO FlexMark inlines image links for the ![]() references - but does not process image sizes...
-  final def embed(element: Html.Element): Html.Element = if !Html.A.is(element) then element else
-    Html.Href.get(element).fold(element): ref =>
-      if !Markup.TranscludeClassHtml.has(element) then element else
-        val embedded: Option[Html.Element] = Files.nameAndExtension(ref)._2.fold(None): extension =>
+  final def embed(element: Xml.Element): Xml.Element = if !Xml.A.is(element) then element else
+    Xml.Href.get(element).fold(element): ref =>
+      if !Markup.TranscludeClass.has(element) then element else
+        val embedded: Option[Xml.Element] = Files.nameAndExtension(ref)._2.fold(None): extension =>
           if Media.isImage(extension) then
-            val (widthOpt: Option[Int], heightOpt: Option[Int]) =
+            val (width: Option[Int], height: Option[Int]) =
               // TODO Embed image, potentially with sizes WIDTHxHEIGHT or just WIDTH or nothing in the text
               (None, None)
 
-            Some(img(
-              src := ref,
-              alt := s"Image: $ref",
-              widthOpt.map(value => width := value),
-              heightOpt.map(value => height := value)
-            ))
+            var result: Xml.Element = Xml.element("img")
+            result = Xml.setAttribute(result, "src", ref)
+            result = Xml.setAttribute(result, "alt", s"Image: $ref")
+            result = width.fold(result)(width => Xml.setAttribute(result, "width", width.toString))
+            result = height.fold(result)(height => Xml.setAttribute(result, "height", height.toString))
+            Some(result)
           else if Media.isAudio(extension) then
-            Some(audio(controls := true, src := ref))
+            var result: Xml.Element = Xml.element("audio")
+            result = Xml.setAttribute(result, "src", ref)
+            result = Xml.setAttribute(result, "controls", true.toString)
+            Some(result)
           else if extension == "pdf" then
             // TODO Embed PDF viewer, with potentially page=PAGE&height=HEIGHT or one or none in the text
             None
@@ -185,7 +177,7 @@ abstract class Markup derives CanEqual:
             None
 
         embedded.getOrElse:
-          // TODO can not transclude external links
+          // TODO! can not transclude external links
           element
 
   // Note: Obsidian expands the context to the source level, which is good for searching - but doesn't look great
@@ -199,7 +191,11 @@ abstract class Markup derives CanEqual:
         to <- Link.resolve(ref, from)
       yield
         val toFrom: Link = Link(from, fragment = from.resolveId(Xml.Id.get(element).get), intrapage = false)
-        val (before: Chunk[Xml.Xml], tail) = Xml.children(parents.head).span(Xml.asElement(_).fold(true)(_ ne element))
+        val parent: Xml.Element = Xml.transform(parents.head, stop(Xml), restoreWikiLinks)
+        val (before: Chunk[Xml.Xml], tail) = Xml.children(parent).span(
+          Xml.asElement(_).fold(true)(element => !Xml.Href.get(element).contains(ref))
+        )
+        val it: Xml.Element = Xml.asElement(tail.head).get
         val after: Chunk[Xml.Xml] = tail.tail
 
         BackLinks.BackLink(
@@ -209,18 +205,12 @@ abstract class Markup derives CanEqual:
           kind = Markup.LinkKindClassPrefix.get(element).headOption,
           context = BackLinks.Context(
             url = toFrom.url,
-            before = childrenText(before, isBefore = true),
-            element = elementText(element),
-            after = childrenText(after, isBefore = false)
+            before = shortenContext(isBefore  = true, Xml.toString(before)),
+            element = Xml.toString(it),
+            after = shortenContext(isBefore  = false, Xml.toString(after))
           )
         )
-
-  private def elementText(element: Xml.Element): String =
-    Html.toString(Html.transform(Html.fromXml(element), stop(Html), restoreWikiLinks))
-
-  private def childrenText(children: Chunk[Xml.Xml], isBefore: Boolean): String =
-    shortenContext(isBefore, elementText(Xml.setChildren(Xml.element("dummy"), children)))
-
+  
   private val contextLengthHalf: Int = 60
 
   private def shortenContext(isBefore: Boolean, string: String): String =
@@ -249,23 +239,8 @@ abstract class Markup derives CanEqual:
 
   // Unresolved wiki links do not have any text; restore the ref as their text;
   // also, surround the text with explicit [[...]] instead of adding them in CSS.
-  final def restoreWikiLinks(element: Html.Element): Html.Element =
+  final def restoreWikiLinks(element: Xml.Element): Xml.Element =
     // TODO if internal non-wiki links can be empty, use InternalLinkClass instead?
-    if !Html.A.is(element) || !Markup.WikiLinkClassHtml.has(element) then element else
-      val text = Html.toStringOpt(element).orElse(Html.Href.get(element)).getOrElse("EMPTY LINK")
-      Html.setText(element, s"[[$text]]")
-
-  final def addToc(element: Html.Element, sections: Seq[Fragment.Section]): Html.Element =
-    if !Markup.isKramdownTocMarker(element) then element else
-      div(className := "toc",
-        h3("Table of Contents"),
-        tocSections(sections)
-      )
-
-  private def tocSections(sections: Seq[Fragment.Section]): Html.Element =
-    ul(sections.map(section =>
-      li(
-        a(href := s"#${section.id}", section.title),
-        Option.when(section.sections.nonEmpty)(tocSections(section.sections))
-      )
-    ))
+    if !Xml.A.is(element) || !Markup.WikiLinkClass.has(element) then element else
+      val text = Xml.toStringOpt(element).orElse(Xml.Href.get(element)).getOrElse("EMPTY LINK")
+      Xml.setText(element, s"[[$text]]")
