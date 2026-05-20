@@ -51,6 +51,8 @@ object Xml extends XmlAst:
 //    catch case e: XmlCodecError => Left(e)
 
 
+  val dummyElementName: String = "idioticDummyElementToForceZioBlocksXmlToNotDiscardAttributes"
+
   def main(args: Array[String]): Unit =
     val string =
       """<div>

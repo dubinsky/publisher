@@ -1,6 +1,6 @@
 package org.podval.tools.publish
 
-import org.podval.tools.publish.util.{Date, Icon}
+import org.podval.tools.publish.util.{Date, Icon, SchemaUtil}
 import zio.blocks.chunk.Chunk
 import zio.blocks.schema.{Schema, SchemaError}
 import zio.blocks.schema.yaml.{Yaml, YamlCodec, YamlFormat, YamlReader, YamlWriter}
@@ -48,13 +48,7 @@ object FrontMatter:
 
   private val schema: Schema[FrontMatter] = Schema.derived
 
-  private val fieldNames: Set[String] = schema
-    .reflect
-    .asRecord
-    .get
-    .fields
-    .map(_.name)
-    .toSet
+  private val fieldNames: Set[String] = SchemaUtil.fieldNames(schema)
 
   private val codec: YamlCodec[FrontMatter] = schema
     .deriving(YamlFormat.deriver)

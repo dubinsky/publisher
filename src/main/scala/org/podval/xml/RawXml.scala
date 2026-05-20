@@ -27,10 +27,12 @@ import zio.blocks.schema.xml.{Xml, XmlCodec}
 //    The following import might make progress towards fixing the problem:
 //      import zio.blocks.schema.OpticsFor.derive
 //      given schema: Schema[Tei] = Schema.derived
-class RawXml:
-  private var _element: Option[Xml.Element] = None
-  def set(element: Xml.Element): Unit = _element = Some(element)
-  def get: Xml.Element = _element.get
+final class RawXml:
+  private var elementVar: Option[Xml.Element] = None
+  def set(element: Xml.Element): Unit = elementVar = Some(element)
+  def get: Xml.Element = elementVar.get
+
+  override def toString: String = s"RawXml(${get.name.qualifiedName})"
 
 object RawXml:
   def apply(element: Xml.Element): RawXml =
@@ -39,7 +41,7 @@ object RawXml:
     result
 
   def codec: XmlCodec[RawXml] = new XmlCodec[RawXml]:
-    def encodeValue(rawXml: RawXml): Xml = rawXml.get
+    def encodeValue(rawXml: RawXml): Xml.Element = rawXml.get
 
     def decodeValue(xml: Xml): RawXml = xml match
       case element: Xml.Element => RawXml(element)
