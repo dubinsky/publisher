@@ -86,10 +86,13 @@ abstract class Page(
     withIcon: Boolean = true,
     icon: Option[Icon] = None
   ): Html.Element =
+    val clss = (Seq("page-ref") ++ cls.toSeq).mkString(" ")
     val pageLink: Link = Link(this, fragment = None, intrapage = false)
     a(
-      className := "page-ref",
-      cls.map(cls => className += cls),
+      className := clss,
+      // TODO this results in duplicate class attribute!!!
+//      className := "page-ref",
+//      cls.map(cls => className += cls),
       href := pageLink.url,
       Option.when(withIcon)(icon.getOrElse(this.icon).htmlSpan),
       Option.when(withTitle)(pageLink.title)

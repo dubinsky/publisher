@@ -50,23 +50,16 @@ object Xml extends XmlAst:
 //    try Right(XmlReader.read(content))
 //    catch case e: XmlCodecError => Left(e)
 
-
   val dummyElementName: String = "idioticDummyElementToForceZioBlocksXmlToNotDiscardAttributes"
 
   def main(args: Array[String]): Unit =
     val string =
-      """<div>
-        |"<a href="http://www.amazon.com/Real-World-Haskell-Bryan-OSullivan/dp/0596514980/">Real World Haskell</a>"
-        |Bryan O'Sullivan, John Goerzen, Don Stewart
-        |</div>
+      """<p>"<a>Clinged</a>"</p>
         |""".stripMargin
-//      """<div>
-//        |  sxdfsf
-//        |  &nbsp;
-//        |</div>
-//        |""".stripMargin
 
     //    println(Markdown.parseAndRender(string))
     //    println(XmlParser.parse(Markdown.parseAndRender(string)).toOption.get)
-    println(XmlParser.parse(string).toOption.get)
-//    println(XmlWriter.xmlWriter.render(XmlParser.parse(string).toOption.get))
+//    println(XmlParser.parse(string).toOption.get)
+    XmlParser.parse(string) match
+      case Left(error) => println(error)
+      case Right(xml) => println(writer.render(xml))

@@ -127,33 +127,31 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
     nodes: List[xml.Xml],
     flush: Boolean
   ): Seq[Seq[xml.Xml]] =
-    if flush then chunkify(result :+ current.reverse, Nil, nodes, flush = false) else (current, nodes) match
-      case (Nil    , Nil    )                                     => result
-      case (_      , Nil    )                                     => chunkify(result, current     , Nil     , flush = true )
-      case (Nil    , n :: ns) if  isWhitespace(n)                 => chunkify(result, Nil         , ns      , flush = false)
-      case (_      , n :: ns) if  isWhitespace(n)                 => chunkify(result, current     , ns      , flush = true )
-      case (Nil    , n :: ns) if !isWhitespace(n)                 => chunkify(result, n :: Nil    , ns      , flush = false)
-      case (c :: cs, n :: ns) if !isWhitespace(n) &&  cling(c, n) => chunkify(result, n :: c :: cs, ns      , flush = false)
-      case (c :: _ , n :: ns) if !isWhitespace(n) && !cling(c, n) => chunkify(result, current     , n :: ns , flush = true )
-  
-  private def cling(c: xml.Xml, n: xml.Xml): Boolean =
-    (xml.asAtom(c).isDefined && xml.asAtom(n).isDefined) || // Note: after atomize(), this should not be possible - right?
-    (xml.asAtom(c).isDefined && xml.asElement(n).isDefined && clingLeft(xml.asAtom(c).get.last)) || // TODO exclude ;( and friends
-    (xml.asElement(c).isDefined && xml.asAtom(n).isDefined && clingRight(xml.asAtom(n).get.head)) ||  // TODO exclude ;( and friends
-    (xml.asElement(n).isDefined && config.cling(xml.qName(xml.asElement(n).get)))
-  
-  private def clingLeft(char: Char): Boolean =
-    val typeCode: Byte = Character.getType(char).toByte
-    typeCode == Character.CONNECTOR_PUNCTUATION ||
-    typeCode == Character.START_PUNCTUATION ||
-    typeCode == Character.INITIAL_QUOTE_PUNCTUATION
-
-  private def clingRight(char: Char): Boolean =
-    val typeCode: Byte = Character.getType(char).toByte
-    typeCode == Character.CONNECTOR_PUNCTUATION ||
-    typeCode == Character.END_PUNCTUATION ||
-    typeCode == Character.FINAL_QUOTE_PUNCTUATION ||
-    typeCode == Character.OTHER_PUNCTUATION
+    if flush then chunkify(result :+ current.reverse, Nil, nodes, flush = false) else
+      if nodes.isEmpty then
+        if current.isEmpty
+        then result
+        else chunkify(result, current, nodes, flush = true)
+      else
+        val node = nodes.head
+        val tail = nodes.tail
+        if isWhitespace(node)
+        then chunkify(result, current, tail, flush = current.nonEmpty)
+        else
+          if current.isEmpty
+          then chunkify(result, node :: current, tail, flush = false)
+          else
+            val c = current.head
+            if isWhitespace(c)
+            then chunkify(result, current, nodes, flush = true)
+            else
+              val cling: Boolean =
+                xml.asElement(c).isEmpty ||
+                xml.asElement(c).nonEmpty && xml.asElement(node).isEmpty && !isWhitespace(node) ||
+                xml.asElement(node).isDefined && config.cling(xml.qName(xml.asElement(node).get))
+              if cling
+              then chunkify(result, node :: current, tail, flush = false)
+              else chunkify(result, current, nodes, flush = true)
 
   private def fromChunk(
     nodes: Seq[xml.Xml],
@@ -164,7 +162,7 @@ final class XmlWriter[X <: XmlAst](val xml: X)(
     require(nodes.nonEmpty)
     if nodes.length == 1 then
       fromNode(nodes.head, parent, canBreakLeft, canBreakRight)
-    else Doc.intercalate(Doc.empty,
+    else Doc.cat(
       fromNode(nodes.head, parent, canBreakLeft, canBreakRight = false) +:
       nodes.tail.init.map(node => fromNode(node, parent, canBreakLeft = false, canBreakRight = false)) :+
       fromNode(nodes.last, parent, canBreakLeft = false, canBreakRight)
@@ -247,6 +245,6 @@ object XmlWriter:
     override def stack(name: String): Boolean = Set("nav", "header", "main", "div").contains(name)
     override def unStack(name: String): Boolean = false
     override def nest(name: String): Boolean = false
-    override def cling(name: String): Boolean = false // TODO name.localName == "a"?
+    override def cling(name: String): Boolean = false //Set("span").contains(name)
     override def break(name: String): Boolean = false // TODO TEI: lb; HTML: br?!
     override def preformat(name: String): Boolean = name == "pre"
